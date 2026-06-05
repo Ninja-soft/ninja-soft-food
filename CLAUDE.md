@@ -50,8 +50,9 @@ Ingrediente → ingreso de stock con **lote** (proveedor + RNE + vencimiento; co
 ## Estado del roadmap
 
 - [x] Planificación completa (`PLAN-MAESTRO.md` + `docs/`)
-- [ ] **Fase 0 — Fundaciones** ← SIGUIENTE: migración core ya escrita (`supabase/migrations/0001_core.sql`); falta crear proyecto Supabase, completar `.env`, portar componentes `ui/` del POS, auth completo, landing.
-- [ ] Fase 1 — Núcleo trazabilidad (ingredientes, stock/lotes, recetas, producción, QR, planillas PDF/Excel)
+- [x] **Fase 0 — Fundaciones**: repo GitHub (`Ninja-soft/ninja-soft-food`), Supabase cloud (`skitcpzszonyybeqymzd`, São Paulo) con migraciones 0001-0002 aplicadas, componentes `ui/` portados del POS, auth completo (signup → Edge Function `create_tenant` → trial + claim `tenant_id`, smoke test `scripts/smoke-auth.mjs` verde), AppShell, deploy Vercel producción: https://ninja-soft-food.vercel.app
+  - Pendientes menores de fase 0: instalar la GitHub App de Vercel en la org Ninja-soft (auto-deploy por push; hoy se deploya con `vercel deploy --prod`), landing comercial real, tests RLS de integración formales, desactivar `mailer_autoconfirm` cuando haya SMTP propio.
+- [ ] Fase 1 — Núcleo trazabilidad (ingredientes, stock/lotes, recetas, producción, QR, planillas PDF/Excel) ← SIGUIENTE
 - [ ] Fase 2 — MVP completo (despacho, calidad, dashboard, billing MP, panel interno, migración La Jamonera)
 - [ ] Fase 3 — v1 diferenciación (builder de planillas, recall, costos, API pública, `@ninja-soft/ui`)
 - [ ] Fase 4 — v2 escala (multi-planta, MercadoLibre/PedidosYa/Rappi, SSO POS↔Food, Stripe/PayPal)
