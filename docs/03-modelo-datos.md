@@ -134,16 +134,32 @@ analyses              tenant_id, type(agua|alimentos|productos|superficies|ambie
 analysis_attachments  analysis_id, url, name, mime, size
 ```
 
-### Planillas configurables (v1, diseño anticipado en MVP)
+### Planillas configurables (migración 0009)
 
 ```
 form_templates        tenant_id, name, kind(temperatura|limpieza|plagas|recepcion_mp|capacitacion|
-                      pcc|custom), fields jsonb (builder), frequency jsonb (cron-like),
-                      requires_signature bool, action_on_fail jsonb
+                      pcc|custom), fields jsonb (builder: [{key,label,type,required,min,max,
+                      options[],unit}]), frequency jsonb (cron-like {type:daily|weekly|monthly|none,
+                      time?, days?}), requires_signature bool, action_on_fail jsonb, is_active bool
+                      — editable, soft delete (deleted_at) + triggers como el resto.
 form_submissions      tenant_id, template_id, submitted_by_member_id (firma con PIN), values jsonb,
                       status(ok|fail|corrected), corrective_action text, evidence_urls text[],
-                      submitted_at  — INMUTABLE post-firma (auditoría)
+                      corrects_submission_id (correcciones = fila nueva vinculada), submitted_at,
+                      created_at — INMUTABLE post-firma (auditoría). SIN updated_at, SIN deleted_at.
 ```
+
+Inmutabilidad de `form_submissions` (defensa en profundidad, regla §4):
+- RLS: solo políticas INSERT + SELECT (por tenant) e `internal_read`; sin UPDATE/DELETE para
+  `authenticated` (mismo patrón que `stock_movements` / `public_traces`).
+- Trigger `BEFORE UPDATE OR DELETE` que hace `raise exception 'immutable_submission'` — frena
+  también a `service_role` (que bypassa RLS). El DELETE solo se permite en el cascade de baja del
+  tenant (cuando el tenant dueño ya no existe).
+
+RPC `submit_form(p_template_id, p_values, p_member_id?, p_pin?, p_status='ok',
+p_corrective_action?, p_corrects?)` — `security invoker` (como 0004/0005/0008): valida tenant del
+JWT, template activo del tenant, y si `requires_signature` exige `member`+`PIN` validados con
+`crypt(pin, members.pin_hash)` (bcrypt, pgcrypto). Devuelve `{submission_id, signed}`.
+Pendiente anotado: rate-limit de intentos de PIN. Templates default por rubro: app-side (regla 10).
 
 ### API pública (v1)
 

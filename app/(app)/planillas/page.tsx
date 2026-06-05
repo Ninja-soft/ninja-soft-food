@@ -1,15 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarRange, FileStack, FileText } from "lucide-react";
+import {
+  CalendarRange,
+  ClipboardList,
+  FileStack,
+  FileText,
+} from "lucide-react";
 import { Eyebrow, Heading } from "@/components/ui/Typography";
 import { BulkTab } from "@/components/planillas/BulkTab";
 import { IndividualTab } from "@/components/planillas/IndividualTab";
 import { WeeklyTab } from "@/components/planillas/WeeklyTab";
+import { ConfigurableFormsTab } from "@/components/forms/ConfigurableFormsTab";
 import { cn } from "@/lib/utils/cn";
 import { useTenantBranding } from "@/modules/planillas/hooks";
 
-type Tab = "individual" | "masiva" | "semanal";
+type Tab = "individual" | "masiva" | "semanal" | "configurables";
 
 const TABS: {
   value: Tab;
@@ -35,6 +41,12 @@ const TABS: {
     description: "Resumen por rango de fechas, en PDF y Excel.",
     icon: CalendarRange,
   },
+  {
+    value: "configurables",
+    label: "Configurables",
+    description: "Planillas BPM/POES a medida, firmadas con PIN del operario.",
+    icon: ClipboardList,
+  },
 ];
 
 // Planillas: generación de PDF (individual/masiva/semanal) y export Excel.
@@ -57,7 +69,7 @@ export default function PlanillasPage() {
       </div>
 
       {/* Selector de tipo (cards) */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {TABS.map((t) => {
           const active = t.value === tab;
           const Icon = t.icon;
@@ -69,8 +81,8 @@ export default function PlanillasPage() {
               className={cn(
                 "group flex flex-col gap-2 rounded-ninjaLg border p-4 text-left transition",
                 active
-                  ? "border-primary bg-primary/10 shadow-foodGlow ring-1 ring-primary/30"
-                  : "border-border bg-card hover:border-primary/40",
+                  ? "bg-primary/10 ring-primary/30 border-primary shadow-foodGlow ring-1"
+                  : "hover:border-primary/40 border-border bg-card"
               )}
             >
               <span
@@ -78,7 +90,7 @@ export default function PlanillasPage() {
                   "grid h-10 w-10 place-items-center rounded-ninjaMd transition",
                   active
                     ? "bg-primary/20 text-primary"
-                    : "bg-muted/60 text-muted-foreground group-hover:text-primary",
+                    : "bg-muted/60 text-muted-foreground group-hover:text-primary"
                 )}
               >
                 <Icon size={20} />
@@ -97,6 +109,9 @@ export default function PlanillasPage() {
         {tab === "individual" && <IndividualTab branding={branding} />}
         {tab === "masiva" && <BulkTab branding={branding} />}
         {tab === "semanal" && <WeeklyTab branding={branding} />}
+        {tab === "configurables" && (
+          <ConfigurableFormsTab branding={branding} />
+        )}
       </div>
     </div>
   );

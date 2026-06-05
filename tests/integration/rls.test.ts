@@ -107,6 +107,10 @@ describe.skipIf(!RLS_ENABLED)("RLS multi-tenant isolation (cloud)", () => {
       "vehicles",
       "suppliers",
       "laboratories",
+      // form_submissions NO se borra fila a fila: el trigger de inmutabilidad
+      // lo bloquea mientras el tenant exista. Se va por el cascade de tenants
+      // (al borrar el tenant, el trigger permite el delete porque ya no existe).
+      "form_templates",
       "members",
     ];
     for (const tenant of [tenantA, tenantB, staff]) {
@@ -694,6 +698,274 @@ describe.skipIf(!RLS_ENABLED)("RLS multi-tenant isolation (cloud)", () => {
             payload: {},
           });
         expect(error).not.toBeNull();
+      },
+      TEST_TIMEOUT
+    );
+  });
+
+  // ── 5b. form_builder: planillas configurables + submissions inmutables ───────
+  //
+  // Tablas/RPC de la migración 0009. Mientras 0009 NO esté en cloud (pendiente
+  // junto a 0008 para `supabase db push`), cada caso se SKIPEA al detectar que
+  // la tabla o la función no existen (no se marca verde). Patrón create_dispatch.
+  describe("form_builder (planillas configurables)", () => {
+    let templateAId: string | null = null;
+    let submissionAId: string | null = null;
+    let memberAId: string | null = null;
+
+    /** true si el error indica que 0009 todavía no está aplicada en cloud. */
+    function isMissingFormBuilder(err: {
+      code?: string;
+      message?: string;
+    } | null): boolean {
+      if (!err) return false;
+      return (
+        err.code === "PGRST202" || // RPC no encontrada
+        err.code === "PGRST205" || // tabla no en el schema cache
+        err.code === "42P01" || // undefined_table
+        /form_templates|form_submissions|submit_form|schema cache|does not exist|not found/i.test(
+          err.message ?? ""
+        )
+      );
+    }
+
+    test(
+      "A crea un template; B no lo ve; staff sí (internal_read)",
+      async (ctx) => {
+        const { data, error } = await tenantA.client
+          .from("form_templates")
+          .insert({
+            tenant_id: tenantA.tenantId,
+            name: `${RUN_PREFIX} temperatura camara`,
+            kind: "temperatura",
+            requires_signature: true,
+            fields: [
+              { key: "temp", label: "Temperatura", type: "temperature", required: true, min: -25, max: 5, unit: "C" },
+            ],
+            frequency: { type: "daily", time: "08:00" },
+          })
+          .select("id")
+          .single();
+
+        if (isMissingFormBuilder(error)) {
+          console.warn("form_templates no está en cloud (migración 0009 pendiente): " + error!.message);
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+        templateAId = data!.id;
+
+        // B no lo ve.
+        const { data: bSee } = await tenantB.client
+          .from("form_templates")
+          .select("id")
+          .eq("id", templateAId!);
+        expect(bSee ?? []).toEqual([]);
+
+        // staff sí.
+        const { data: staffSee } = await staffClient
+          .from("form_templates")
+          .select("id, tenant_id")
+          .eq("id", templateAId!);
+        expect(staffSee).toHaveLength(1);
+        expect(staffSee![0].tenant_id).toBe(tenantA.tenantId);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "submit_form sin firma registra la submission de A (template requires_signature=false)",
+      async (ctx) => {
+        if (!templateAId) {
+          ctx.skip();
+          return;
+        }
+        // Template sin firma para un positivo determinista (no depende de bcrypt).
+        const { data: t2, error: t2Err } = await tenantA.client
+          .from("form_templates")
+          .insert({
+            tenant_id: tenantA.tenantId,
+            name: `${RUN_PREFIX} limpieza sin firma`,
+            kind: "limpieza",
+            requires_signature: false,
+          })
+          .select("id")
+          .single();
+        expect(t2Err).toBeNull();
+
+        const { data, error } = await tenantA.client.rpc("submit_form", {
+          p_template_id: t2!.id,
+          p_values: { sector: "camara 1", ok: true },
+          p_status: "ok",
+        });
+        if (isMissingFormBuilder(error)) {
+          console.warn("submit_form no está en cloud (migración 0009 pendiente): " + error!.message);
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+        submissionAId = (data as { submission_id: string }).submission_id;
+        expect(submissionAId).toBeTruthy();
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "submit_form exige firma cuando el template la requiere (signature_required)",
+      async (ctx) => {
+        if (!templateAId) {
+          ctx.skip();
+          return;
+        }
+        // templateAId tiene requires_signature=true → sin member+pin debe abortar.
+        const { error } = await tenantA.client.rpc("submit_form", {
+          p_template_id: templateAId,
+          p_values: { temp: 4 },
+          p_status: "ok",
+        });
+        if (isMissingFormBuilder(error)) {
+          ctx.skip();
+          return;
+        }
+        expect(error).not.toBeNull();
+        expect(error!.message).toMatch(/signature_required/);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "submit_form rechaza PIN inválido (invalid_pin)",
+      async (ctx) => {
+        if (!templateAId) {
+          ctx.skip();
+          return;
+        }
+        // Member de A con un pin_hash bcrypt arbitrario (no coincide con el PIN
+        // que mandamos) → la RPC debe rechazar por invalid_pin. Determinista:
+        // sea cual sea el hash, "0000-noexiste" no lo reproduce.
+        const { data: mem, error: memErr } = await admin
+          .from("members")
+          .insert({
+            tenant_id: tenantA.tenantId,
+            full_name: `${RUN_PREFIX} firmante`,
+            pin_hash: "$2a$10$abcdefghijklmnopqrstuv",
+          })
+          .select("id")
+          .single();
+        expect(memErr).toBeNull();
+        memberAId = mem!.id;
+
+        const { error } = await tenantA.client.rpc("submit_form", {
+          p_template_id: templateAId,
+          p_values: { temp: 4 },
+          p_member_id: memberAId,
+          p_pin: "0000-noexiste",
+          p_status: "ok",
+        });
+        if (isMissingFormBuilder(error)) {
+          ctx.skip();
+          return;
+        }
+        expect(error).not.toBeNull();
+        expect(error!.message).toMatch(/invalid_pin/);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "B no ve la submission de A; A y staff sí",
+      async (ctx) => {
+        if (!submissionAId) {
+          ctx.skip();
+          return;
+        }
+        const { data: bSee } = await tenantB.client
+          .from("form_submissions")
+          .select("id")
+          .eq("id", submissionAId!);
+        expect(bSee ?? []).toEqual([]);
+
+        const { data: aSee } = await tenantA.client
+          .from("form_submissions")
+          .select("id")
+          .eq("id", submissionAId!);
+        expect(aSee).toHaveLength(1);
+
+        const { data: staffSee } = await staffClient
+          .from("form_submissions")
+          .select("id, tenant_id")
+          .eq("id", submissionAId!);
+        expect(staffSee).toHaveLength(1);
+        expect(staffSee![0].tenant_id).toBe(tenantA.tenantId);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "form_submissions es INMUTABLE: A no puede UPDATE ni DELETE su propia fila",
+      async (ctx) => {
+        if (!submissionAId) {
+          ctx.skip();
+          return;
+        }
+        // Sin policy UPDATE/DELETE para authenticated → 0 filas o error de RLS.
+        const { data: upd, error: updErr } = await tenantA.client
+          .from("form_submissions")
+          .update({ status: "fail" })
+          .eq("id", submissionAId!)
+          .select("id");
+        expect(updErr ? true : (upd ?? []).length === 0).toBe(true);
+
+        const { data: del, error: delErr } = await tenantA.client
+          .from("form_submissions")
+          .delete()
+          .eq("id", submissionAId!)
+          .select("id");
+        expect(delErr ? true : (del ?? []).length === 0).toBe(true);
+
+        // La fila sigue intacta y con su status original.
+        const { data: still } = await tenantA.client
+          .from("form_submissions")
+          .select("id, status")
+          .eq("id", submissionAId!)
+          .single();
+        expect(still?.id).toBe(submissionAId);
+        expect(still?.status).not.toBe("fail");
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "trigger de inmutabilidad bloquea incluso a service_role (UPDATE)",
+      async (ctx) => {
+        if (!submissionAId) {
+          ctx.skip();
+          return;
+        }
+        // service_role bypassa RLS, pero el trigger BEFORE UPDATE aborta igual.
+        const { error } = await admin
+          .from("form_submissions")
+          .update({ status: "corrected" })
+          .eq("id", submissionAId!);
+        expect(error).not.toBeNull();
+        expect(error!.message).toMatch(/immutable_submission/);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "submit_form de A con template de A escribe en tenant A (no en B)",
+      async (ctx) => {
+        if (!submissionAId) {
+          ctx.skip();
+          return;
+        }
+        const { data: row } = await admin
+          .from("form_submissions")
+          .select("tenant_id")
+          .eq("id", submissionAId!)
+          .single();
+        expect(row?.tenant_id).toBe(tenantA.tenantId);
       },
       TEST_TIMEOUT
     );
