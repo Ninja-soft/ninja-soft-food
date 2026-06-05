@@ -68,7 +68,9 @@ Ingrediente → ingreso de stock con **lote** (proveedor + RNE + vencimiento; co
   - [x] Panel interno staff (`app/internal` con guard `requireInternal()` por `users.is_internal`, InternalShell propia, overview, tenants con detalle + extender trial / cambiar estado vía route handlers con audit, pagos, emails, audit logs, exports Excel, smoke 5/5 con verificación RLS staff/no-staff)
   - [x] Sistema de emails (Edge Function `send_email` calcada del POS con denomailer + SMTP desde `system_email_smtp`, catálogo 8 templates regla 6, `lib/emails` con `sendSystemEmail` best-effort, wiring: notificación de informes + payment_failed en webhook MP, 22 tests) — pendientes: `supabase functions deploy send_email`, cargar SMTP en `system_email_smtp` id=1, welcome en create_tenant, crons de alertas
   - [ ] Migración La Jamonera — BLOQUEADO: requiere datos reales del cliente (export de su sistema actual), coordinar con Lucas
-- [ ] Fase 3 — v1 diferenciación (builder de planillas, recall, costos, API pública, `@ninja-soft/ui`)
+- [~] Fase 3 — v1 diferenciación:
+  - [x] Recall / trazabilidad inversa (`modules/trace`: traceForward lote MP → clientes afectados con contacto, traceBackward lote PT → proveedores, búsqueda unificada de lotes, despachos anulados/borrados SIEMPRE visibles en recall por requisito regulatorio, acta PDF + Excel multi-hoja, smoke 5/5) — UI en /trazabilidad
+  - [ ] Builder de planillas, costos, API pública, `@ninja-soft/ui`
 - [ ] Fase 4 — v2 escala (multi-planta, MercadoLibre/PedidosYa/Rappi, SSO POS↔Food, Stripe/PayPal)
 
 Detalle y criterios de salida: `docs/07-roadmap.md`. Catálogo funcional completo (no perder NINGUNA feature de La Jamonera): `docs/02-catalogo-funcionalidades.md`.

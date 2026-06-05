@@ -75,12 +75,8 @@ function coerceValue(
   return value as ExcelJS.CellValue;
 }
 
-/** Construye el workbook (separado del download para poder testearlo). */
-export function buildWorkbook(opts: ExportToExcelOptions): ExcelJS.Workbook {
-  const wb = new ExcelJS.Workbook();
-  wb.creator = "Ninja Food";
-  wb.created = new Date();
-
+/** Pinta una hoja con la estética del design system dentro de un workbook dado. */
+function renderSheet(wb: ExcelJS.Workbook, opts: ExportToExcelOptions): void {
   const ws = wb.addWorksheet(opts.sheetName, {
     views: [{ state: "frozen" }],
   });
@@ -163,13 +159,22 @@ export function buildWorkbook(opts: ExportToExcelOptions): ExcelJS.Workbook {
     to: { row: headerRow, column: ncols },
   };
   ws.views = [{ state: "frozen", ySplit: headerRow }];
+}
 
+/** Construye el workbook (separado del download para poder testearlo). */
+export function buildWorkbook(opts: ExportToExcelOptions): ExcelJS.Workbook {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Ninja Food";
+  wb.created = new Date();
+  renderSheet(wb, opts);
   return wb;
 }
 
-/** Construye y descarga el XLSX en el navegador (client-side, sin deps extra). */
-export async function exportToExcel(opts: ExportToExcelOptions): Promise<void> {
-  const wb = buildWorkbook(opts);
+/** Descarga un workbook ya construido como XLSX (client-side). */
+async function downloadWorkbook(
+  wb: ExcelJS.Workbook,
+  filename: string,
+): Promise<void> {
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -177,9 +182,24 @@ export async function exportToExcel(opts: ExportToExcelOptions): Promise<void> {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = opts.filename.endsWith(".xlsx")
-    ? opts.filename
-    : `${opts.filename}.xlsx`;
+  a.download = filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/** Construye y descarga el XLSX en el navegador (client-side, sin deps extra). */
+export async function exportToExcel(opts: ExportToExcelOptions): Promise<void> {
+  await downloadWorkbook(buildWorkbook(opts), opts.filename);
+}
+
+/** Exporta varias hojas en un único archivo XLSX (cada `sheet` es una pestaña). */
+export async function exportSheetsToExcel(
+  filename: string,
+  sheets: ExportToExcelOptions[],
+): Promise<void> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Ninja Food";
+  wb.created = new Date();
+  for (const sheet of sheets) renderSheet(wb, sheet);
+  await downloadWorkbook(wb, filename);
 }
