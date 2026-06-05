@@ -9,10 +9,8 @@ export async function signIn(input: LoginInput) {
 }
 
 /**
- * Alta completa: usuario + tenant + trial.
- * 1. signUp (autoconfirm en fase 0)
- * 2. Edge Function create_tenant (tenant + owner + suscripción + claim)
- * 3. refreshSession para que el JWT traiga app_metadata.tenant_id
+ * Alta liviana: solo usuario. La empresa se crea en /onboarding
+ * (el guard de (app) redirige ahí mientras no haya tenant en el JWT).
  */
 export async function signUp(input: SignupInput) {
   const supabase = createClient();
@@ -23,21 +21,6 @@ export async function signUp(input: SignupInput) {
     options: { data: { full_name: input.fullName } },
   });
   if (signUpError) throw new Error(translateAuthError(signUpError.message));
-
-  const { error: fnError } = await supabase.functions.invoke("create_tenant", {
-    body: {
-      businessName: input.businessName,
-      industry: input.industry,
-    },
-  });
-  if (fnError) {
-    throw new Error(
-      "Tu cuenta se creó pero falló la creación de la empresa. Reintentá desde el onboarding.",
-    );
-  }
-
-  // El claim tenant_id se setea server-side: refrescar para obtener el JWT nuevo
-  await supabase.auth.refreshSession();
 }
 
 /** Reintento de creación de tenant (onboarding post-signup fallido). */

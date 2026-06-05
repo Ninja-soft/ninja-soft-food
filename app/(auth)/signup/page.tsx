@@ -16,13 +16,10 @@ import {
 } from "@/components/ui/Card";
 import { Accent, Eyebrow } from "@/components/ui/Typography";
 import { signUp } from "@/modules/auth/api";
-import {
-  INDUSTRY_OPTIONS,
-  signupSchema,
-  type SignupInput,
-} from "@/modules/auth/schemas";
+import { signupSchema, type SignupInput } from "@/modules/auth/schemas";
 
-// Alta de cuenta — espejo del signup del POS.
+// Alta liviana (espejo del signup del POS): la empresa se completa
+// en el onboarding del primer ingreso.
 export default function SignupPage() {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -30,16 +27,14 @@ export default function SignupPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<SignupInput>({
-    resolver: zodResolver(signupSchema),
-    defaultValues: { industry: "otro" },
-  });
+  } = useForm<SignupInput>({ resolver: zodResolver(signupSchema) });
 
   async function onSubmit(values: SignupInput) {
     setServerError(null);
     try {
       await signUp(values);
-      router.push("/dashboard");
+      // Sin tenant todavía: el guard de (app) lleva a /onboarding
+      router.push("/onboarding");
       router.refresh();
     } catch (e) {
       setServerError(
@@ -66,32 +61,6 @@ export default function SignupPage() {
             {...register("fullName")}
           />
           <Input
-            label="Empresa"
-            error={errors.businessName?.message}
-            {...register("businessName")}
-          />
-
-          <div className="w-full">
-            <label
-              htmlFor="industry"
-              className="mb-2 block text-sm font-medium text-muted-foreground"
-            >
-              Rubro
-            </label>
-            <select
-              id="industry"
-              className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              {...register("industry")}
-            >
-              {INDUSTRY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <Input
             label="Email"
             type="email"
             autoComplete="email"
@@ -112,7 +81,7 @@ export default function SignupPage() {
           )}
 
           <Button type="submit" loading={isSubmitting} className="w-full">
-            Crear cuenta y empezar
+            Crear cuenta
           </Button>
         </form>
 

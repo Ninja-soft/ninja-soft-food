@@ -14,10 +14,10 @@ export default function AuthLayout({
       <div className="relative z-10 w-full max-w-md">
         <Link href="/" className="mb-8 flex justify-center">
           <Image
-            src="/img/ninja-food-dark-mode.webp"
+            src="/img/ninja-food-login.png"
             alt="Ninja Food"
             width={320}
-            height={75}
+            height={88}
             priority
             className="h-16 w-auto sm:h-20"
           />

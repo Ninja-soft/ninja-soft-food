@@ -1,11 +1,26 @@
 // Edge Function: create_tenant
-// Crea tenant + owner + suscripción trial (14 días, plan start) + branding,
-// y setea app_metadata.tenant_id en el JWT del usuario (patrón POS).
+// Crea tenant + owner + suscripcion trial (14 dias, plan start) + branding,
+// y setea app_metadata.tenant_id en el JWT del usuario (patron POS).
 // Se invoca autenticada (Authorization: Bearer <jwt del usuario>).
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const TRIAL_DAYS = 14;
+
+// CORS: la funcion se invoca desde el navegador (supabase.functions.invoke)
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+  });
+}
 
 type Payload = {
   businessName?: string;
@@ -34,8 +49,11 @@ function slugify(name: string): string {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS_HEADERS });
+  }
   if (req.method !== "POST") {
-    return Response.json({ error: "method_not_allowed" }, { status: 405 });
+    return json({ error: "method_not_allowed" }, 405);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -51,21 +69,21 @@ Deno.serve(async (req) => {
   } = await admin.auth.getUser(jwt);
 
   if (userError || !user) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
+    return json({ error: "unauthorized" }, 401);
   }
 
   // Idempotencia: si ya tiene tenant, devolverlo
   const existingTenantId = (user.app_metadata as Record<string, unknown>)
     ?.tenant_id;
   if (typeof existingTenantId === "string" && existingTenantId.length > 0) {
-    return Response.json({ tenant_id: existingTenantId, existing: true });
+    return json({ tenant_id: existingTenantId, existing: true });
   }
 
   let payload: Payload = {};
   try {
     payload = await req.json();
   } catch {
-    // body vacío permitido
+    // body vacio permitido
   }
 
   const businessName = (payload.businessName ?? "").trim() || "Mi empresa";
@@ -73,7 +91,7 @@ Deno.serve(async (req) => {
     ? payload.industry!
     : "otro";
 
-  // Slug único
+  // Slug unico
   const base = slugify(businessName);
   const slug = `${base}-${crypto.randomUUID().slice(0, 6)}`;
 
@@ -96,7 +114,7 @@ Deno.serve(async (req) => {
 
   if (tenantError || !tenant) {
     console.error("create_tenant: tenant insert failed", tenantError);
-    return Response.json({ error: "tenant_creation_failed" }, { status: 500 });
+    return json({ error: "tenant_creation_failed" }, 500);
   }
 
   // 2. Owner
@@ -107,10 +125,10 @@ Deno.serve(async (req) => {
   });
   if (tuError) {
     console.error("create_tenant: tenant_users insert failed", tuError);
-    return Response.json({ error: "owner_creation_failed" }, { status: 500 });
+    return json({ error: "owner_creation_failed" }, 500);
   }
 
-  // 3. Suscripción trial (plan start)
+  // 3. Suscripcion trial (plan start)
   const { data: plan } = await admin
     .from("plans")
     .select("id")
@@ -139,16 +157,13 @@ Deno.serve(async (req) => {
   });
 
   // 6. Claim tenant_id en el JWT
-  const { error: claimError } = await admin.auth.admin.updateUserById(
-    user.id,
-    {
-      app_metadata: { tenant_id: tenant.id },
-    },
-  );
+  const { error: claimError } = await admin.auth.admin.updateUserById(user.id, {
+    app_metadata: { tenant_id: tenant.id },
+  });
   if (claimError) {
     console.error("create_tenant: claim update failed", claimError);
-    return Response.json({ error: "claim_update_failed" }, { status: 500 });
+    return json({ error: "claim_update_failed" }, 500);
   }
 
-  return Response.json({ tenant_id: tenant.id });
+  return json({ tenant_id: tenant.id });
 });

@@ -15,17 +15,10 @@ export const INDUSTRY_OPTIONS = [
   { value: "otro", label: "Otro rubro alimenticio" },
 ] as const;
 
+// Alta liviana: la empresa y el rubro se completan en /onboarding
+// (primer login sin tenant).
 export const signupSchema = z.object({
   fullName: z.string().min(2, "Ingresá tu nombre"),
-  businessName: z.string().min(2, "Ingresá el nombre de tu empresa"),
-  industry: z.enum([
-    "frigorifico",
-    "panaderia",
-    "lacteos",
-    "conservas",
-    "catering",
-    "otro",
-  ]),
   email: z.string().email("Ingresá un email válido"),
   password: z.string().min(8, "Mínimo 8 caracteres"),
 });
