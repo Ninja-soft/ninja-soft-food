@@ -45,6 +45,19 @@ const BASE_VARS = ["negocio", "logo_url"] as const;
 // -----------------------------------------------------------------------------
 export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
   {
+    key: "welcome",
+    label: "Bienvenida",
+    description: "Se envia al crear el negocio (alta de tenant en onboarding).",
+    variables: [...BASE_VARS, "nombre", "dias_trial", "link"],
+    defaultSubject: "Bienvenido a Ninja Food",
+    defaultBody:
+      "<p>Hola {{nombre}},</p>" +
+      "<p><strong>{{negocio}}</strong> ya esta activo en Ninja Food. Tenes {{dias_trial}} dias de prueba con todas las funciones: trazabilidad con QR, planillas BPM/POES, stock con lotes y recall en minutos.</p>" +
+      "<p>Te sugerimos empezar cargando tus ingredientes y recetas.</p>" +
+      '<p><a class="btn" href="{{link}}">Entrar a mi panel</a></p>' +
+      '<p class="muted">Avalado tecnicamente por Asesoria Bromatologica Rosario.</p>',
+  },
+  {
     key: "verify_account",
     label: "Verificacion de cuenta",
     description: "Confirma el email al crear la cuenta.",

@@ -165,5 +165,29 @@ Deno.serve(async (req) => {
     return json({ error: "claim_update_failed" }, 500);
   }
 
+  // 7. Email de bienvenida (best-effort: un email caido NUNCA rompe el alta).
+  // Requiere la Edge Function send_email deployada + SMTP en system_email_smtp;
+  // si falta, send_email loguea failed en system_emails y seguimos igual.
+  if (user.email) {
+    try {
+      const appUrl = Deno.env.get("APP_URL") ?? "https://ninja-soft-food.vercel.app";
+      await admin.functions.invoke("send_email", {
+        body: {
+          tenant_id: tenant.id,
+          template_key: "welcome",
+          to: user.email,
+          variables: {
+            nombre: (user.user_metadata as Record<string, unknown>)?.full_name ?? "",
+            negocio: businessName,
+            dias_trial: TRIAL_DAYS,
+            link: `${appUrl}/dashboard`,
+          },
+        },
+      });
+    } catch (e) {
+      console.warn("create_tenant: welcome email failed", e);
+    }
+  }
+
   return json({ tenant_id: tenant.id });
 });

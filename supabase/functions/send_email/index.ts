@@ -47,6 +47,14 @@ interface DefaultTemplate {
   body: string;
 }
 const DEFAULT_TEMPLATES: Record<string, DefaultTemplate> = {
+  welcome: {
+    subject: "Bienvenido a Ninja Food",
+    body:
+      "<p>Hola {{nombre}},</p><p><strong>{{negocio}}</strong> ya esta activo en Ninja Food. Tenes {{dias_trial}} dias de prueba con todas las funciones: trazabilidad con QR, planillas BPM/POES, stock con lotes y recall en minutos.</p>" +
+      "<p>Te sugerimos empezar cargando tus ingredientes y recetas.</p>" +
+      '<p><a class="btn" href="{{link}}">Entrar a mi panel</a></p>' +
+      '<p class="muted">Avalado tecnicamente por Asesoria Bromatologica Rosario.</p>',
+  },
   verify_account: {
     subject: "Confirma tu cuenta en Ninja Food",
     body:
