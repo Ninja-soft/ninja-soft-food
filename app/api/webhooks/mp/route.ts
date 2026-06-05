@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getBillingProvider } from "@/lib/billing";
-import { sendSystemEmail } from "@/lib/emails/enqueue";
+import { applySubscriptionUpdate } from "@/lib/billing/sync";
 import type { Database } from "@/types/database";
 
 // =============================================================================
@@ -19,8 +19,6 @@ import type { Database } from "@/types/database";
 // =============================================================================
 
 export const runtime = "nodejs"; // crypto HMAC + service role: nunca edge/cliente.
-
-type SubscriptionUpdate = Database["public"]["Tables"]["subscriptions"]["Update"];
 
 function ok() {
   return NextResponse.json({ ok: true }, { status: 200 });
@@ -65,7 +63,8 @@ export async function POST(req: Request) {
     .insert({
       provider: "mercadopago",
       provider_event_id: event.eventId,
-      payload: (body ?? {}) as Database["public"]["Tables"]["payment_events"]["Insert"]["payload"],
+      payload: (body ??
+        {}) as Database["public"]["Tables"]["payment_events"]["Insert"]["payload"],
     })
     .select("id")
     .maybeSingle();
@@ -73,9 +72,9 @@ export async function POST(req: Request) {
   if (insertError) {
     // 23505 = unique_violation → evento ya registrado (idempotente): 200.
     if (insertError.code === "23505") return ok();
-    // Error transitorio de DB: 500 para que MP REINTENTE el webhook. Con 200
-    // el evento se perdería para siempre (la reconciliación diaria todavía no
-    // existe — pendiente en CLAUDE.md).
+    // Error transitorio de DB: 500 para que MP REINTENTE el webhook. La
+    // reconciliación diaria (app/api/cron/reconcile-billing) es la red de
+    // seguridad si igual se pierde.
     return NextResponse.json({ error: "transient" }, { status: 500 });
   }
   const eventRowId = inserted?.id ?? null;
@@ -129,85 +128,9 @@ export async function POST(req: Request) {
   }
 }
 
-async function applySubscriptionUpdate(
-  admin: ReturnType<typeof createAdminClient>,
-  sub: { id: string; tenant_id: string; billing_cycle: string },
-  info: Awaited<ReturnType<ReturnType<typeof getBillingProvider>["getSubscription"]>>,
-) {
-  const patch: SubscriptionUpdate = {
-    provider: "mercadopago",
-    provider_subscription_id: info.providerSubscriptionId,
-    status: info.status,
-  };
-
-  if (info.status === "active") {
-    const months = info.frequencyMonths ?? (sub.billing_cycle === "yearly" ? 12 : 1);
-    const start = new Date();
-    const end = new Date(start);
-    end.setMonth(end.getMonth() + months);
-    patch.current_period_start = start.toISOString();
-    patch.current_period_end = end.toISOString();
-    patch.cancel_at_period_end = false;
-    patch.billing_cycle = months >= 12 ? "yearly" : "monthly";
-  }
-
-  await admin.from("subscriptions").update(patch).eq("id", sub.id);
-
-  // Sincronizamos el estado canónico también en tenants.status (consistencia
-  // con el ciclo de vida del POS).
-  await admin.from("tenants").update({ status: info.status }).eq("id", sub.tenant_id);
-
-  // Aviso de pago al owner cuando el cobro deja de estar al día. Best-effort:
-  // un email caído NO afecta el procesamiento del webhook (regla dura).
-  if (info.status === "past_due" || info.status === "cancelled") {
-    await notifyOwnerPaymentFailed(admin, sub.tenant_id);
-  }
-}
-
-/** Encola payment_failed al owner del tenant (best-effort, no lanza). */
-async function notifyOwnerPaymentFailed(
-  admin: ReturnType<typeof createAdminClient>,
-  tenantId: string,
-) {
-  try {
-    const { data: owner } = await admin
-      .from("tenant_users")
-      .select("user_id, users(email)")
-      .eq("tenant_id", tenantId)
-      .eq("role", "owner")
-      .maybeSingle();
-    const userRel = (owner as { users?: { email?: string } | { email?: string }[] } | null)
-      ?.users;
-    const ownerRow = Array.isArray(userRel) ? userRel[0] : userRel;
-    const email = ownerRow?.email;
-    if (!email) return;
-
-    const { data: tenant } = await admin
-      .from("tenants")
-      .select("name")
-      .eq("id", tenantId)
-      .maybeSingle();
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-
-    await sendSystemEmail({
-      tenantId,
-      templateKey: "payment_failed",
-      to: email,
-      variables: {
-        negocio: tenant?.name ?? "tu cuenta",
-        plan: "",
-        monto: "",
-        link: `${appUrl}/configuracion`,
-      },
-    });
-  } catch (e) {
-    console.warn("[emails] no se pudo avisar el pago al owner:", e);
-  }
-}
-
 async function markProcessed(
   admin: ReturnType<typeof createAdminClient>,
-  eventRowId: string | null,
+  eventRowId: string | null
 ) {
   if (!eventRowId) return;
   await admin
