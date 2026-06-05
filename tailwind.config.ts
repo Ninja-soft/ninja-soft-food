@@ -51,9 +51,13 @@ const config: Config = {
         // Marca fija (degradé del logo) — no cambia con el tema
         brand: {
           forest: "#1F7A33",
+          green: "#3FA34D",
           apple: "#8CBF2F",
           lime: "#C6D420",
           ink: "#04140A",
+          // Texto secundario sobre fondos de marca oscuros
+          // (equivalente del ninja-lavender del POS)
+          mist: "#A9C4A6",
         },
       },
       borderRadius: {
