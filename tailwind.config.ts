@@ -68,11 +68,11 @@ const config: Config = {
         ninjaFull: "999px",
       },
       fontFamily: {
-        display: ["var(--font-display)", "Nunito", "sans-serif"],
-        sans: ["var(--font-sans)", "Inter", "sans-serif"],
-        mono: ["var(--font-mono)", "JetBrains Mono", "monospace"],
-        // Números/códigos tabulares (paridad de API con <Money> del POS)
-        price: ["var(--font-mono)", "ui-monospace", "monospace"],
+        // Configurables por el usuario en Apariencia (patrón POS)
+        display: ["var(--font-display)", "sans-serif"],
+        price: ["var(--font-price)", "ui-monospace", "monospace"],
+        sans: ["var(--font-inter)", "sans-serif"],
+        mono: ["var(--font-jetbrains)", "monospace"],
       },
       boxShadow: {
         soft: "var(--shadow-soft)",

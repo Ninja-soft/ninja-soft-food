@@ -32,14 +32,19 @@ export const THEME_LABELS: Record<Theme, string> = {
 const STORAGE_KEY = "ninja-food-theme";
 const DEFAULT_THEME: Theme = "food-dark";
 
+/** Temas oscuros (para toggle rápido claro/oscuro del menú de usuario). */
+export const DARK_THEMES: Theme[] = ["food-dark", "food-bosque", "food-mar"];
+
 type ThemeContextValue = {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue>({
   theme: DEFAULT_THEME,
   setTheme: () => undefined,
+  toggleTheme: () => undefined,
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -57,12 +62,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(next);
     document.documentElement.dataset.theme = next;
     window.localStorage.setItem(STORAGE_KEY, next);
-    // TODO(fase 0): persistir también en public.users.settings (patrón POS,
-    // lib/theme/preferences.ts) cuando exista sesión.
+    // Persistencia cross-device best-effort (patrón POS)
+    import("./preferences").then(({ persistPrefs }) => void persistPrefs());
   }, []);
 
+  // Toggle rápido claro/oscuro (menú de usuario, patrón POS)
+  const toggleTheme = useCallback(() => {
+    setTheme(DARK_THEMES.includes(theme) ? "food-light" : "food-dark");
+  }, [theme, setTheme]);
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

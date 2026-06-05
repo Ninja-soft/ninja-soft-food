@@ -1,53 +1,178 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   Apple,
   BarChart3,
   Beaker,
+  ChevronDown,
   ClipboardList,
   FileText,
-  Home,
+  LayoutDashboard,
   LogOut,
   Menu,
+  Moon,
   Package,
   QrCode,
   Settings,
+  ShieldCheck,
   Soup,
+  Sun,
   Truck,
   UtensilsCrossed,
   X,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils/cn";
+import { DARK_THEMES, useTheme } from "@/lib/theme/ThemeProvider";
+import { Isotype, WordmarkFood } from "@/components/brand/Logo";
 import { Avatar } from "@/components/ui/Avatar";
 import {
   Dropdown,
   DropdownContent,
   DropdownItem,
+  DropdownLabel,
   DropdownSeparator,
   DropdownTrigger,
 } from "@/components/ui/Dropdown";
-import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
-import { signOut } from "@/modules/auth/api";
-import { cn } from "@/lib/utils/cn";
 
-// Shell de la app del tenant: sidebar + topbar (patrón AppShell del POS).
-const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/ingredientes", label: "Ingredientes", icon: Apple },
-  { href: "/inventario", label: "Inventario", icon: Package },
-  { href: "/recetas", label: "Recetas", icon: UtensilsCrossed },
-  { href: "/produccion", label: "Producción", icon: Soup },
-  { href: "/trazabilidad", label: "Trazabilidad", icon: QrCode },
-  { href: "/despacho", label: "Despacho", icon: Truck },
-  { href: "/informes", label: "Informes", icon: FileText },
-  { href: "/analisis", label: "Análisis", icon: Beaker },
-  { href: "/planillas", label: "Planillas", icon: ClipboardList },
-  { href: "/reportes", label: "Reportes", icon: BarChart3 },
-  { href: "/configuracion", label: "Configuración", icon: Settings },
-] as const;
+// Shell de la app del tenant — espejo 1:1 del AppShell del POS:
+// sidebar con grupos colapsables, menú de usuario al pie, card de panel interno.
+
+type Item = { href: string; label: string; icon: React.ElementType };
+type Group = { label: string; items: Item[] };
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Dueño",
+  manager: "Encargado",
+  operator: "Operario",
+  viewer: "Solo lectura",
+};
+
+const NAV: { top: Item[]; groups: Group[] } = {
+  top: [{ href: "/dashboard", label: "Inicio", icon: LayoutDashboard }],
+  groups: [
+    {
+      label: "Operación",
+      items: [
+        { href: "/inventario", label: "Inventario", icon: Package },
+        { href: "/produccion", label: "Producción", icon: Soup },
+        { href: "/trazabilidad", label: "Trazabilidad", icon: QrCode },
+        { href: "/despacho", label: "Despacho", icon: Truck },
+      ],
+    },
+    {
+      label: "Catálogo",
+      items: [
+        { href: "/ingredientes", label: "Ingredientes", icon: Apple },
+        { href: "/recetas", label: "Recetas", icon: UtensilsCrossed },
+      ],
+    },
+    {
+      label: "Calidad",
+      items: [
+        { href: "/informes", label: "Informes", icon: FileText },
+        { href: "/analisis", label: "Análisis", icon: Beaker },
+        { href: "/planillas", label: "Planillas", icon: ClipboardList },
+      ],
+    },
+    {
+      label: "Gestión",
+      items: [
+        { href: "/reportes", label: "Reportes", icon: BarChart3 },
+        { href: "/configuracion", label: "Configuración", icon: Settings },
+      ],
+    },
+  ],
+};
+
+function NavLink({
+  item,
+  active,
+  onNavigate,
+}: {
+  item: Item;
+  active: boolean;
+  onNavigate: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
+        active
+          ? "bg-primary/15 font-medium text-primary"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+      )}
+    >
+      <Icon size={17} />
+      {item.label}
+    </Link>
+  );
+}
+
+function UserMenu({
+  name,
+  email,
+  role,
+  tenantName,
+  onSignOut,
+}: {
+  name: string;
+  email: string;
+  role: string | null;
+  tenantName: string;
+  onSignOut: () => void;
+}) {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = DARK_THEMES.includes(theme);
+
+  return (
+    <Dropdown>
+      <DropdownTrigger asChild>
+        <button className="flex w-full items-center gap-2.5 rounded-lg border border-border bg-card p-2 text-left transition hover:bg-muted">
+          <Avatar name={name} size={32} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium text-foreground">
+              {name}
+            </span>
+            <span className="block truncate text-xs text-muted-foreground">
+              {tenantName}
+            </span>
+            {role && (
+              <span className="mt-0.5 block truncate text-[11px] font-medium text-primary">
+                {ROLE_LABELS[role] ?? role}
+              </span>
+            )}
+          </span>
+          <ChevronDown size={15} className="shrink-0 text-muted-foreground" />
+        </button>
+      </DropdownTrigger>
+      <DropdownContent align="start" className="w-[232px]">
+        <DropdownLabel>Cuenta</DropdownLabel>
+        <div className="px-3 pb-1.5 text-xs text-muted-foreground">{email}</div>
+        <DropdownItem
+          onSelect={(e) => {
+            e.preventDefault();
+            toggleTheme();
+          }}
+        >
+          {isDark ? <Sun size={15} /> : <Moon size={15} />}
+          {isDark ? "Modo claro" : "Modo oscuro"}
+        </DropdownItem>
+        <DropdownSeparator />
+        <DropdownItem onSelect={onSignOut} className="text-destructive">
+          <LogOut size={15} /> Cerrar sesión
+        </DropdownItem>
+      </DropdownContent>
+    </Dropdown>
+  );
+}
 
 export function AppShell({
   userName,
@@ -62,140 +187,168 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [drawer, setDrawer] = useState(false);
+  const [open, setOpen] = useState<Record<string, boolean>>({
+    Operación: true,
+    Catálogo: true,
+    Calidad: true,
+    Gestión: true,
+  });
 
-  async function handleSignOut() {
-    await signOut();
-    router.replace("/login");
+  // Contexto: staff interno + rol en el tenant (gatea menú, patrón POS)
+  const { data: shell } = useQuery({
+    queryKey: ["shell-ctx"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return { isInternal: false, role: null as string | null };
+      const { data: me } = await supabase
+        .from("users")
+        .select("is_internal")
+        .eq("id", user.id)
+        .maybeSingle();
+      const { data: mem } = await supabase
+        .from("tenant_users")
+        .select("role")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+      return {
+        isInternal: Boolean(me?.is_internal),
+        role: (mem?.role as string | null) ?? null,
+      };
+    },
+  });
+  const isInternal = shell?.isInternal ?? false;
+
+  async function signOut() {
+    await createClient().auth.signOut();
+    router.push("/login");
     router.refresh();
   }
 
   const nav = (
-    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-      {NAV.map((item) => {
-        const active =
-          pathname === item.href || pathname.startsWith(`${item.href}/`);
-        const Icon = item.icon;
+    <nav className="flex h-full flex-col gap-1 p-3">
+      <Link
+        href="/dashboard"
+        onClick={() => setDrawer(false)}
+        className="mb-4 flex items-center gap-2.5 px-2 py-2"
+      >
+        <Isotype className="h-9" priority />
+        <WordmarkFood className="h-6" priority />
+      </Link>
+
+      {NAV.top.map((it) => (
+        <NavLink
+          key={it.href}
+          item={it}
+          active={pathname === it.href}
+          onNavigate={() => setDrawer(false)}
+        />
+      ))}
+
+      {NAV.groups.map((g) => {
+        const isOpen = open[g.label] ?? true;
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              "flex items-center gap-3 rounded-ninjaSm px-3 py-2.5 text-sm transition",
-              active
-                ? "bg-primary/15 font-semibold text-primary shadow-foodGlow"
-                : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
+          <div key={g.label} className="mt-3">
+            <button
+              onClick={() => setOpen((s) => ({ ...s, [g.label]: !isOpen }))}
+              className="flex w-full items-center justify-between rounded-md px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition hover:text-foreground"
+            >
+              {g.label}
+              <ChevronDown
+                size={14}
+                className={cn("transition", isOpen ? "" : "-rotate-90")}
+              />
+            </button>
+            {isOpen && (
+              <div className="mt-1 space-y-1">
+                {g.items.map((it) => (
+                  <NavLink
+                    key={it.href}
+                    item={it}
+                    active={
+                      pathname === it.href ||
+                      pathname.startsWith(`${it.href}/`)
+                    }
+                    onNavigate={() => setDrawer(false)}
+                  />
+                ))}
+              </div>
             )}
-          >
-            <Icon size={17} className="shrink-0" />
-            {item.label}
-          </Link>
+          </div>
         );
       })}
-    </nav>
-  );
 
-  const sidebarHeader = (
-    <div className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-5">
-      <Link href="/dashboard" className="flex items-center">
-        <Image
-          src="/img/ninja-food-dark-mode.webp"
-          alt="Ninja Food"
-          width={140}
-          height={33}
-          className="wordmark-on-dark h-auto w-32"
-          priority
+      <div className="mt-auto space-y-3 pt-3">
+        {isInternal && (
+          <Link
+            href="/internal"
+            onClick={() => setDrawer(false)}
+            className="group flex items-center gap-2.5 rounded-lg border border-border bg-card p-2 transition hover:border-primary/50 hover:bg-muted"
+          >
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-gradient text-brand-ink shadow-foodGlow">
+              <ShieldCheck size={16} />
+            </span>
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block text-sm font-semibold text-foreground">
+                Panel NinjaSoft
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                Modo interno
+              </span>
+            </span>
+          </Link>
+        )}
+        <UserMenu
+          name={userName}
+          email={userEmail}
+          role={shell?.role ?? null}
+          tenantName={tenantName}
+          onSignOut={signOut}
         />
-        <Image
-          src="/img/ninja-food-light-mode.webp"
-          alt="Ninja Food"
-          width={140}
-          height={33}
-          className="wordmark-on-light h-auto w-32"
-          priority
-        />
-      </Link>
-    </div>
+      </div>
+    </nav>
   );
 
   return (
     <div className="flex min-h-dvh">
-      {/* Sidebar desktop */}
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border bg-card/60 backdrop-blur-xl lg:flex">
-        {sidebarHeader}
+      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 border-r border-border bg-background/60 backdrop-blur-xl lg:block">
         {nav}
       </aside>
 
-      {/* Sidebar mobile (overlay) */}
-      {mobileOpen && (
+      {drawer && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="absolute inset-0 bg-black/55 backdrop-blur-[3px] animate-overlay-in"
-            onClick={() => setMobileOpen(false)}
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setDrawer(false)}
           />
-          <aside className="absolute left-0 top-0 flex h-full w-64 flex-col border-r border-border bg-popover animate-slide-up">
-            <div className="flex items-center justify-between border-b border-border pr-3">
-              {sidebarHeader}
-              <button
-                type="button"
-                aria-label="Cerrar menú"
-                onClick={() => setMobileOpen(false)}
-                className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <X size={18} />
-              </button>
-            </div>
+          <aside className="absolute left-0 top-0 h-full w-64 border-r border-border bg-popover">
+            <button
+              onClick={() => setDrawer(false)}
+              className="absolute right-3 top-3 text-muted-foreground"
+              aria-label="Cerrar menú"
+            >
+              <X size={18} />
+            </button>
             {nav}
           </aside>
         </div>
       )}
 
-      {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-background/70 px-4 backdrop-blur-xl md:px-6">
-          <button
-            type="button"
-            aria-label="Abrir menú"
-            onClick={() => setMobileOpen(true)}
-            className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
-          >
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-background/70 px-4 backdrop-blur-xl lg:hidden">
+          <button onClick={() => setDrawer(true)} aria-label="Abrir menú">
             <Menu size={20} />
           </button>
-
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">{tenantName}</p>
-          </div>
-
-          <ThemeSwitcher />
-
-          <Dropdown>
-            <DropdownTrigger asChild>
-              <button
-                type="button"
-                aria-label="Cuenta"
-                className="rounded-full ring-offset-background transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <Avatar name={userName} size={36} />
-              </button>
-            </DropdownTrigger>
-            <DropdownContent>
-              <div className="px-3 py-2">
-                <p className="truncate text-sm font-semibold">{userName}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {userEmail}
-                </p>
-              </div>
-              <DropdownSeparator />
-              <DropdownItem onSelect={handleSignOut} className="text-destructive">
-                <LogOut size={15} />
-                Cerrar sesión
-              </DropdownItem>
-            </DropdownContent>
-          </Dropdown>
+          <Isotype className="h-6" />
         </header>
 
-        <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
+        <main className="app-bg min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

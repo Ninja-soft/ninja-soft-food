@@ -9,6 +9,12 @@
    Paletas aprobadas: docs/04-arquitectura.md §3
    ============================================================ */
 
+/* Fuentes configurables (Apariencia) — patrón POS */
+:root {
+  --font-display: var(--font-sora);
+  --font-price: var(--font-inter);
+}
+
 /* Swatches estáticos para el selector de temas (no cambian con el tema) */
 :root {
   --swatch-food-dark: linear-gradient(135deg, #08120a 50%, #3fa34d 50%);
@@ -41,12 +47,8 @@
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.08);
   --ring: #3fa34d;
-  --shadow-soft: 0 6px 20px rgba(4, 12, 6, 0.32);
-  --bg-atmosphere:
-    radial-gradient(circle at 18% 18%, rgba(63, 163, 77, 0.14), transparent 30%),
-    radial-gradient(circle at 82% 12%, rgba(140, 191, 47, 0.12), transparent 34%),
-    radial-gradient(circle at 70% 82%, rgba(198, 212, 32, 0.07), transparent 28%),
-    linear-gradient(135deg, #07110a 0%, #0c1f10 48%, #15331b 100%);
+  --shadow-soft: 0 6px 20px rgba(4, 12, 6, 0.18);
+  --pattern: rgba(255, 255, 255, 0.05);
 }
 
 /* ---------- food-light ---------- */
@@ -70,11 +72,8 @@
   --border: #dde8d6;
   --input: #d7e3cf;
   --ring: #2e7d32;
-  --shadow-soft: 0 1px 2px rgba(22, 60, 24, 0.06);
-  --bg-atmosphere:
-    radial-gradient(circle at 15% 10%, rgba(63, 163, 77, 0.08), transparent 28%),
-    radial-gradient(circle at 85% 0%, rgba(198, 212, 32, 0.1), transparent 32%),
-    linear-gradient(135deg, #f6faf4 0%, #eef5ea 52%, #ffffff 100%);
+  --shadow-soft: 0 1px 2px rgba(22, 60, 24, 0.05);
+  --pattern: rgba(20, 30, 16, 0.06);
 }
 
 /* ---------- food-bosque (dark profundo) ---------- */
@@ -98,8 +97,8 @@
   --border: rgba(255, 255, 255, 0.09);
   --input: rgba(255, 255, 255, 0.07);
   --ring: #4caf50;
-  --shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.28);
-  --bg-atmosphere: linear-gradient(170deg, #050f08 0%, #06120a 60%, #081709 100%);
+  --shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.24);
+  --pattern: rgba(255, 255, 255, 0.045);
 }
 
 /* ---------- food-crema (light cálido panadería) ---------- */
@@ -123,10 +122,8 @@
   --border: #eae2cc;
   --input: #e6dcc1;
   --ring: #2e7d32;
-  --shadow-soft: 0 1px 2px rgba(60, 48, 20, 0.06);
-  --bg-atmosphere:
-    radial-gradient(circle at 12% 8%, rgba(201, 162, 39, 0.08), transparent 30%),
-    linear-gradient(135deg, #fdfaf2 0%, #f8f2e2 52%, #ffffff 100%);
+  --shadow-soft: 0 1px 2px rgba(60, 48, 20, 0.05);
+  --pattern: rgba(60, 48, 20, 0.06);
 }
 
 /* ---------- food-remolacha (light berry / cárnico) ---------- */
@@ -150,11 +147,8 @@
   --border: #ebd8e0;
   --input: #e6d0da;
   --ring: #8e2a48;
-  --shadow-soft: 0 1px 2px rgba(60, 20, 35, 0.06);
-  --bg-atmosphere:
-    radial-gradient(circle at 15% 10%, rgba(142, 42, 72, 0.07), transparent 30%),
-    radial-gradient(circle at 85% 0%, rgba(201, 93, 99, 0.08), transparent 32%),
-    linear-gradient(135deg, #fbf6f8 0%, #f6ecf1 52%, #ffffff 100%);
+  --shadow-soft: 0 1px 2px rgba(60, 20, 35, 0.05);
+  --pattern: rgba(60, 20, 35, 0.06);
 }
 
 /* ---------- food-mar (dark teal / frescos) ---------- */
@@ -178,11 +172,8 @@
   --border: rgba(255, 255, 255, 0.09);
   --input: rgba(255, 255, 255, 0.07);
   --ring: #14b8a6;
-  --shadow-soft: 0 6px 20px rgba(0, 10, 12, 0.3);
-  --bg-atmosphere:
-    radial-gradient(circle at 20% 15%, rgba(20, 184, 166, 0.12), transparent 32%),
-    radial-gradient(circle at 80% 85%, rgba(153, 226, 180, 0.07), transparent 28%),
-    linear-gradient(135deg, #051114 0%, #07171a 55%, #0a2226 100%);
+  --shadow-soft: 0 6px 20px rgba(0, 10, 12, 0.24);
+  --pattern: rgba(255, 255, 255, 0.045);
 }
 
 /* ---------- base ---------- */
@@ -203,8 +194,6 @@
 
   body {
     @apply bg-background font-sans text-foreground antialiased;
-    background-image: var(--bg-atmosphere);
-    background-attachment: fixed;
     min-height: 100dvh;
   }
 
@@ -215,15 +204,77 @@
 }
 
 @layer components {
-  /* Card glass premium — patrón base del POS */
+  /* Card glass — mismo radio (8px) y sombra suave que la Card del POS */
   .glass-card {
-    @apply rounded-ninjaLg border border-border bg-card shadow-soft backdrop-blur-xl;
+    @apply rounded-lg border border-border bg-card shadow-soft backdrop-blur-xl;
   }
 
   /* Texto con degradé de marca (logo) */
   .brand-gradient-text {
     @apply bg-brand-gradient bg-clip-text text-transparent;
   }
+}
+
+/* ============================================================
+   Fondo del área de la app — port del .app-bg del POS:
+   patrón seleccionable vía [data-bg]. Default: dots.
+   ============================================================ */
+.app-bg {
+  background-color: var(--background);
+  background-attachment: fixed;
+}
+/* Dot grid (default). */
+[data-bg="dots"] .app-bg {
+  background-image: radial-gradient(var(--pattern) 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
+}
+/* Grid de líneas finas. */
+[data-bg="grid"] .app-bg {
+  background-image:
+    linear-gradient(var(--pattern) 1px, transparent 1px),
+    linear-gradient(90deg, var(--pattern) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+/* Cruces tech: neutras + algunas en verde marca. */
+[data-bg="crosses"] .app-bg {
+  background-image:
+    linear-gradient(var(--pattern) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, var(--pattern) 1.5px, transparent 1.5px),
+    linear-gradient(rgba(63, 163, 77, 0.16) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, rgba(63, 163, 77, 0.16) 1.5px, transparent 1.5px);
+  background-size:
+    40px 40px,
+    40px 40px,
+    200px 200px,
+    200px 200px;
+}
+/* Diagonales sutiles. */
+[data-bg="diagonal"] .app-bg {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--pattern) 0,
+    var(--pattern) 1px,
+    transparent 1px,
+    transparent 14px
+  );
+}
+/* Mesh / glow verde. */
+[data-bg="mesh"] .app-bg {
+  background-image:
+    radial-gradient(circle at 16% 14%, rgba(63, 163, 77, 0.12), transparent 30%),
+    radial-gradient(circle at 84% 10%, rgba(140, 191, 47, 0.12), transparent 34%),
+    radial-gradient(circle at 72% 86%, rgba(198, 212, 32, 0.06), transparent 28%);
+}
+
+/* Resalte de números/cantidades según data-price-accent (patrón POS) */
+.price-hl {
+  color: var(--foreground);
+}
+html:not([data-price-accent="neutro"]) .price-hl {
+  background: var(--price-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* Fondo de marca SIEMPRE oscuro (auth, landing hero) — espejo del

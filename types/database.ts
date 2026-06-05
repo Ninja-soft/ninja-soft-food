@@ -1738,21 +1738,36 @@ export type Database = {
       }
       tenant_branding: {
         Row: {
+          accent: string
+          address: string | null
+          cuit: string | null
+          legal_name: string | null
           logo_url: string | null
+          phone: string | null
           sello_abr_enabled: boolean
           tenant_id: string
           trace_page_config: Json
           updated_at: string
         }
         Insert: {
+          accent?: string
+          address?: string | null
+          cuit?: string | null
+          legal_name?: string | null
           logo_url?: string | null
+          phone?: string | null
           sello_abr_enabled?: boolean
           tenant_id: string
           trace_page_config?: Json
           updated_at?: string
         }
         Update: {
+          accent?: string
+          address?: string | null
+          cuit?: string | null
+          legal_name?: string | null
           logo_url?: string | null
+          phone?: string | null
           sello_abr_enabled?: boolean
           tenant_id?: string
           trace_page_config?: Json

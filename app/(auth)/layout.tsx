@@ -12,14 +12,22 @@ export default function AuthLayout({
     <div className="food-dark-bg relative flex min-h-screen items-center justify-center px-4 py-12 text-brand-mist">
       <div className="food-grid pointer-events-none absolute inset-0 opacity-20" />
       <div className="relative z-10 w-full max-w-md">
-        <Link href="/" className="mb-8 flex justify-center">
+        <Link href="/" className="mb-8 flex items-center justify-center gap-3">
+          <Image
+            src="/img/ninja-soft-isotype.webp"
+            alt="Ninja-Soft"
+            width={64}
+            height={80}
+            priority
+            className="h-14 w-auto sm:h-16"
+          />
           <Image
             src="/img/ninja-food-login.png"
             alt="Ninja Food"
             width={320}
             height={88}
             priority
-            className="h-16 w-auto sm:h-20"
+            className="h-12 w-auto sm:h-14"
           />
         </Link>
         {children}
