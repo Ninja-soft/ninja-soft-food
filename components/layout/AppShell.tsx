@@ -22,6 +22,7 @@ import {
   Soup,
   Sun,
   Truck,
+  UserCog,
   UtensilsCrossed,
   X,
 } from "lucide-react";
@@ -30,6 +31,7 @@ import { cn } from "@/lib/utils/cn";
 import { DARK_THEMES, useTheme } from "@/lib/theme/ThemeProvider";
 import { Isotype, WordmarkFood } from "@/components/brand/Logo";
 import { Avatar } from "@/components/ui/Avatar";
+import { MembershipProfileModal } from "@/components/account/MembershipProfileModal";
 import {
   Dropdown,
   DropdownContent,
@@ -121,25 +123,56 @@ function UserMenu({
   email,
   role,
   tenantName,
+  onEditProfile,
   onSignOut,
 }: {
   name: string;
   email: string;
   role: string | null;
   tenantName: string;
+  onEditProfile: () => void;
   onSignOut: () => void;
 }) {
   const { theme, toggleTheme } = useTheme();
   const isDark = DARK_THEMES.includes(theme);
 
+  // Perfil de la membresía (display_name/avatar), patrón POS: lo que el
+  // usuario edita en "Mi perfil" pisa el nombre que vino del server.
+  const { data: me, isLoading: meLoading } = useQuery({
+    queryKey: ["my-membership-profile"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return null;
+      const { data } = await supabase
+        .from("tenant_users")
+        .select("display_name, avatar")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+      return {
+        display_name: data?.display_name ?? null,
+        avatar: data?.avatar ?? null,
+      };
+    },
+  });
+  const displayName = me?.display_name || name;
+
   return (
     <Dropdown>
       <DropdownTrigger asChild>
         <button className="flex w-full items-center gap-2.5 rounded-lg border border-border bg-card p-2 text-left transition hover:bg-muted">
-          <Avatar name={name} size={32} />
+          <Avatar
+            name={displayName}
+            avatar={me?.avatar}
+            size={32}
+            loading={meLoading}
+          />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium text-foreground">
-              {name}
+              {displayName}
             </span>
             <span className="block truncate text-xs text-muted-foreground">
               {tenantName}
@@ -156,6 +189,9 @@ function UserMenu({
       <DropdownContent align="start" className="w-[232px]">
         <DropdownLabel>Cuenta</DropdownLabel>
         <div className="px-3 pb-1.5 text-xs text-muted-foreground">{email}</div>
+        <DropdownItem onSelect={onEditProfile}>
+          <UserCog size={15} /> Editar mi perfil
+        </DropdownItem>
         <DropdownItem
           onSelect={(e) => {
             e.preventDefault();
@@ -188,6 +224,7 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [drawer, setDrawer] = useState(false);
+  const [pfOpen, setPfOpen] = useState(false);
   const [open, setOpen] = useState<Record<string, boolean>>({
     Operación: true,
     Catálogo: true,
@@ -312,6 +349,7 @@ export function AppShell({
           email={userEmail}
           role={shell?.role ?? null}
           tenantName={tenantName}
+          onEditProfile={() => setPfOpen(true)}
           onSignOut={signOut}
         />
       </div>
@@ -355,6 +393,8 @@ export function AppShell({
           {children}
         </main>
       </div>
+
+      <MembershipProfileModal open={pfOpen} onOpenChange={setPfOpen} />
     </div>
   );
 }

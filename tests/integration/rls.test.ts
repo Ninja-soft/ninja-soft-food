@@ -1205,6 +1205,60 @@ describe.skipIf(!RLS_ENABLED)("RLS multi-tenant isolation (cloud)", () => {
     );
   });
 
+  // ── 5bis. Perfil de membresía (tenant_users.display_name/avatar — 0012) ─────
+  describe("membership profile (tenant_users, migración 0012)", () => {
+    test(
+      "A actualiza su propio display_name/avatar",
+      async () => {
+        const { data, error } = await tenantA.client
+          .from("tenant_users")
+          .update({ display_name: `${RUN_PREFIX} Perfil A`, avatar: "chef" })
+          .eq("user_id", tenantA.userId)
+          .select("display_name, avatar");
+        expect(error).toBeNull();
+        expect(data).toHaveLength(1);
+        expect(data?.[0]?.display_name).toBe(`${RUN_PREFIX} Perfil A`);
+        expect(data?.[0]?.avatar).toBe("chef");
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "B no lee la membresía de A",
+      async () => {
+        const { data, error } = await tenantB.client
+          .from("tenant_users")
+          .select("id, display_name")
+          .eq("tenant_id", tenantA.tenantId);
+        expect(error).toBeNull();
+        expect(data ?? []).toEqual([]);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "B no puede pisar el perfil de A (0 filas afectadas)",
+      async () => {
+        const { data, error } = await tenantB.client
+          .from("tenant_users")
+          .update({ display_name: `${RUN_PREFIX} hacked` })
+          .eq("user_id", tenantA.userId)
+          .select("id");
+        expect(error).toBeNull();
+        expect(data ?? []).toEqual([]);
+
+        // El perfil de A quedó intacto.
+        const { data: mine } = await tenantA.client
+          .from("tenant_users")
+          .select("display_name")
+          .eq("user_id", tenantA.userId)
+          .single();
+        expect(mine?.display_name).toBe(`${RUN_PREFIX} Perfil A`);
+      },
+      TEST_TIMEOUT
+    );
+  });
+
   // ── 6. Anon: barrido sobre tablas operativas (no lee nada) ───────────────────
   describe("anon sin sesión: no lee tablas operativas", () => {
     const operativeTables = [
