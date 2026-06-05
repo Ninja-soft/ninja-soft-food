@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   Apple,
+  Download,
   FolderPlus,
   MoreVertical,
   Pencil,
@@ -33,6 +34,7 @@ import {
   useIngredients,
 } from "@/modules/ingredients/hooks";
 import { cn } from "@/lib/utils/cn";
+import { exportToExcel } from "@/lib/utils/xlsx";
 
 // Catálogo de ingredientes: familias + búsqueda + CRUD (heredado de La Jamonera).
 export default function IngredientesPage() {
@@ -79,6 +81,31 @@ export default function IngredientesPage() {
     }
   }
 
+  function handleExport() {
+    void exportToExcel({
+      filename: "ingredientes",
+      sheetName: "Ingredientes",
+      title: "Catálogo de ingredientes",
+      subtitle: activeFamily ? `Familia: ${activeFamily.name}` : undefined,
+      columns: [
+        { header: "Ingrediente", key: "name", width: 32 },
+        { header: "Familia", key: "family", width: 22 },
+        { header: "Unidad", key: "unit", width: 12 },
+        { header: "Perecedero", key: "perishable", width: 14 },
+        { header: "Vida útil (días)", key: "shelf", format: "number", width: 16 },
+        { header: "Stock mínimo", key: "threshold", format: "number", width: 16 },
+      ],
+      rows: (ingredients ?? []).map((i) => ({
+        name: i.name,
+        family: i.family?.name ?? "",
+        unit: i.unit,
+        perishable: i.is_perishable ? "Sí" : "No",
+        shelf: i.default_shelf_days,
+        threshold: i.low_stock_threshold,
+      })),
+    });
+  }
+
   async function confirmDeleteFamily() {
     if (!deleteFamilyTarget) return;
     try {
@@ -109,6 +136,14 @@ export default function IngredientesPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={handleExport}
+            disabled={(ingredients ?? []).length === 0}
+          >
+            <Download size={16} />
+            Exportar Excel
+          </Button>
           <Button
             variant="secondary"
             onClick={() => setFamilyModal({ open: true, family: null })}

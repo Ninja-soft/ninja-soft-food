@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, QrCode, Search, Soup } from "lucide-react";
+import { Download, Plus, QrCode, Search, Soup } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SpinnerBlock } from "@/components/ui/Spinner";
 import { Eyebrow, Heading, Money } from "@/components/ui/Typography";
@@ -9,7 +9,14 @@ import { ProductionFormModal } from "@/components/production/ProductionFormModal
 import { TraceQrModal } from "@/components/production/TraceQrModal";
 import { cn } from "@/lib/utils/cn";
 import { daysUntil, formatDate, formatQty } from "@/lib/utils/format";
+import { exportToExcel } from "@/lib/utils/xlsx";
 import { useProductions } from "@/modules/production/hooks";
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Borrador",
+  completed: "Completada",
+  voided: "Anulada",
+};
 
 // Producción: historial + alta que consume lotes (corazón de la trazabilidad).
 export default function ProduccionPage() {
@@ -18,6 +25,33 @@ export default function ProduccionPage() {
   const [qr, setQr] = useState<{ slug: string; code: string } | null>(null);
 
   const { data: productions, isLoading } = useProductions(search);
+
+  function handleExport() {
+    void exportToExcel({
+      filename: "producciones",
+      sheetName: "Producciones",
+      title: "Historial de producción",
+      subtitle: search.trim() ? `Filtro: ${search.trim()}` : undefined,
+      columns: [
+        { header: "Código", key: "code", width: 16 },
+        { header: "Fecha", key: "date", format: "date", width: 14 },
+        { header: "Receta", key: "recipe", width: 32 },
+        { header: "Cantidad (kg)", key: "kg", format: "number", width: 16 },
+        { header: "Lote", key: "lot", width: 22 },
+        { header: "Vencimiento", key: "expiry", format: "date", width: 16 },
+        { header: "Estado", key: "state", width: 14 },
+      ],
+      rows: (productions ?? []).map((p) => ({
+        code: p.code,
+        date: p.production_date,
+        recipe: p.recipe?.title ?? "",
+        kg: p.quantity_kg,
+        lot: p.product_lot_number ?? "",
+        expiry: p.product_expiry_date,
+        state: STATUS_LABELS[p.status] ?? p.status,
+      })),
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -33,10 +67,20 @@ export default function ProduccionPage() {
             trazable del producto terminado.
           </p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>
-          <Plus size={16} />
-          Nueva producción
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={handleExport}
+            disabled={(productions ?? []).length === 0}
+          >
+            <Download size={16} />
+            Exportar Excel
+          </Button>
+          <Button onClick={() => setModalOpen(true)}>
+            <Plus size={16} />
+            Nueva producción
+          </Button>
+        </div>
       </div>
 
       {/* Búsqueda */}

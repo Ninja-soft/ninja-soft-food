@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   CalendarClock,
+  Download,
   Package,
   Plus,
   Search,
@@ -18,6 +19,7 @@ import { AdjustEntryModal } from "@/components/stock/AdjustEntryModal";
 import { StockEntryFormModal } from "@/components/stock/StockEntryFormModal";
 import { cn } from "@/lib/utils/cn";
 import { daysUntil, formatDate, formatQty } from "@/lib/utils/format";
+import { exportToExcel } from "@/lib/utils/xlsx";
 import type { StockEntry } from "@/modules/stock/api";
 import { useAvailableEntries, useEntryHistory } from "@/modules/stock/hooks";
 import {
@@ -94,6 +96,71 @@ export default function InventarioPage() {
     return { low, expiring };
   }, [rows]);
 
+  const historyRows = history ?? [];
+  const canExport =
+    tab === "stock" ? rows.length > 0 : historyRows.length > 0;
+
+  function handleExport() {
+    if (tab === "stock") {
+      void exportToExcel({
+        filename: "stock-actual",
+        sheetName: "Stock",
+        title: "Stock actual",
+        subtitle: search.trim() ? `Filtro: ${search.trim()}` : undefined,
+        columns: [
+          { header: "Ingrediente", key: "name", width: 32 },
+          { header: "Disponible", key: "total", format: "number", width: 16 },
+          { header: "Unidad", key: "unit", width: 10 },
+          { header: "Lotes", key: "lots", format: "number", width: 10 },
+          { header: "Próx. vencimiento", key: "expiry", format: "date", width: 18 },
+          { header: "Stock mínimo", key: "threshold", format: "number", width: 14 },
+          { header: "Estado", key: "state", width: 14 },
+        ],
+        rows: rows.map((r) => {
+          const d = daysUntil(r.nextExpiry);
+          const isLow = r.total < r.lowThreshold;
+          const isExpiring = d !== null && d <= EXPIRING_SOON_DAYS;
+          return {
+            name: r.name,
+            total: r.total,
+            unit: r.unit,
+            lots: r.lots.length,
+            expiry: r.nextExpiry,
+            threshold: r.lowThreshold,
+            state: isLow ? "Stock bajo" : isExpiring ? "Por vencer" : "OK",
+          };
+        }),
+      });
+    } else {
+      void exportToExcel({
+        filename: "ingresos-stock",
+        sheetName: "Ingresos",
+        title: "Historial de ingresos",
+        subtitle: search.trim() ? `Lote: ${search.trim()}` : undefined,
+        columns: [
+          { header: "Fecha", key: "date", format: "datetime", width: 18 },
+          { header: "Ingrediente", key: "name", width: 30 },
+          { header: "Lote", key: "lot", width: 22 },
+          { header: "Ingresado", key: "quantity", format: "number", width: 14 },
+          { header: "Restante", key: "remaining", format: "number", width: 14 },
+          { header: "Unidad", key: "unit", width: 10 },
+          { header: "Vence", key: "expiry", format: "date", width: 14 },
+          { header: "Proveedor", key: "supplier", width: 26 },
+        ],
+        rows: historyRows.map((e) => ({
+          date: e.created_at,
+          name: e.ingredient?.name ?? "",
+          lot: e.lot_number,
+          quantity: e.quantity,
+          remaining: e.remaining_quantity,
+          unit: e.unit,
+          expiry: e.expiry_date,
+          supplier: e.supplier?.name ?? "",
+        })),
+      });
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -107,10 +174,20 @@ export default function InventarioPage() {
             Lotes disponibles con trazabilidad desde el ingreso.
           </p>
         </div>
-        <Button onClick={() => setEntryModalOpen(true)}>
-          <Plus size={16} />
-          Nuevo ingreso
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={handleExport}
+            disabled={!canExport}
+          >
+            <Download size={16} />
+            Exportar Excel
+          </Button>
+          <Button onClick={() => setEntryModalOpen(true)}>
+            <Plus size={16} />
+            Nuevo ingreso
+          </Button>
+        </div>
       </div>
 
       {/* Alertas */}

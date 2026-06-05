@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  Download,
   FolderPlus,
   MoreVertical,
   Pencil,
@@ -26,6 +27,7 @@ import { GroupFormModal } from "@/components/recipes/GroupFormModal";
 import { RecipeFormModal } from "@/components/recipes/RecipeFormModal";
 import { cn } from "@/lib/utils/cn";
 import { daysUntil, formatDate } from "@/lib/utils/format";
+import { exportToExcel } from "@/lib/utils/xlsx";
 import type { Recipe, RecipeGroup } from "@/modules/recipes/api";
 import {
   useDeleteGroup,
@@ -101,6 +103,36 @@ export default function RecetasPage() {
     [recipes, rnpaFilter],
   );
 
+  function rnpaCell(r: Recipe): string {
+    if (r.rnpa_exempt) return "Exenta";
+    return r.rnpa_number ?? "Sin RNPA";
+  }
+
+  function handleExport() {
+    void exportToExcel({
+      filename: "recetas",
+      sheetName: "Recetas",
+      title: "Catálogo de recetas",
+      subtitle: activeGroup ? `Grupo: ${activeGroup.name}` : undefined,
+      columns: [
+        { header: "Receta", key: "title", width: 32 },
+        { header: "Grupo", key: "group", width: 22 },
+        { header: "RNPA", key: "rnpa", width: 20 },
+        { header: "Vence RNPA", key: "rnpaExpiry", format: "date", width: 16 },
+        { header: "Vida útil (días)", key: "shelf", format: "number", width: 16 },
+        { header: "Ingredientes", key: "ingredients", format: "number", width: 14 },
+      ],
+      rows: filtered.map((r) => ({
+        title: r.commercial_name ? `${r.title} (${r.commercial_name})` : r.title,
+        group: r.group?.name ?? "",
+        rnpa: rnpaCell(r),
+        rnpaExpiry: r.rnpa_exempt ? null : r.rnpa_expiry,
+        shelf: r.shelf_life_days,
+        ingredients: r.recipe_ingredients.length,
+      })),
+    });
+  }
+
   async function confirmDeleteRecipe() {
     if (!deleteTarget) return;
     try {
@@ -147,6 +179,14 @@ export default function RecetasPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={handleExport}
+            disabled={filtered.length === 0}
+          >
+            <Download size={16} />
+            Exportar Excel
+          </Button>
           <Button
             variant="secondary"
             onClick={() => setGroupModal({ open: true, group: null })}
