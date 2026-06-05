@@ -198,16 +198,31 @@ export function BrandingCard() {
                 style={{ background: c }}
               />
             ))}
-            <label className="flex h-8 items-center gap-2 rounded-lg border border-border px-2 text-xs text-muted-foreground">
-              <input
-                type="color"
-                value={form.accent}
-                onChange={(e) =>
-                  setForm((f) => (f ? { ...f, accent: e.target.value } : f))
-                }
-                className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0"
+            {/* Color personalizado: pill calcada del POS (BrandingCard) — input
+                nativo oculto con sr-only, swatch redondo + hex visibles. */}
+            <label
+              className="flex h-8 cursor-pointer items-center gap-2 rounded-full border border-border px-3 text-xs text-muted-foreground"
+              title="Color personalizado"
+            >
+              <span
+                className="h-4 w-4 rounded-full border border-black/10"
+                style={{ background: form.accent }}
               />
               {form.accent.toUpperCase()}
+              <input
+                type="color"
+                className="sr-only"
+                value={
+                  /^#[0-9a-fA-F]{6}$/.test(form.accent)
+                    ? form.accent
+                    : "#3FA34D"
+                }
+                onChange={(e) =>
+                  setForm((f) =>
+                    f ? { ...f, accent: e.target.value.toUpperCase() } : f,
+                  )
+                }
+              />
             </label>
           </div>
         </div>
