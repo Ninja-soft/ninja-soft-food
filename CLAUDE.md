@@ -61,8 +61,8 @@ Ingrediente → ingreso de stock con **lote** (proveedor + RNE + vencimiento; co
   - Nota de flujo: signup liviano (nombre/email/pass) → `/onboarding` completa empresa/rubro; raíz `/` redirige a `/login` (sin landing por ahora)
 - [~] Fase 2 — MVP completo:
   - [x] Despacho (clientes, vehículos UTA/URA con alerta de vencimiento, RPC `create_dispatch` atómica, remito PDF con branding, export Excel) — ⚠️ migración 0008 pendiente de aplicar en cloud (permiso denegado en sesión autónoma): correr `supabase db push` y luego `pnpm db:types`; smoke clientes/vehículos verde, RPC valida tras aplicar
-  - [ ] Calidad (informes bromatológicos + análisis de laboratorio) ← SIGUIENTE
-  - [ ] Dashboard del tenant
+  - [x] Calidad: análisis de laboratorio (8 tipos, conformidad 0-100 con categorías, laboratorios por tenant, adjuntos en bucket privado `attachments`, smoke 10/10) + informes bromatológicos (editor Tiptap `components/ui/RichTextEditor.tsx`, importancia 0-100, notificados persistidos, adjuntos, smoke 8/8) — pendientes de otra fase: formato IA y envío real de emails
+  - [ ] Dashboard del tenant ← SIGUIENTE
   - [ ] Billing MP (preapproval, webhooks idempotentes)
   - [ ] Panel interno staff
   - [ ] Migración La Jamonera
