@@ -1,0 +1,70 @@
+# CLAUDE.md — Ninja Food
+
+SaaS multi-tenant de **trazabilidad y gestión bromatológica** para la industria alimenticia argentina (world-ready). Producto de Ninja-Soft, avalado técnicamente por ABR. Hermano del POS: `C:\Users\Lucas\Documents\ninja-soft-pos` es la **fuente de verdad de convenciones** — ante cualquier duda de estructura, estilo o patrón, mirá cómo lo hace el POS y replicalo.
+
+## Stack
+
+Next.js 14 (App Router) · React 18 · TypeScript strict · **Tailwind CSS 3.4** (regla dura) · TanStack Query 5 · Zustand 5 · react-hook-form + zod · Radix UI · react-day-picker 9 + date-fns 4 · exceljs + jspdf · Supabase (Postgres + Auth + Storage + Edge Functions) · Mercado Pago (suscripciones preapproval) · Vercel + GitHub Actions · pnpm 9 / Node ≥20.
+
+## Comandos
+
+```bash
+pnpm install              # deps
+pnpm dev                  # dev server (http://localhost:3000)
+pnpm build                # build de producción
+pnpm lint && pnpm typecheck && pnpm test   # gate de CI (correr antes de commit)
+pnpm test:rls             # tests de aislamiento multi-tenant (OBLIGATORIO tras tocar SQL)
+pnpm db:start             # Supabase local (Docker)
+pnpm db:reset             # aplica migraciones + seed
+pnpm db:types             # regenera types/database.ts (correr tras cada migración)
+pnpm format               # prettier
+```
+
+Deploy: push a `main` → Vercel auto-deploy. PRs generan preview. CI bloquea merge si falla lint/typecheck/test/build.
+
+## Arquitectura (resumen — detalle en docs/)
+
+- `app/(auth)` login/signup/recover · `app/(public)` landing + `t/[slug]` traza pública QR (sin auth) · `app/(app)` la aplicación del tenant · `app/internal` panel staff Ninja-Soft · `app/api` health, webhooks MP, API pública v1.
+- `modules/<dominio>/{api,hooks,schemas,store}.ts` — la lógica de negocio NUNCA vive en componentes.
+- `components/ui` primitivos portados del POS · `components/<dominio>` específicos.
+- `lib/supabase` clients server/client/middleware · `lib/theme` 6 temas · `lib/billing` abstracción de pasarelas · `lib/utils` cn/format/xlsx/pdf/lotCode.
+- `supabase/migrations` SQL versionado · `supabase/functions` Edge Functions (Deno).
+
+## Reglas duras (no negociables)
+
+1. **Multi-tenant:** toda tabla operativa lleva `tenant_id` + RLS con `current_tenant_id()`. Toda migración nueva incluye sus políticas y un caso en `tests/integration/rls.test.ts`. Sin excepciones.
+2. **Tailwind + tokens:** solo clases Tailwind mapeadas a CSS vars del design system (`bg-background`, `text-foreground`, `border-border`, `bg-primary`...). Prohibido hex suelto en componentes y prohibido `style={{}}` salvo casos dinámicos justificados.
+3. **Estética premium nivel POS:** cada pantalla se compara contra su equivalente del POS antes de darse por terminada. Fondos atmosféricos, cards glass (`bg-card` + backdrop-blur), radios `rounded-ninjaMd/Lg`, glows de acento, animaciones del design system. **Prohibido el look genérico de IA**: nada de grises planos por defecto, `shadow-sm` sin intención, ni layouts sin jerarquía tipográfica (Nunito display / Inter UI / JetBrains Mono datos).
+4. **Soft delete** (`deleted_at`), `created_at/updated_at` con trigger, UUID PK, auditoría en cambios críticos (`audit_logs` before/after).
+5. **Inmutabilidad regulatoria:** `form_submissions` y `public_traces.payload` no se editan jamás — correcciones crean registros nuevos. La firma de operario usa PIN hasheado (bcrypt), nunca texto plano.
+6. **Emails:** sin emojis, sin em-dashes, separador punto medio (·). Templates en `email_templates`, envío vía Edge Function `send_email`, log en `system_emails`.
+7. **Billing:** el estado canónico vive en `subscriptions.status`; los webhooks (idempotentes por `provider_event_id`) son la fuente de verdad del cobro, nunca el redirect. Pasarelas solo a través de `lib/billing` (interface `BillingProvider`).
+8. **Idioma:** UI y docs en español rioplatense; código, tablas y commits en inglés.
+9. **Excel-first:** todo listado significativo debe poder exportarse a Excel; toda planilla debe poder imprimirse.
+10. **Nada hardcodeado al cliente:** localidades, prefijos de lote, logos, umbrales — todo configurable por tenant (lección de La Jamonera).
+
+## Dominio (vocabulario)
+
+Ingrediente → ingreso de stock con **lote** (proveedor + RNE + vencimiento; congelados +60 días por CAA) → **receta** (fórmula + RNPA + octógonos Ley 27.642) → **producción** (consume lotes, genera lote de producto terminado, firmada por operario con PIN) → **despacho** (cliente + vehículo UTA/URA) → **traza pública** (QR, snapshot inmutable). Paralelo: **informes bromatológicos** y **análisis de laboratorio** (importancia/conformidad 0-100), **planillas** BPM/POES configurables. Compliance: RNE (establecimiento/proveedor), RNPA (producto), RUCA (cárnicos), UTA/URA (transporte).
+
+## Estado del roadmap
+
+- [x] Planificación completa (`PLAN-MAESTRO.md` + `docs/`)
+- [ ] **Fase 0 — Fundaciones** ← SIGUIENTE: migración core ya escrita (`supabase/migrations/0001_core.sql`); falta crear proyecto Supabase, completar `.env`, portar componentes `ui/` del POS, auth completo, landing.
+- [ ] Fase 1 — Núcleo trazabilidad (ingredientes, stock/lotes, recetas, producción, QR, planillas PDF/Excel)
+- [ ] Fase 2 — MVP completo (despacho, calidad, dashboard, billing MP, panel interno, migración La Jamonera)
+- [ ] Fase 3 — v1 diferenciación (builder de planillas, recall, costos, API pública, `@ninja-soft/ui`)
+- [ ] Fase 4 — v2 escala (multi-planta, MercadoLibre/PedidosYa/Rappi, SSO POS↔Food, Stripe/PayPal)
+
+Detalle y criterios de salida: `docs/07-roadmap.md`. Catálogo funcional completo (no perder NINGUNA feature de La Jamonera): `docs/02-catalogo-funcionalidades.md`.
+
+## Agentes
+
+`.claude/agents/` define el escuadrón (arquitecto-datos, backend-supabase, frontend-design, trazabilidad, planillas-excel, billing, emails, integraciones-api, calidad-compliance, kpis-reportes, devops-repo, qa, revisor). Fichas y dependencias: `docs/08-agentes.md`. Regla: quien cambie arquitectura actualiza este archivo y docs/ en el mismo PR.
+
+## Referencias rápidas
+
+- Paletas de los 6 temas: `docs/04-arquitectura.md` §3 · implementación: `app/globals.css` + `lib/theme/ThemeProvider.tsx`
+- Modelo de datos completo: `docs/03-modelo-datos.md`
+- Veredictos de APIs externas (MP, ML, PedidosYa, Rappi, normativa): `docs/09-investigacion-integraciones.md`
+- Assets de marca: `img/` (logos dark/light, ABR)

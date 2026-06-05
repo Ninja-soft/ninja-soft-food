@@ -1,0 +1,200 @@
+# Modelo de datos multi-tenant — Ninja Food
+
+Convenciones heredadas del POS (reglas duras):
+- UUID PK en todas las entidades.
+- `tenant_id uuid NOT NULL` en **toda** tabla operativa.
+- `created_at` / `updated_at` (trigger `set_updated_at()`), `deleted_at` para soft delete.
+- RLS activo en todas las tablas; aislamiento por `current_tenant_id()` (claim del JWT).
+- `audit_logs` con before/after para cambios críticos.
+- Nombres de tabla en inglés snake_case (consistencia POS), labels de UI en español.
+
+---
+
+## 1. Núcleo SaaS (calcado del POS)
+
+```
+tenants               id, name, slug, cuit, industry(frigorifico|panaderia|lacteos|conservas|catering|otro),
+                      country='AR', status(trial|active|past_due|suspended|cancelled), trial_ends_at
+users                 espejo de auth.users + is_internal, internal_level(viewer|editor|admin), settings jsonb
+tenant_users          tenant_id, user_id, role(owner|manager|operator|viewer)
+plans                 key(start|pro|business|enterprise), name, monthly_price_ars, yearly_price_ars,
+                      monthly_price_usd, limits jsonb {max_establishments, max_users, max_recipes,
+                      max_productions_per_month, max_form_templates, api_access bool, integrations bool}
+subscriptions         tenant_id UNIQUE, plan_id, status, billing_cycle, current_period_start/end,
+                      cancel_at_period_end, provider(mercadopago|stripe|paypal|manual),
+                      provider_subscription_id
+feature_flags         key, default_enabled
+tenant_feature_flags  tenant_id, feature_flag_id, enabled
+payment_events        webhook log idempotente: provider, provider_event_id UNIQUE, payload, processed_at
+audit_logs            tenant_id, action, entity_type, entity_id, actor_user_id, before_data, after_data,
+                      ip_address, user_agent, reason
+email_templates       tenant_id, key, subject, html, enabled
+system_emails         cola/log: tenant_id, recipient, subject, html_content, status, error_message
+system_email_smtp     config SMTP (solo service_role)
+tenant_branding       tenant_id, logo_url, trace_page_config jsonb, sello_abr_enabled
+```
+
+### Modelo de suscripción agnóstico a la pasarela
+
+El estado canónico vive en `subscriptions.status`; cada pasarela mapea a él (investigación verificada, doc 09):
+
+| Canónico | Mercado Pago (preapproval) | Stripe | PayPal |
+|---|---|---|---|
+| trial | (gestionado en app) | trialing | — |
+| active | authorized | active | ACTIVE |
+| past_due | pago rechazado | past_due/unpaid | PAYMENT.FAILED |
+| paused | paused | paused | SUSPENDED |
+| cancelled | cancelled | canceled | CANCELLED |
+
+---
+
+## 2. Dominio operativo (núcleo Jamonera generalizado)
+
+### Establecimientos y compliance
+
+```
+establishments        tenant_id, name, address, locality, rne_number, rne_expiry, rne_attachment_url,
+                      ruca_number, ruca_expiry, municipal_permit_status, is_default
+suppliers             tenant_id, name, cuit, rne_number, rne_expiry, rne_attachment_url, contact jsonb
+vehicles              tenant_id, plate, uta_number, uta_expiry, ura_number, ura_expiry, capacity_kg
+laboratories          tenant_id, name, contact jsonb
+```
+
+### Catálogo
+
+```
+ingredient_families   tenant_id, name, image_url, sort
+ingredients           tenant_id, family_id, name, unit, is_perishable, image_url, description,
+                      low_stock_threshold (nullable → usa global), default_shelf_days
+measure_units         tenant_id nullable (global + por tenant): name, abbr
+recipe_groups         tenant_id, name, image_url, sort
+recipes               tenant_id, group_id, title, commercial_name, category(carnes|lacteos|panificados|
+                      conservas|bebidas|aditivos|otros), product_type(solido|liquido|semisolido|polvo|
+                      concentrado), description, shelf_life_days, aging_days,
+                      packaging_delay_type(none|aging|freeze), rnpa_number, rnpa_expiry, rnpa_exempt,
+                      rnpa_exempt_reason, rnpa_attachment_url, bpm_attachment_url, image_url,
+                      nutrition jsonb {calories, proteins, fats, carbs, sodium},
+                      front_labels text[] (octógonos Ley 27.642),
+                      declaration_unit, household_measure
+recipe_ingredients    recipe_id, ingredient_id, quantity, unit, is_substitute, source_ingredient_id
+```
+
+### Stock y lotes (corazón de la trazabilidad)
+
+```
+stock_entries         tenant_id, establishment_id, ingredient_id, supplier_id, quantity, unit,
+                      remaining_quantity, lot_number, expiry_date, manufacture_date, is_frozen,
+                      frozen_extra_days, invoice_url, unit_cost, currency, is_internal_use,
+                      no_traceability bool
+stock_movements       append-only: tenant_id, ingredient_id, stock_entry_id, type(purchase|production|
+                      adjustment|loss|return|internal), quantity (+/-), production_id nullable,
+                      actor_user_id
+lot_code_templates    tenant_id, name, tokens jsonb (remito|fecha_fab|siglas|secuencia), is_default
+```
+
+### Producción y trazabilidad
+
+```
+productions           tenant_id, establishment_id, recipe_id, code (PROD-<prefijo>-NNN por tenant),
+                      status(draft|completed|voided), production_date, packaging_date,
+                      manager_member_id, quantity_kg, product_lot_number, product_expiry_date,
+                      shelf_life_snapshot, aging_snapshot, notes, total_cost (calculado v1)
+production_inputs     production_id, ingredient_id, required_qty, stock_entry_id nullable
+                      (null = stock infinito), taken_qty, is_substitute, source_ingredient_id
+production_reserves   tenant_id, ingredient_id, stock_entry_id, quantity, expires_at, created_by
+public_traces         tenant_id, production_id, slug UNIQUE, payload jsonb (snapshot inmutable),
+                      qr_config jsonb, views_count
+members               tenant_id, full_name, position, email, pin_hash, photo_url
+                      (operarios de planta: firman planillas y producciones; ≠ users con login)
+```
+
+### Despacho
+
+```
+customers             tenant_id, name, address, locality, phone, email
+localities            tenant_id, name
+dispatches            tenant_id, establishment_id, customer_id, vehicle_id, dispatch_date, status
+dispatch_items        dispatch_id, production_id, recipe_id, quantity_kg
+                      (vínculo despacho↔lote = recall-ready)
+xlsx_imports          tenant_id, kind(dispatch), file_url, rows_total, rows_ok, rows_error,
+                      result jsonb, actor_user_id
+product_rules         tenant_id, recipe_id, rules jsonb, disabled bool (config import XLSX)
+```
+
+### Calidad
+
+```
+reports               (informes bromatológicos) tenant_id, member_id, content_html, importance 0-100,
+                      importance_label(excelente|muy_bueno|bueno|normal|atencion|importante|critico),
+                      notify_member_ids uuid[], report_date
+report_attachments    report_id, url, name, mime, size
+analyses              tenant_id, type(agua|alimentos|productos|superficies|ambiente|materia_prima|
+                      bebidas|otro), sample_code, laboratory_id, observations_html, conformity 0-100,
+                      conformity_label, analysis_date, member_id
+analysis_attachments  analysis_id, url, name, mime, size
+```
+
+### Planillas configurables (v1, diseño anticipado en MVP)
+
+```
+form_templates        tenant_id, name, kind(temperatura|limpieza|plagas|recepcion_mp|capacitacion|
+                      pcc|custom), fields jsonb (builder), frequency jsonb (cron-like),
+                      requires_signature bool, action_on_fail jsonb
+form_submissions      tenant_id, template_id, submitted_by_member_id (firma con PIN), values jsonb,
+                      status(ok|fail|corrected), corrective_action text, evidence_urls text[],
+                      submitted_at  — INMUTABLE post-firma (auditoría)
+```
+
+### API pública (v1)
+
+```
+api_keys              tenant_id, name, key_hash, scopes text[], last_used_at, revoked_at
+outbound_webhooks     tenant_id, url, events text[], secret, is_active
+```
+
+---
+
+## 3. RLS — estrategia
+
+```sql
+-- Función base (idéntico patrón POS)
+create function current_tenant_id() returns uuid
+language sql stable as $$
+  select nullif(current_setting('request.jwt.claims', true)::jsonb
+    -> 'app_metadata' ->> 'tenant_id', '')::uuid
+$$;
+
+-- Política tipo para toda tabla operativa
+create policy tenant_isolation on <tabla>
+  for all using (tenant_id = current_tenant_id());
+
+-- Staff interno bypassa vía políticas adicionales is_internal()
+-- public_traces: SELECT público por slug (anon), escritura solo tenant
+-- payment_secrets / system_email_smtp: solo service_role, sin políticas anon/authenticated
+```
+
+Reglas:
+1. Ninguna tabla operativa sin RLS. Test de integración `tests/integration/rls.test.ts` (patrón POS: `pnpm test:rls`).
+2. `members` (operarios sin login) pertenecen al tenant; firman con PIN hasheado (bcrypt) — corrige el PIN en texto plano de LJ.
+3. `public_traces.payload` es snapshot inmutable: la traza pública no cambia si se edita la receta después.
+4. `form_submissions` inmutable post-firma: UPDATE bloqueado por política, correcciones = nueva fila vinculada.
+5. Multi-establecimiento: plan Industria habilita N `establishments`; el resto opera con el default.
+
+---
+
+## 4. Diagrama de relaciones (núcleo)
+
+```
+tenants ─┬─ tenant_users ─ users
+         ├─ subscriptions ─ plans
+         ├─ establishments ─┬─ stock_entries ─ stock_movements
+         │                  └─ productions ─┬─ production_inputs ─→ stock_entries
+         ├─ suppliers ──→ stock_entries     ├─ public_traces (QR)
+         ├─ ingredients ─ ingredient_families└─ dispatch_items ─ dispatches ─┬─ customers
+         ├─ recipes ─ recipe_ingredients ─→ ingredients                      └─ vehicles
+         ├─ members ──→ productions / reports / analyses / form_submissions
+         ├─ reports / analyses (+ attachments)
+         └─ form_templates ─ form_submissions
+```
+
+Cadena de trazabilidad completa: `supplier → stock_entry(lote MP) → production_input → production(lote PT) → dispatch_item → customer`, expuesta en `public_traces` y reconstruible en minutos para recall (exigencia CAA Art. 1415).
