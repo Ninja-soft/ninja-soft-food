@@ -67,9 +67,11 @@ export default function TrazabilidadPage() {
       {/* Buscador central */}
       <div className="relative">
         <div className="relative">
+          {/* z-10: el backdrop-blur del input crea stacking context y sin esto
+              lo pinta por encima del ícono */}
           <Search
             size={20}
-            className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute left-5 top-1/2 z-10 -translate-y-1/2 text-muted-foreground"
           />
           <input
             type="search"
