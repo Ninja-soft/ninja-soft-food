@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sanitizeRichHtml } from "@/lib/utils/sanitizeHtml";
 import type { Database } from "@/types/database";
 
 export type AnalysisType = Database["public"]["Enums"]["analysis_type"];
@@ -189,7 +190,10 @@ export const reportSchema = z.object({
     .max(60000, "El informe es demasiado largo")
     .refine((v) => htmlToPlainText(v).length > 0, {
       message: "Escribí el contenido del informe",
-    }),
+    })
+    // Defensa en escritura contra stored XSS: el HTML se reduce a la allowlist
+    // del editor ANTES de persistir (el render además sanitiza al leer).
+    .transform((v) => sanitizeRichHtml(v)),
   importance: z
     .number({ invalid_type_error: "Importancia inválida" })
     .int("Debe ser un número entero")

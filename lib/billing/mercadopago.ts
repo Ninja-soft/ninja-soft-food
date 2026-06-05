@@ -14,6 +14,9 @@ import type {
 // lib/billing/mercadopago.ts — pasarela Mercado Pago (suscripciones preapproval).
 //
 // SERVER-ONLY: usa MERCADOPAGO_ACCESS_TOKEN. NUNCA importar desde el cliente.
+// (Sin `import "server-only"` a propósito: los tests unit de vitest importan
+// este módulo y ese package lanza fuera de react-server. La garantía real:
+// solo lo importan route handlers de app/api y node:crypto no bundlea a cliente.)
 // Patrón calcado del POS (supabase/functions/mp_subscription_checkout +
 // mp_billing_webhook): fetch directo a la API de MP (sin SDK), thin-payload →
 // re-fetch del recurso, el webhook nunca confía en el body.
@@ -58,11 +61,16 @@ function authHeaders(): HeadersInit {
  * Verifica la firma x-signature de un webhook de Mercado Pago.
  * Implementación pura (exportada para test): no lee env directamente.
  */
+/** Ventana máxima de antigüedad del `ts` firmado (anti-replay). */
+const SIGNATURE_MAX_AGE_MS = 15 * 60 * 1000;
+
 export function verifyMpSignature(args: {
   signatureHeader: string | null;
   requestId: string | null;
   dataId: string | null;
   secret: string;
+  /** Inyectable para tests; default reloj real. */
+  nowMs?: number;
 }): boolean {
   const { signatureHeader, requestId, dataId, secret } = args;
   if (!signatureHeader || !secret) return false;
@@ -77,6 +85,15 @@ export function verifyMpSignature(args: {
     else if (k === "v1") v1 = v ?? null;
   }
   if (!ts || !v1) return false;
+
+  // Anti-replay: el ts firmado no puede ser más viejo que la ventana (MP lo
+  // manda en segundos; toleramos ms por si cambia). La idempotencia por
+  // provider_event_id ya mitiga reenvíos, esto cierra la ventana del todo.
+  const tsNum = Number(ts);
+  if (!Number.isFinite(tsNum)) return false;
+  const tsMs = tsNum > 1e12 ? tsNum : tsNum * 1000;
+  const now = args.nowMs ?? Date.now();
+  if (Math.abs(now - tsMs) > SIGNATURE_MAX_AGE_MS) return false;
 
   // Manifest según docs MP. data.id en minúsculas si es alfanumérico.
   const idPart = dataId ? `id:${dataId.toLowerCase()};` : "";

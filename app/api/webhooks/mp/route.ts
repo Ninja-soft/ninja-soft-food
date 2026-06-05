@@ -71,10 +71,12 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   if (insertError) {
-    // 23505 = unique_violation → ya procesado (idempotente). Cualquier otro
-    // error: respondemos 200 igual para no gatillar reintentos infinitos; el
-    // job de reconciliación corregirá el estado.
-    return ok();
+    // 23505 = unique_violation → evento ya registrado (idempotente): 200.
+    if (insertError.code === "23505") return ok();
+    // Error transitorio de DB: 500 para que MP REINTENTE el webhook. Con 200
+    // el evento se perdería para siempre (la reconciliación diaria todavía no
+    // existe — pendiente en CLAUDE.md).
+    return NextResponse.json({ error: "transient" }, { status: 500 });
   }
   const eventRowId = inserted?.id ?? null;
 

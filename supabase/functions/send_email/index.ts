@@ -133,6 +133,19 @@ function renderTemplate(tpl: string, vars: Record<string, unknown>): string {
   });
 }
 
+// Variables interpoladas en contexto HTML: SIEMPRE escapadas. Valores como
+// tenants.name o members.full_name los controla el tenant y no pueden inyectar
+// markup en el cuerpo del mail. El template en sí es contenido confiado.
+function renderTemplateHtml(
+  tpl: string,
+  vars: Record<string, unknown>,
+): string {
+  return tpl.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, key: string) => {
+    const v = vars[key];
+    return v === undefined || v === null ? "" : escapeHtml(String(v));
+  });
+}
+
 function buildLayout(
   content: string,
   opts: { logoUrl?: string | null; negocio?: string | null },
@@ -248,8 +261,9 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // Subject: texto plano (sin escape HTML). Body: contexto HTML (escapado).
   const subject = renderTemplate(subjectTpl, vars).trim() || "Ninja Food";
-  const renderedBody = renderTemplate(bodyTpl, vars);
+  const renderedBody = renderTemplateHtml(bodyTpl, vars);
   const html = inlineHtml
     ? renderedBody
     : buildLayout(renderedBody, {

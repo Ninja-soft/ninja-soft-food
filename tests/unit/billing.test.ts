@@ -26,11 +26,19 @@ describe("verifyMpSignature", () => {
   const dataId = "123456789";
   const requestId = "req-abc-001";
   const ts = "1700000000";
+  // Reloj inyectado coherente con el ts firmado (ventana anti-replay de 15 min).
+  const NOW = 1700000000 * 1000 + 60_000;
 
   it("acepta una firma válida", () => {
     const header = signManifest(dataId, requestId, ts);
     expect(
-      verifyMpSignature({ signatureHeader: header, requestId, dataId, secret: SECRET }),
+      verifyMpSignature({
+        signatureHeader: header,
+        requestId,
+        dataId,
+        secret: SECRET,
+        nowMs: NOW,
+      }),
     ).toBe(true);
   });
 
@@ -42,6 +50,7 @@ describe("verifyMpSignature", () => {
         requestId,
         dataId,
         secret: "otro_secret",
+        nowMs: NOW,
       }),
     ).toBe(false);
   });
@@ -54,13 +63,20 @@ describe("verifyMpSignature", () => {
         requestId,
         dataId: "999999999",
         secret: SECRET,
+        nowMs: NOW,
       }),
     ).toBe(false);
   });
 
   it("rechaza header ausente o malformado", () => {
     expect(
-      verifyMpSignature({ signatureHeader: null, requestId, dataId, secret: SECRET }),
+      verifyMpSignature({
+        signatureHeader: null,
+        requestId,
+        dataId,
+        secret: SECRET,
+        nowMs: NOW,
+      }),
     ).toBe(false);
     expect(
       verifyMpSignature({
@@ -68,6 +84,7 @@ describe("verifyMpSignature", () => {
         requestId,
         dataId,
         secret: SECRET,
+        nowMs: NOW,
       }),
     ).toBe(false);
   });
@@ -75,7 +92,13 @@ describe("verifyMpSignature", () => {
   it("rechaza si falta el secret", () => {
     const header = signManifest(dataId, requestId, ts);
     expect(
-      verifyMpSignature({ signatureHeader: header, requestId, dataId, secret: "" }),
+      verifyMpSignature({
+        signatureHeader: header,
+        requestId,
+        dataId,
+        secret: "",
+        nowMs: NOW,
+      }),
     ).toBe(false);
   });
 
@@ -88,6 +111,35 @@ describe("verifyMpSignature", () => {
         requestId,
         dataId: mixed.toUpperCase(),
         secret: SECRET,
+        nowMs: NOW,
+      }),
+    ).toBe(true);
+  });
+
+  it("rechaza un ts fuera de la ventana anti-replay (15 min)", () => {
+    const header = signManifest(dataId, requestId, ts);
+    const sixteenMinLater = 1700000000 * 1000 + 16 * 60_000;
+    expect(
+      verifyMpSignature({
+        signatureHeader: header,
+        requestId,
+        dataId,
+        secret: SECRET,
+        nowMs: sixteenMinLater,
+      }),
+    ).toBe(false);
+  });
+
+  it("acepta ts en milisegundos (tolerancia de unidad)", () => {
+    const tsMs = String(1700000000 * 1000);
+    const header = signManifest(dataId, requestId, tsMs);
+    expect(
+      verifyMpSignature({
+        signatureHeader: header,
+        requestId,
+        dataId,
+        secret: SECRET,
+        nowMs: NOW,
       }),
     ).toBe(true);
   });

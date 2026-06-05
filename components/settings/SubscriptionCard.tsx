@@ -147,10 +147,7 @@ export function SubscriptionCard() {
                   Plan actual
                 </div>
                 <div className="flex items-center gap-3">
-                  <h3
-                    className="font-display text-2xl font-extrabold tracking-tight"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
+                  <h3 className="font-display text-2xl font-extrabold tracking-tight">
                     {sub?.plan?.name ?? "Sin plan"}
                   </h3>
                   <span

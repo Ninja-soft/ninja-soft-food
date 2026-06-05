@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { ImportanceBadge } from "@/components/informes/ImportanceBadge";
 import { formatDate } from "@/lib/utils/format";
+import { sanitizeRichHtml } from "@/lib/utils/sanitizeHtml";
 import {
   getAttachmentUrl,
   type Member,
@@ -70,16 +71,17 @@ export function ReportDetailDrawer({
           </div>
 
           {/*
-            Render del HTML del informe con dangerouslySetInnerHTML.
-            Justificación: el HTML lo genera el propio editor Tiptap del tenant
-            (no entrada de terceros), StarterKit produce un set acotado de tags
-            y el dato está aislado por RLS. No agregamos DOMPurify para no sumar
-            una dependencia extra fuera del alcance permitido. La clase
-            `.rte-content` aplica la tipografía del design system.
+            Render del HTML del informe SIEMPRE sanitizado (allowlist de tags
+            del editor, cero atributos salvo href http(s)). El editor Tiptap es
+            el camino feliz, pero cualquier miembro del tenant puede escribir
+            content_html por el cliente Supabase directo: nunca se confía en el
+            origen (stored XSS). La clase `.rte-content` aplica la tipografía.
           */}
           <div
             className="rte-content rounded-ninjaSm border border-border bg-card/40 px-4 py-3"
-            dangerouslySetInnerHTML={{ __html: report.content_html }}
+            dangerouslySetInnerHTML={{
+              __html: sanitizeRichHtml(report.content_html),
+            }}
           />
 
           {notified.length > 0 && (

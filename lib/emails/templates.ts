@@ -174,6 +174,24 @@ export function renderTemplate(
   });
 }
 
+/**
+ * Igual que renderTemplate pero escapando cada valor para contexto HTML.
+ * Usar SIEMPRE para el cuerpo de los emails: valores como tenants.name o
+ * members.full_name los controla el tenant y no pueden inyectar markup.
+ * (renderTemplate sin escape queda para subjects, texto plano.)
+ */
+export function renderTemplateHtml(
+  template: string,
+  vars: Record<string, string | number | null | undefined>,
+): string {
+  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, key: string) => {
+    const value = vars[key];
+    return value === undefined || value === null
+      ? ""
+      : escapeHtml(String(value));
+  });
+}
+
 export interface EmailLayoutOptions {
   /** Logo del tenant. Si falta, el header usa el wordmark de Ninja Food. */
   logoUrl?: string | null;

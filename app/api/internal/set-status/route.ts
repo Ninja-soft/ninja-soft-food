@@ -88,7 +88,11 @@ export async function POST(req: Request) {
     action: "internal_set_status",
     reason: "Staff Ninja-Soft · cambio de estado",
     before_data: before,
-    after_data: { tenant_status: status, subscription_status: status },
+    // subscription_status real: null si el tenant no tenía fila de subscriptions
+    after_data: {
+      tenant_status: status,
+      subscription_status: subRes.data ? status : null,
+    },
   });
 
   return NextResponse.json({ ok: true, status });

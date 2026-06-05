@@ -70,6 +70,9 @@ export interface PaymentEventRow {
 }
 
 export async function listPaymentEvents(limit = 100): Promise<PaymentEventRow[]> {
+  // Defensa en profundidad: además del guard del layout, todo lector que use
+  // admin client re-verifica is_internal (el service role bypassa RLS).
+  if (!(await requireInternal({ api: true }))) throw new Error("forbidden");
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("payment_events")
@@ -119,6 +122,7 @@ export interface SystemEmailRow {
 }
 
 export async function listSystemEmails(limit = 200): Promise<SystemEmailRow[]> {
+  if (!(await requireInternal({ api: true }))) throw new Error("forbidden");
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("system_emails")
@@ -170,6 +174,7 @@ export interface OverviewStats {
 
 /** Resumen para la home del panel — mezcla client tables (tenants) con admin (pagos/emails). */
 export async function getOverviewStats(): Promise<OverviewStats> {
+  if (!(await requireInternal({ api: true }))) throw new Error("forbidden");
   const admin = createAdminClient();
   const supabase = createClient();
 
