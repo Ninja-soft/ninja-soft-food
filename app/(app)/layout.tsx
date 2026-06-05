@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
+import { QueryProvider } from "@/lib/providers/QueryProvider";
 import { createClient } from "@/lib/supabase/server";
 
 // Guard del grupo (app): exige sesión y tenant. Patrón POS.
@@ -30,12 +31,14 @@ export default async function AppLayout({
     "Usuario";
 
   return (
-    <AppShell
-      userName={userName}
-      userEmail={user.email ?? ""}
-      tenantName={(tenant?.name as string) ?? "Mi empresa"}
-    >
-      {children}
-    </AppShell>
+    <QueryProvider>
+      <AppShell
+        userName={userName}
+        userEmail={user.email ?? ""}
+        tenantName={(tenant?.name as string) ?? "Mi empresa"}
+      >
+        {children}
+      </AppShell>
+    </QueryProvider>
   );
 }
