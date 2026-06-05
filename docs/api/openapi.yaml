@@ -1,0 +1,309 @@
+# Spec OpenAPI de la API pública v1 de Ninja Food.
+# Regla: mantener en el mismo PR que cambie cualquier endpoint (docs/10-api-publica.md §Implementación).
+openapi: 3.1.0
+info:
+  title: Ninja Food API
+  version: "1.0.0"
+  description: |
+    API pública de solo lectura para integradores. Autenticación por API key
+    (Bearer `nf_live_...`) con scopes por recurso. Referencia ampliada y
+    decisiones de seguridad: docs/10-api-publica.md.
+  contact:
+    name: Ninja-Soft
+servers:
+  - url: https://ninja-soft-food.vercel.app/api/v1
+
+security:
+  - apiKey: []
+
+tags:
+  - name: productions
+  - name: stock
+  - name: dispatches
+  - name: traces
+
+paths:
+  /productions:
+    get:
+      tags: [productions]
+      summary: Lista producciones completadas
+      description: Requiere scope `read:productions`. Cursor sobre `created_at` desc.
+      parameters:
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+        - name: from
+          in: query
+          description: Fecha mínima de producción (YYYY-MM-DD).
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          description: Fecha máxima de producción (YYYY-MM-DD).
+          schema: { type: string, format: date }
+        - name: lot
+          in: query
+          description: Coincidencia parcial sobre el lote de producto terminado.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Página de producciones.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/ProductionSummary" }
+                  next_cursor: { $ref: "#/components/schemas/NextCursor" }
+        "401": { $ref: "#/components/responses/InvalidKey" }
+        "403": { $ref: "#/components/responses/MissingScope" }
+
+  /productions/{id}:
+    get:
+      tags: [productions]
+      summary: Detalle de una producción con sus insumos
+      description: Requiere scope `read:productions`. Incluye la cadena hacia atrás (lotes de MP, proveedor, RNE).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Producción con insumos.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductionDetail" }
+        "401": { $ref: "#/components/responses/InvalidKey" }
+        "403": { $ref: "#/components/responses/MissingScope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /stock:
+    get:
+      tags: [stock]
+      summary: Lotes de materia prima con stock disponible
+      description: Requiere scope `read:stock`. Solo entries con `remaining_quantity > 0`.
+      parameters:
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+        - name: lot
+          in: query
+          description: Coincidencia parcial sobre el lote de MP.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Página de lotes.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/StockEntry" }
+                  next_cursor: { $ref: "#/components/schemas/NextCursor" }
+        "401": { $ref: "#/components/responses/InvalidKey" }
+        "403": { $ref: "#/components/responses/MissingScope" }
+
+  /dispatches:
+    get:
+      tags: [dispatches]
+      summary: Despachos con cliente e ítems
+      description: Requiere scope `read:dispatches`.
+      parameters:
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+        - name: from
+          in: query
+          description: Fecha mínima de despacho (YYYY-MM-DD).
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          description: Fecha máxima de despacho (YYYY-MM-DD).
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Página de despachos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Dispatch" }
+                  next_cursor: { $ref: "#/components/schemas/NextCursor" }
+        "401": { $ref: "#/components/responses/InvalidKey" }
+        "403": { $ref: "#/components/responses/MissingScope" }
+
+  /traces/{slug}:
+    get:
+      tags: [traces]
+      summary: Snapshot inmutable de una traza pública
+      description: Requiere scope `read:traces`. Mismo JSON que respalda `/t/:slug`, scopeado por tenant.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Traza pública.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Trace" }
+        "401": { $ref: "#/components/responses/InvalidKey" }
+        "403": { $ref: "#/components/responses/MissingScope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: nf_live_<secret>
+      description: |
+        API key del tenant (Ajustes · API). Formato `nf_live_` + >=32 chars base62.
+        El secreto se muestra una sola vez al crear la key; en la base solo vive
+        su sha256. Scopes: read:productions, read:stock, read:dispatches, read:traces.
+
+  parameters:
+    limit:
+      name: limit
+      in: query
+      description: Tamaño de página (1-100, default 50).
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    cursor:
+      name: cursor
+      in: query
+      description: "`next_cursor` de la página anterior (created_at ISO). Omitir en la primera página."
+      schema: { type: string }
+
+  responses:
+    InvalidKey:
+      description: Key ausente, mal formada, inexistente o revocada.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    MissingScope:
+      description: La key no tiene el scope que pide el endpoint.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Recurso inexistente o de otro tenant.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [invalid_key, missing_scope, not_found, internal_error]
+            message: { type: string }
+
+    NextCursor:
+      description: Cursor de la página siguiente; null cuando no hay más páginas.
+      type: [string, "null"]
+
+    RecipeRef:
+      type: object
+      properties:
+        title: { type: string }
+        rnpa_number: { type: [string, "null"] }
+
+    ProductionSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, examples: ["PROD-LJ-00012"] }
+        production_date: { type: string, format: date }
+        quantity_kg: { type: [number, "null"] }
+        product_lot_number: { type: [string, "null"] }
+        product_expiry_date: { type: [string, "null"], format: date }
+        recipe: { $ref: "#/components/schemas/RecipeRef" }
+        trace_slug: { type: [string, "null"] }
+
+    ProductionInput:
+      type: object
+      properties:
+        ingredient: { type: string }
+        unit: { type: string }
+        taken_qty: { type: number }
+        is_substitute: { type: boolean }
+        lot_number: { type: [string, "null"] }
+        lot_expiry_date: { type: [string, "null"], format: date }
+        supplier: { type: [string, "null"] }
+        supplier_rne: { type: [string, "null"] }
+
+    ProductionDetail:
+      allOf:
+        - $ref: "#/components/schemas/ProductionSummary"
+        - type: object
+          properties:
+            status: { type: string, enum: [completed] }
+            packaging_date: { type: [string, "null"], format: date }
+            notes: { type: [string, "null"] }
+            inputs:
+              type: array
+              items: { $ref: "#/components/schemas/ProductionInput" }
+
+    StockEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        ingredient: { type: string }
+        lot_number: { type: string }
+        quantity: { type: number }
+        remaining_quantity: { type: number }
+        unit: { type: string }
+        expiry_date: { type: [string, "null"], format: date }
+        manufacture_date: { type: [string, "null"], format: date }
+        is_frozen: { type: boolean }
+        supplier: { type: [string, "null"] }
+        supplier_rne: { type: [string, "null"] }
+
+    DispatchItem:
+      type: object
+      properties:
+        quantity_kg: { type: number }
+        recipe: { $ref: "#/components/schemas/RecipeRef" }
+        product_lot_number: { type: [string, "null"] }
+        product_expiry_date: { type: [string, "null"], format: date }
+        production_code: { type: [string, "null"] }
+
+    Dispatch:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        dispatch_date: { type: string, format: date }
+        status: { type: string }
+        customer:
+          type: object
+          properties:
+            name: { type: string }
+            locality: { type: [string, "null"] }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DispatchItem" }
+
+    Trace:
+      type: object
+      properties:
+        slug: { type: string }
+        created_at: { type: string, format: date-time }
+        views_count: { type: integer }
+        payload:
+          description: Snapshot inmutable de la producción al momento de generarse.
+          type: object

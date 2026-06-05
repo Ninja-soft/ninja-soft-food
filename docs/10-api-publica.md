@@ -247,5 +247,5 @@ curl -s "https://ninja-soft-food.vercel.app/api/v1/productions?limit=20&from=202
 - Handlers: `app/api/v1/**`
 - Gestión de credenciales (UI): `components/settings/ApiKeysCard.tsx` +
   `modules/api-keys/`
-- Spec OpenAPI versionada: `docs/api/openapi.yaml` (pendiente de crear; mantener
-  en el mismo PR que cambie un endpoint).
+- Spec OpenAPI versionada: `docs/api/openapi.yaml` (mantener en el mismo PR que
+  cambie un endpoint).
