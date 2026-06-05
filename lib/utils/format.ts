@@ -1,27 +1,50 @@
-import { format, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
+import { parseISO } from "date-fns";
+import { getCountryProfile } from "@/lib/globalization/countries";
 
-/** dd/MM/yyyy (es-AR). Acepta Date o ISO string (date o timestamp). */
-export function formatDate(value: string | Date | null | undefined): string {
-  if (!value) return "-";
-  const d = typeof value === "string" ? parseISO(value) : value;
-  return format(d, "dd/MM/yyyy", { locale: es });
+type LocaleFormatOptions = {
+  locale?: string;
+  country?: string | null;
+};
+
+type MoneyFormatOptions = LocaleFormatOptions & {
+  currency?: string;
+};
+
+function resolveLocale(options?: LocaleFormatOptions): string {
+  return options?.locale ?? getCountryProfile(options?.country).locale;
 }
 
-/** Cantidad con coma decimal es-AR, sin ceros colgantes. */
-export function formatQty(value: number | null | undefined): string {
+/** Fecha localizada. Acepta Date o ISO string (date o timestamp). */
+export function formatDate(
+  value: string | Date | null | undefined,
+  options?: LocaleFormatOptions,
+): string {
+  if (!value) return "-";
+  const d = typeof value === "string" ? parseISO(value) : value;
+  return new Intl.DateTimeFormat(resolveLocale(options)).format(d);
+}
+
+/** Cantidad localizada, sin ceros colgantes. */
+export function formatQty(
+  value: number | null | undefined,
+  options?: LocaleFormatOptions & { maximumFractionDigits?: number },
+): string {
   if (value === null || value === undefined) return "-";
-  return new Intl.NumberFormat("es-AR", {
-    maximumFractionDigits: 3,
+  return new Intl.NumberFormat(resolveLocale(options), {
+    maximumFractionDigits: options?.maximumFractionDigits ?? 3,
   }).format(value);
 }
 
-/** Moneda ARS. */
-export function formatMoney(value: number | null | undefined): string {
+/** Moneda localizada. Default ARS para mantener compatibilidad. */
+export function formatMoney(
+  value: number | null | undefined,
+  options?: MoneyFormatOptions,
+): string {
   if (value === null || value === undefined) return "-";
-  return new Intl.NumberFormat("es-AR", {
+  const profile = getCountryProfile(options?.country);
+  return new Intl.NumberFormat(options?.locale ?? profile.locale, {
     style: "currency",
-    currency: "ARS",
+    currency: options?.currency ?? profile.currency,
     maximumFractionDigits: 2,
   }).format(value);
 }

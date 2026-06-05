@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Palette, Store } from "lucide-react";
+import { Globe2, Palette, Store } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Segmented } from "@/components/ui/Segmented";
 import { Display, Eyebrow } from "@/components/ui/Typography";
 import { BrandingCard } from "@/components/settings/BrandingCard";
+import { GlobalizationCard } from "@/components/settings/GlobalizationCard";
 import { cn } from "@/lib/utils/cn";
 import {
   THEMES,
@@ -29,10 +30,11 @@ import { formatQty } from "@/lib/utils/format";
 // Configuración — espejo de la página del POS: menú lateral de secciones,
 // Apariencia (tema / fuentes / resalte / fondo) y Marca del negocio.
 
-type Section = "apariencia" | "marca";
+type Section = "apariencia" | "marca" | "global";
 const SECTIONS: { key: Section; label: string; icon: React.ElementType }[] = [
   { key: "apariencia", label: "Apariencia", icon: Palette },
   { key: "marca", label: "Marca del negocio", icon: Store },
+  { key: "global", label: "Operacion global", icon: Globe2 },
 ];
 
 // Swatch por tema: fondo + primary + accent (patrón POS)
@@ -291,6 +293,8 @@ export default function ConfiguracionPage() {
           )}
 
           {section === "marca" && <BrandingCard />}
+
+          {section === "global" && <GlobalizationCard />}
         </div>
       </div>
     </div>

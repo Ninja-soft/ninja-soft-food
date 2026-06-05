@@ -130,3 +130,16 @@ Buckets Supabase Storage por dominio: `ingredients`, `recipes`, `invoices`, `att
 ## 10. Observabilidad
 
 Sentry (DSN en env, patrón POS), `app/api/health`, logs de Edge Functions vía Supabase, `internal_tenant_health` para el panel interno.
+## 11. Operacion internacional
+
+La app no debe asumir Argentina en la capa de producto. El tenant conserva un
+`country` de onboarding, pero la configuracion real de mercado vive en
+`tenant_operating_profiles`: `country`, `locale`, `currency`, `timezone`,
+identificador fiscal, impuesto por defecto, sistema de unidades, idiomas de
+etiqueta y configuracion de trazabilidad por pais.
+
+El catalogo base esta versionado en `lib/globalization/countries.ts` y cubre
+LATAM, Norteamerica, Europa, Oceania, Africa y Asia con defaults para billing,
+autoridades alimentarias y frameworks regulatorios. Las pantallas y exports
+deben consumir `formatDate`, `formatQty` y `formatMoney` con locale/moneda del
+tenant en vez de hardcodear `es-AR` o `ARS`.

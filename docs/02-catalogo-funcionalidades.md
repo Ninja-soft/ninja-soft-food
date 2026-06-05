@@ -171,3 +171,11 @@ El MVP aprobado = paridad Jamonera completa + billing MP + panel interno.
 - **Heredadas de La Jamonera: 78 features — todas conservadas** (67 en MVP, resto v1).
 - **Nuevas: 36 features** (5 MVP, 13 v1, 13 v2, 5 futuro).
 - El MVP completo = La Jamonera multi-tenant y mejorada + suscripciones + panel interno + sello ABR.
+## Actualizacion global
+
+- Configuracion operativa por pais: locale, moneda, zona horaria, impuestos,
+  unidades, autoridades alimentarias, idiomas de etiqueta y frameworks
+  regulatorios por tenant.
+- Base inicial para vender fuera de Argentina: LATAM, Norteamerica, Europa,
+  Oceania, Africa y Asia, con billing providers sugeridos por mercado y campos
+  de trazabilidad adaptables.

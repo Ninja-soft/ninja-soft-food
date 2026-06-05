@@ -237,7 +237,7 @@ export function AppShell({
         className="mb-4 flex items-center gap-2.5 px-2 py-2"
       >
         <Isotype className="h-9" priority />
-        <WordmarkFood className="h-6" priority />
+        <WordmarkFood className="h-7" priority />
       </Link>
 
       {NAV.top.map((it) => (
