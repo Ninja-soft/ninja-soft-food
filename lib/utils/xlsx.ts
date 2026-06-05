@@ -32,7 +32,7 @@ export interface ExportToExcelOptions {
 }
 
 // Verde marca Ninja Food (oscuro para header) y zebra suave.
-const HEADER_FILL = "FF08120A"; // food-dark background
+const HEADER_FILL = "FF0A1411"; // food-dark background
 const BRAND_FILL = "FF2E7D32"; // primary (light theme)
 const ZEBRA_FILL = "FFF1F6F0";
 const WHITE = "FFFFFFFF";
