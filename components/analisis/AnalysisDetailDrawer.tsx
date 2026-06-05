@@ -56,13 +56,13 @@ export function AnalysisDetailDrawer({
       {!analysis ? null : (
         <div className="space-y-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="bg-muted/30 rounded-ninjaSm border border-border p-3">
+            <div className="bg-muted/30 rounded-md border border-border p-3">
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Conformidad
               </p>
               <ConformityBadge value={analysis.conformity} />
             </div>
-            <div className="bg-muted/30 rounded-ninjaSm border border-border p-3">
+            <div className="bg-muted/30 rounded-md border border-border p-3">
               <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <FlaskConical size={12} />
                 Laboratorio
@@ -71,7 +71,7 @@ export function AnalysisDetailDrawer({
                 {analysis.laboratory?.name ?? "Sin laboratorio"}
               </p>
             </div>
-            <div className="bg-muted/30 rounded-ninjaSm border border-border p-3">
+            <div className="bg-muted/30 rounded-md border border-border p-3">
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Muestra
               </p>
@@ -93,7 +93,7 @@ export function AnalysisDetailDrawer({
           )}
 
           {analysis.observations_html && (
-            <div className="rounded-ninjaSm border border-border p-4">
+            <div className="rounded-md border border-border p-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Observaciones
               </p>
@@ -114,7 +114,7 @@ export function AnalysisDetailDrawer({
                 {analysis.attachments.map((att) => (
                   <li
                     key={att.id}
-                    className="bg-muted/30 flex items-center justify-between gap-3 rounded-ninjaSm border border-border px-3 py-2"
+                    className="bg-muted/30 flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
                   >
                     <span className="flex min-w-0 items-center gap-2">
                       <FileText size={15} className="shrink-0 text-primary" />

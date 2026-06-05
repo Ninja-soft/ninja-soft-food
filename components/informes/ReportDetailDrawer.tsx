@@ -78,7 +78,7 @@ export function ReportDetailDrawer({
             origen (stored XSS). La clase `.rte-content` aplica la tipografía.
           */}
           <div
-            className="rte-content rounded-ninjaSm border border-border bg-card/40 px-4 py-3"
+            className="rte-content rounded-md border border-border bg-card/40 px-4 py-3"
             dangerouslySetInnerHTML={{
               __html: sanitizeRichHtml(report.content_html),
             }}
@@ -114,7 +114,7 @@ export function ReportDetailDrawer({
                 {report.attachments.map((att) => (
                   <li
                     key={att.id}
-                    className="bg-muted/30 flex items-center justify-between gap-3 rounded-ninjaSm border border-border px-3 py-2"
+                    className="bg-muted/30 flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
                   >
                     <span className="flex min-w-0 items-center gap-2">
                       <FileText size={15} className="shrink-0 text-primary" />

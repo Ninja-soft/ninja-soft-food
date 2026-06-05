@@ -166,7 +166,7 @@ export default function IngredientesPage() {
           type="button"
           onClick={() => setFamilyId(null)}
           className={cn(
-            "rounded-ninjaFull border px-4 py-1.5 text-sm transition",
+            "rounded-full border px-4 py-1.5 text-sm transition",
             familyId === null
               ? "border-primary bg-primary/15 font-semibold text-primary"
               : "border-border bg-card text-muted-foreground hover:text-foreground",
@@ -185,7 +185,7 @@ export default function IngredientesPage() {
             type="button"
             onClick={() => setFamilyId(f.id === familyId ? null : f.id)}
             className={cn(
-              "rounded-ninjaFull border px-4 py-1.5 text-sm transition",
+              "rounded-full border px-4 py-1.5 text-sm transition",
               familyId === f.id
                 ? "border-primary bg-primary/15 font-semibold text-primary"
                 : "border-border bg-card text-muted-foreground hover:text-foreground",
@@ -247,7 +247,7 @@ export default function IngredientesPage() {
         <SpinnerBlock />
       ) : (ingredients ?? []).length === 0 ? (
         <div className="glass-card flex flex-col items-center gap-3 py-14 text-center">
-          <span className="grid h-14 w-14 place-items-center rounded-ninjaMd bg-primary/15 text-primary">
+          <span className="grid h-14 w-14 place-items-center rounded-lg bg-primary/15 text-primary">
             <Apple size={26} />
           </span>
           <div>
@@ -285,7 +285,7 @@ export default function IngredientesPage() {
                 onClick={() => setIngredientModal({ open: true, ingredient: ing })}
                 className="flex min-w-0 flex-1 items-center gap-3 text-left"
               >
-                <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-ninjaSm bg-muted/60 text-muted-foreground">
+                <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-md bg-muted/60 text-muted-foreground">
                   {ing.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

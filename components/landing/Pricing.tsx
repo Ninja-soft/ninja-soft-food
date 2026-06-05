@@ -33,13 +33,13 @@ export function Pricing() {
         </p>
 
         {/* Toggle mensual / anual */}
-        <div className="mt-8 inline-flex items-center gap-1 rounded-ninjaFull border border-border bg-card/60 p-1 backdrop-blur-xl">
+        <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-border bg-card/60 p-1 backdrop-blur-xl">
           <button
             type="button"
             onClick={() => setCycle("monthly")}
             aria-pressed={cycle === "monthly"}
             className={cn(
-              "rounded-ninjaFull px-4 py-1.5 text-sm font-semibold transition",
+              "rounded-full px-4 py-1.5 text-sm font-semibold transition",
               cycle === "monthly"
                 ? "bg-primary-gradient text-white shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
@@ -52,7 +52,7 @@ export function Pricing() {
             onClick={() => setCycle("yearly")}
             aria-pressed={cycle === "yearly"}
             className={cn(
-              "inline-flex items-center gap-2 rounded-ninjaFull px-4 py-1.5 text-sm font-semibold transition",
+              "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition",
               cycle === "yearly"
                 ? "bg-primary-gradient text-white shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
@@ -61,7 +61,7 @@ export function Pricing() {
             Anual
             <span
               className={cn(
-                "rounded-ninjaFull px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                "rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
                 cycle === "yearly"
                   ? "bg-white/20 text-white"
                   : "bg-accent/15 text-accent",
@@ -81,14 +81,14 @@ export function Pricing() {
             <div
               key={plan.key}
               className={cn(
-                "relative flex flex-col rounded-ninjaLg border bg-card p-7 backdrop-blur-xl transition",
+                "relative flex flex-col rounded-lg border bg-card p-7 backdrop-blur-xl transition",
                 plan.highlight
                   ? "border-primary/50 shadow-foodGlow lg:-translate-y-3 lg:scale-[1.02]"
                   : "border-border shadow-soft hover:border-primary/30",
               )}
             >
               {plan.highlight && (
-                <div className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-ninjaFull bg-primary-gradient px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-foodGlow">
+                <div className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary-gradient px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-foodGlow">
                   <Sparkles className="h-3 w-3" aria-hidden />
                   Más elegido
                 </div>
@@ -138,7 +138,7 @@ export function Pricing() {
       </div>
 
       {/* Enterprise / Corporativo a medida */}
-      <div className="glass-card mt-6 flex flex-col items-center justify-between gap-4 rounded-ninjaLg p-7 text-center sm:flex-row sm:text-left">
+      <div className="glass-card mt-6 flex flex-col items-center justify-between gap-4 rounded-lg p-7 text-center sm:flex-row sm:text-left">
         <div>
           <h3 className="font-display text-lg font-bold tracking-tight text-foreground">
             Corporativo

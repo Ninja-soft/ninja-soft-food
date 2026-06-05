@@ -85,7 +85,7 @@ export default async function PublicTracePage({
         </div>
 
         {/* Producto */}
-        <div className="rounded-ninjaLg border border-white/10 bg-white/5 p-6 shadow-soft backdrop-blur-xl">
+        <div className="rounded-lg border border-white/10 bg-white/5 p-6 shadow-soft backdrop-blur-xl">
           <p className="text-xs text-[#A9C4A6]">{tenantName}</p>
           <h1 className="mt-1 font-display text-2xl font-black">
             {p.commercial_name || p.recipe_title}
@@ -119,7 +119,7 @@ export default async function PublicTracePage({
         </div>
 
         {/* Origen */}
-        <div className="rounded-ninjaLg border border-white/10 bg-white/5 p-6 shadow-soft backdrop-blur-xl">
+        <div className="rounded-lg border border-white/10 bg-white/5 p-6 shadow-soft backdrop-blur-xl">
           <h2 className="text-sm font-bold uppercase tracking-[0.14em] text-[#A9C4A6]">
             Origen de los ingredientes
           </h2>

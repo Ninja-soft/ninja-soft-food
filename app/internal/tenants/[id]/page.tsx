@@ -320,7 +320,7 @@ function CountTile({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="rounded-ninjaMd border border-border bg-muted/40 p-3">
+    <div className="rounded-lg border border-border bg-muted/40 p-3">
       <div className="flex items-center gap-1.5 text-muted-foreground">
         {icon}
         <span className="text-[11px] uppercase tracking-[0.1em]">{label}</span>

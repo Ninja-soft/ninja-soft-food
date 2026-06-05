@@ -43,8 +43,8 @@ const SECTIONS: { key: Section; label: string; icon: React.ElementType }[] = [
 
 // Swatch por tema: fondo + primary + accent (patrón POS)
 const THEME_SWATCH: Record<Theme, { bg: string; a: string; b: string }> = {
-  "food-dark": { bg: "#08120a", a: "#3fa34d", b: "#c6d420" },
-  "food-light": { bg: "#f4f8f2", a: "#2e7d32", b: "#9bb814" },
+  "food-dark": { bg: "#08120a", a: "#1bae5a", b: "#c6d420" },
+  "food-light": { bg: "#f4f8f2", a: "#15803d", b: "#9bb814" },
   "food-bosque": { bg: "#06120a", a: "#4caf50", b: "#c6d420" },
   "food-crema": { bg: "#fbf7ec", a: "#2e7d32", b: "#c9a227" },
   "food-remolacha": { bg: "#faf5f7", a: "#8e2a48", b: "#c95d63" },

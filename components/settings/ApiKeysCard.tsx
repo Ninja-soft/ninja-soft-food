@@ -232,7 +232,7 @@ function ApiKeysSection() {
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Cargando keys…</p>
         ) : (keys ?? []).length === 0 ? (
-          <p className="rounded-ninjaMd border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+          <p className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
             Todavía no creaste ninguna API key.
           </p>
         ) : (
@@ -242,7 +242,7 @@ function ApiKeysSection() {
               return (
                 <li
                   key={k.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-ninjaMd border border-border bg-muted/20 px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3"
                 >
                   <div className="min-w-0 space-y-1">
                     <div className="flex items-center gap-2">
@@ -315,7 +315,7 @@ function ApiKeysSection() {
                     type="button"
                     onClick={() => toggleScope(s)}
                     className={cn(
-                      "flex items-center justify-between rounded-ninjaMd border px-3 py-2.5 text-left text-sm transition",
+                      "flex items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition",
                       active
                         ? "border-primary bg-primary/[0.08] text-foreground"
                         : "border-border bg-muted/20 text-muted-foreground hover:border-primary/40",
@@ -349,12 +349,12 @@ function ApiKeysSection() {
         description="Este secreto se muestra una sola vez. No lo vas a poder volver a ver."
       >
         <div className="space-y-4">
-          <div className="flex items-start gap-2 rounded-ninjaMd border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
+          <div className="flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
             <AlertTriangle size={16} className="mt-0.5 shrink-0" />
             Copialo y guardalo en un lugar seguro. Si lo perdés, tenés que crear
             una key nueva.
           </div>
-          <code className="block break-all rounded-ninjaMd border border-border bg-background px-4 py-3 font-mono text-sm">
+          <code className="block break-all rounded-lg border border-border bg-background px-4 py-3 font-mono text-sm">
             {newSecret}
           </code>
           <div className="flex justify-end gap-2">
@@ -469,7 +469,7 @@ function WebhooksSection() {
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Cargando webhooks…</p>
         ) : (webhooks ?? []).length === 0 ? (
-          <p className="rounded-ninjaMd border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+          <p className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
             Todavía no configuraste ningún webhook.
           </p>
         ) : (
@@ -477,7 +477,7 @@ function WebhooksSection() {
             {(webhooks ?? []).map((w) => (
               <li
                 key={w.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-ninjaMd border border-border bg-muted/20 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3"
               >
                 <div className="min-w-0 space-y-1">
                   <code className="block truncate font-mono text-xs">
@@ -552,7 +552,7 @@ function WebhooksSection() {
                     type="button"
                     onClick={() => toggleEvent(e)}
                     className={cn(
-                      "flex items-center justify-between rounded-ninjaMd border px-3 py-2.5 text-left text-sm transition",
+                      "flex items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition",
                       active
                         ? "border-primary bg-primary/[0.08] text-foreground"
                         : "border-border bg-muted/20 text-muted-foreground hover:border-primary/40",
@@ -591,12 +591,12 @@ function WebhooksSection() {
         description="Usalo para verificar la cabecera X-NinjaFood-Signature. Se muestra una sola vez."
       >
         <div className="space-y-4">
-          <div className="flex items-start gap-2 rounded-ninjaMd border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
+          <div className="flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
             <AlertTriangle size={16} className="mt-0.5 shrink-0" />
             Guardalo en tu backend. Lo necesitás para validar que el POST viene de
             Ninja Food.
           </div>
-          <code className="block break-all rounded-ninjaMd border border-border bg-background px-4 py-3 font-mono text-sm">
+          <code className="block break-all rounded-lg border border-border bg-background px-4 py-3 font-mono text-sm">
             {newSecret}
           </code>
           <div className="flex justify-end gap-2">

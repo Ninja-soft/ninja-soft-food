@@ -21,7 +21,7 @@ export function HowItWorks() {
         <div className="mt-14 grid gap-6 md:grid-cols-3">
           {STEPS.map((step, i) => (
             <div key={step.number} className="relative">
-              <div className="glass-card h-full rounded-ninjaLg p-7">
+              <div className="glass-card h-full rounded-lg p-7">
                 <Money className="text-4xl font-bold text-primary/40">
                   {step.number}
                 </Money>

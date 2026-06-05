@@ -252,7 +252,7 @@ export function RecipeFormModal({
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-ninjaMd border border-dashed border-border bg-muted/40 text-muted-foreground transition hover:border-primary hover:text-primary"
+              className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/40 text-muted-foreground transition hover:border-primary hover:text-primary"
               aria-label="Subir foto"
             >
               {preview ? (
@@ -361,7 +361,7 @@ export function RecipeFormModal({
             </Button>
           </div>
           {formula.length === 0 && (
-            <p className="rounded-ninjaSm border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+            <p className="rounded-md border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
               Sin ingredientes todavía. La fórmula define qué lotes se consumen
               al producir.
             </p>
@@ -372,7 +372,7 @@ export function RecipeFormModal({
               <div
                 key={row.key}
                 className={cn(
-                  "grid grid-cols-[1fr_110px_auto_auto] items-center gap-2 rounded-ninjaSm border border-border p-2",
+                  "grid grid-cols-[1fr_110px_auto_auto] items-center gap-2 rounded-md border border-border p-2",
                   row.is_substitute && "border-accent/40 bg-accent/5",
                 )}
               >
@@ -508,7 +508,7 @@ export function RecipeFormModal({
         {/* RNPA */}
         <div className="space-y-3">
           <SectionTitle>RNPA</SectionTitle>
-          <div className="flex items-center justify-between rounded-ninjaSm border border-border bg-muted/30 px-4 py-3">
+          <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-4 py-3">
             <div>
               <p className="text-sm font-medium">No requiere RNPA</p>
               <p className="text-xs text-muted-foreground">
@@ -560,7 +560,7 @@ export function RecipeFormModal({
                   type="button"
                   onClick={() => toggleFrontLabel(l.value)}
                   className={cn(
-                    "rounded-ninjaFull border px-3 py-1.5 text-xs transition",
+                    "rounded-full border px-3 py-1.5 text-xs transition",
                     active
                       ? "border-foreground bg-foreground font-semibold text-background"
                       : "border-border text-muted-foreground hover:text-foreground",

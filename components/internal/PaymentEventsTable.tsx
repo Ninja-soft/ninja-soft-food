@@ -64,7 +64,7 @@ export function PaymentEventsTable({ events }: { events: PaymentEventView[] }) {
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-ninjaMd border border-border bg-card shadow-soft backdrop-blur-xl">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-soft backdrop-blur-xl">
         <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-muted text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
             <tr>
@@ -132,7 +132,7 @@ export function PaymentEventsTable({ events }: { events: PaymentEventView[] }) {
                         <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                           Payload
                         </div>
-                        <pre className="max-h-72 overflow-auto rounded-ninjaSm border border-border bg-background p-3 font-mono text-xs text-foreground">
+                        <pre className="max-h-72 overflow-auto rounded-md border border-border bg-background p-3 font-mono text-xs text-foreground">
                           {JSON.stringify(e.payload, null, 2)}
                         </pre>
                       </td>

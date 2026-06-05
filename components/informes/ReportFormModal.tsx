@@ -313,7 +313,7 @@ export function ReportFormModal({
               {existing.map((att) => (
                 <li
                   key={att.id}
-                  className="bg-muted/30 flex items-center justify-between gap-3 rounded-ninjaSm border border-border px-3 py-2"
+                  className="bg-muted/30 flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <FileText size={15} className="shrink-0 text-primary" />
@@ -335,7 +335,7 @@ export function ReportFormModal({
               {pendingFiles.map((file, i) => (
                 <li
                   key={`${file.name}-${i}`}
-                  className="flex items-center justify-between gap-3 rounded-ninjaSm border border-dashed border-border px-3 py-2"
+                  className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border px-3 py-2"
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <Paperclip

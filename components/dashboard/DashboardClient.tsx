@@ -120,7 +120,7 @@ function PanelHeader({
   return (
     <div className="mb-4 flex items-center justify-between gap-2">
       <span className="flex items-center gap-2">
-        <span className="grid h-8 w-8 place-items-center rounded-ninjaSm bg-primary/15 text-primary">
+        <span className="grid h-8 w-8 place-items-center rounded-md bg-primary/15 text-primary">
           <Icon size={16} />
         </span>
         <span className="font-display text-sm font-bold tracking-tight">
@@ -204,7 +204,7 @@ function KpiRow({
         {delta !== null ? (
           <span
             className={cn(
-              "mt-2 inline-flex items-center gap-1 rounded-ninjaFull px-2 py-0.5 text-xs font-medium",
+              "mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
               positive
                 ? "bg-primary/15 text-primary"
                 : "bg-destructive/15 text-destructive",
@@ -334,7 +334,7 @@ function ProductionChart({
         </div>
       ) : !hasData ? (
         <div className="flex h-44 flex-col items-center justify-center gap-2 text-center">
-          <span className="grid h-12 w-12 place-items-center rounded-ninjaMd bg-primary/10 text-primary">
+          <span className="grid h-12 w-12 place-items-center rounded-lg bg-primary/10 text-primary">
             <Soup size={22} />
           </span>
           <p className="text-sm font-medium">Todavía no hay producción</p>
@@ -408,7 +408,7 @@ function LatestReportCard({
           </div>
           <span
             className={cn(
-              "shrink-0 rounded-ninjaFull px-3 py-1 text-xs font-semibold",
+              "shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
               importanceTone(data.latestReport.importance).cls,
             )}
           >
@@ -528,7 +528,7 @@ function RnpaCard({
                 </span>
                 <span
                   className={cn(
-                    "shrink-0 rounded-ninjaFull px-2 py-0.5 text-xs font-medium",
+                    "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
                     pill.cls,
                   )}
                 >
@@ -592,7 +592,7 @@ function TransportCard({
                 <Money className="font-medium">{v.plate}</Money>
                 <span
                   className={cn(
-                    "shrink-0 rounded-ninjaFull px-2 py-0.5 text-xs font-medium",
+                    "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
                     meta.cls,
                   )}
                 >
@@ -636,7 +636,7 @@ function StockAlertsCard({
         <CardSkeleton lines={4} />
       ) : !hasAlerts ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 py-4 text-center">
-          <span className="grid h-11 w-11 place-items-center rounded-ninjaMd bg-primary/10 text-primary">
+          <span className="grid h-11 w-11 place-items-center rounded-lg bg-primary/10 text-primary">
             <ShieldCheck size={20} />
           </span>
           <p className="text-sm font-medium">Todo en orden</p>

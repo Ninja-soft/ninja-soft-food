@@ -67,7 +67,7 @@ export function DispatchDetailDrawer({
       ) : (
         <div className="space-y-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="bg-muted/30 rounded-ninjaSm border border-border p-3">
+            <div className="bg-muted/30 rounded-md border border-border p-3">
               <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <User size={12} />
                 Cliente
@@ -79,7 +79,7 @@ export function DispatchDetailDrawer({
                   .join(" · ") || "Sin domicilio"}
               </p>
             </div>
-            <div className="bg-muted/30 rounded-ninjaSm border border-border p-3">
+            <div className="bg-muted/30 rounded-md border border-border p-3">
               <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <Truck size={12} />
                 Vehículo
@@ -104,7 +104,7 @@ export function DispatchDetailDrawer({
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-ninjaMd border border-border">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full min-w-[480px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">

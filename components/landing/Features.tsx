@@ -24,9 +24,9 @@ export function Features() {
           return (
             <div
               key={feature.title}
-              className="group glass-card rounded-ninjaLg p-6 transition duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-foodGlow"
+              className="group glass-card rounded-lg p-6 transition duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-foodGlow"
             >
-              <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-ninjaMd border border-primary/20 bg-primary/10 text-primary transition group-hover:bg-primary/15">
+              <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary transition group-hover:bg-primary/15">
                 <Icon className="h-6 w-6" aria-hidden />
               </div>
               <h3 className="font-display text-lg font-bold tracking-tight text-foreground">

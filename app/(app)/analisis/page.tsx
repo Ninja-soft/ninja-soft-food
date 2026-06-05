@@ -181,7 +181,7 @@ export default function AnalisisPage() {
         </div>
       ) : rows.length === 0 ? (
         <div className="glass-card flex flex-col items-center gap-3 py-14 text-center">
-          <span className="bg-primary/15 grid h-14 w-14 place-items-center rounded-ninjaMd text-primary">
+          <span className="bg-primary/15 grid h-14 w-14 place-items-center rounded-lg text-primary">
             <FlaskConical size={26} />
           </span>
           <div>

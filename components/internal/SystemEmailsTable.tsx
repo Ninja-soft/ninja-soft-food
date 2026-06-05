@@ -77,7 +77,7 @@ export function SystemEmailsTable({ emails }: { emails: SystemEmailView[] }) {
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-ninjaMd border border-border bg-card shadow-soft backdrop-blur-xl">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-soft backdrop-blur-xl">
         <table className="w-full min-w-[820px] text-sm">
           <thead className="bg-muted text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
             <tr>

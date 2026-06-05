@@ -48,7 +48,7 @@ export const AVATAR_PRESETS = Object.keys(AVATAR_ICONS);
 
 // Paleta determinística en tonos alimentarios (verdes, lima, miel, berry, teal)
 const COLORS = [
-  "#2e7d32", "#3fa34d", "#8cbf2f", "#9bb814", "#c9a227",
+  "#15803d", "#16a34a", "#8cbf2f", "#9bb814", "#c9a227",
   "#8e2a48", "#c95d63", "#14b8a6", "#0ea5e9", "#7c4dff",
 ];
 

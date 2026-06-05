@@ -106,7 +106,7 @@ export function VehiclesModal({
               <SpinnerBlock />
             ) : (vehicles ?? []).length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <span className="bg-primary/15 grid h-12 w-12 place-items-center rounded-ninjaMd text-primary">
+                <span className="bg-primary/15 grid h-12 w-12 place-items-center rounded-lg text-primary">
                   <Truck size={22} />
                 </span>
                 <p className="text-sm text-muted-foreground">
@@ -114,7 +114,7 @@ export function VehiclesModal({
                 </p>
               </div>
             ) : (
-              <ul className="divide-y divide-border rounded-ninjaMd border border-border">
+              <ul className="divide-y divide-border rounded-lg border border-border">
                 {(vehicles ?? []).map((v) => {
                   const expired = isVehicleExpired(v);
                   return (
@@ -300,7 +300,7 @@ function VehicleForm({
       {expired && (
         <p
           className={cn(
-            "border-accent/40 bg-accent/10 flex items-center gap-2 rounded-ninjaSm border px-3 py-2 text-xs text-accent"
+            "border-accent/40 bg-accent/10 flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-accent"
           )}
         >
           <AlertTriangle size={13} />

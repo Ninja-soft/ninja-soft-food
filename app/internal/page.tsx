@@ -78,7 +78,7 @@ export default async function InternalOverviewPage() {
       </div>
 
       {problems > 0 && (
-        <div className="mt-4 flex items-start gap-3 rounded-ninjaMd border border-orange-400/30 bg-orange-400/5 p-4 text-sm text-orange-300">
+        <div className="mt-4 flex items-start gap-3 rounded-lg border border-orange-400/30 bg-orange-400/5 p-4 text-sm text-orange-300">
           <AlertTriangle size={18} className="mt-0.5 shrink-0" />
           <div>
             <span className="font-semibold">

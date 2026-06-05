@@ -194,13 +194,13 @@ export default function InventarioPage() {
       {(alerts.low > 0 || alerts.expiring > 0) && (
         <div className="flex flex-wrap gap-2">
           {alerts.low > 0 && (
-            <span className="inline-flex items-center gap-2 rounded-ninjaFull border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive">
+            <span className="inline-flex items-center gap-2 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive">
               <AlertTriangle size={13} />
               {alerts.low} con stock bajo
             </span>
           )}
           {alerts.expiring > 0 && (
-            <span className="inline-flex items-center gap-2 rounded-ninjaFull border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent">
+            <span className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent">
               <CalendarClock size={13} />
               {alerts.expiring} por vencer (≤{EXPIRING_SOON_DAYS} días)
             </span>
@@ -379,7 +379,7 @@ function StockRowGroup({
       >
         <td className="px-4 py-3">
           <span className="flex items-center gap-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-ninjaSm bg-muted/60 text-muted-foreground">
+            <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-md bg-muted/60 text-muted-foreground">
               {row.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -502,7 +502,7 @@ function EmptyState({
 }) {
   return (
     <div className="glass-card flex flex-col items-center gap-3 py-14 text-center">
-      <span className="grid h-14 w-14 place-items-center rounded-ninjaMd bg-primary/15 text-primary">
+      <span className="grid h-14 w-14 place-items-center rounded-lg bg-primary/15 text-primary">
         <Package size={26} />
       </span>
       <div>

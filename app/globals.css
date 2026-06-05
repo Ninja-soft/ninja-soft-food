@@ -17,8 +17,8 @@
 
 /* Swatches estáticos para el selector de temas (no cambian con el tema) */
 :root {
-  --swatch-food-dark: linear-gradient(135deg, #08120a 50%, #3fa34d 50%);
-  --swatch-food-light: linear-gradient(135deg, #f4f8f2 50%, #2e7d32 50%);
+  --swatch-food-dark: linear-gradient(135deg, #08120a 50%, #1bae5a 50%);
+  --swatch-food-light: linear-gradient(135deg, #f4f8f2 50%, #15803d 50%);
   --swatch-food-bosque: linear-gradient(135deg, #06120a 50%, #4caf50 50%);
   --swatch-food-crema: linear-gradient(135deg, #fbf7ec 50%, #c9a227 50%);
   --swatch-food-remolacha: linear-gradient(135deg, #faf5f7 50%, #8e2a48 50%);
@@ -34,7 +34,7 @@
   --card-foreground: #f0f7ee;
   --popover: #0d2012;
   --popover-foreground: #f0f7ee;
-  --primary: #3fa34d;
+  --primary: #1bae5a;
   --primary-foreground: #04140a;
   --secondary: rgba(255, 255, 255, 0.06);
   --secondary-foreground: #e6f2e2;
@@ -46,7 +46,7 @@
   --destructive-foreground: #ffffff;
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.08);
-  --ring: #3fa34d;
+  --ring: #22c55e;
   --shadow-soft: 0 6px 20px rgba(4, 12, 6, 0.18);
   --pattern: rgba(255, 255, 255, 0.05);
 }
@@ -59,10 +59,10 @@
   --card-foreground: #13190f;
   --popover: #ffffff;
   --popover-foreground: #13190f;
-  --primary: #2e7d32;
+  --primary: #15803d;
   --primary-foreground: #ffffff;
   --secondary: #e8f0e3;
-  --secondary-foreground: #2c4a28;
+  --secondary-foreground: #245a28;
   --muted: #edf3e9;
   --muted-foreground: #677a61;
   --accent: #9bb814;
@@ -71,7 +71,7 @@
   --destructive-foreground: #ffffff;
   --border: #dde8d6;
   --input: #d7e3cf;
-  --ring: #2e7d32;
+  --ring: #16a34a;
   --shadow-soft: 0 1px 2px rgba(22, 60, 24, 0.05);
   --pattern: rgba(20, 30, 16, 0.06);
 }
@@ -254,8 +254,8 @@
   background-image:
     linear-gradient(var(--pattern) 1.5px, transparent 1.5px),
     linear-gradient(90deg, var(--pattern) 1.5px, transparent 1.5px),
-    linear-gradient(rgba(63, 163, 77, 0.16) 1.5px, transparent 1.5px),
-    linear-gradient(90deg, rgba(63, 163, 77, 0.16) 1.5px, transparent 1.5px);
+    linear-gradient(rgba(34, 197, 94, 0.16) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, rgba(34, 197, 94, 0.16) 1.5px, transparent 1.5px);
   background-size:
     40px 40px,
     40px 40px,
@@ -275,7 +275,7 @@
 /* Mesh / glow verde. */
 [data-bg="mesh"] .app-bg {
   background-image:
-    radial-gradient(circle at 16% 14%, rgba(63, 163, 77, 0.12), transparent 30%),
+    radial-gradient(circle at 16% 14%, rgba(34, 197, 94, 0.12), transparent 30%),
     radial-gradient(circle at 84% 10%, rgba(140, 191, 47, 0.12), transparent 34%),
     radial-gradient(circle at 72% 86%, rgba(198, 212, 32, 0.06), transparent 28%);
 }
@@ -295,10 +295,10 @@ html:not([data-price-accent="neutro"]) .price-hl {
    .ninja-dark-bg del POS en clave verde Food. No cambia con el tema. */
 .food-dark-bg {
   background:
-    radial-gradient(circle at 18% 18%, rgba(63, 163, 77, 0.16), transparent 30%),
+    radial-gradient(circle at 18% 18%, rgba(34, 197, 94, 0.18), transparent 30%),
     radial-gradient(circle at 82% 12%, rgba(140, 191, 47, 0.14), transparent 34%),
     radial-gradient(circle at 70% 82%, rgba(198, 212, 32, 0.08), transparent 28%),
-    linear-gradient(135deg, #07110a 0%, #0c1f10 48%, #15331b 100%);
+    linear-gradient(135deg, #06130b 0%, #0a2011 48%, #11371d 100%);
 }
 
 /* Grid de puntos (overlay) — espejo del .ninja-grid del POS */

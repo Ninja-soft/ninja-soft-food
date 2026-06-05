@@ -308,7 +308,7 @@ export function DispatchFormModal({
         </div>
 
         {vehicleExpired && (
-          <p className="border-accent/40 bg-accent/10 flex items-center gap-2 rounded-ninjaSm border px-3 py-2 text-xs text-accent">
+          <p className="border-accent/40 bg-accent/10 flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-accent">
             <AlertTriangle size={13} />
             El vehículo seleccionado tiene UTA o URA vencida a la fecha de hoy.
           </p>
@@ -345,7 +345,7 @@ export function DispatchFormModal({
             return (
               <div
                 key={field.id}
-                className="rounded-ninjaSm border border-border p-3"
+                className="rounded-md border border-border p-3"
               >
                 <div className="grid grid-cols-[1fr_auto] gap-2">
                   <div className="space-y-2">

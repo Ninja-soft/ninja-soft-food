@@ -79,13 +79,13 @@ export default function TrazabilidadPage() {
               setQuery(e.target.value);
             }}
             placeholder="Buscar por número de lote (MP o PT)…"
-            className="focus:ring-primary/20 h-14 w-full rounded-ninjaLg border border-input bg-card pl-14 pr-4 text-base text-foreground shadow-soft outline-none backdrop-blur-xl transition placeholder:text-muted-foreground focus:border-primary focus:ring-4"
+            className="focus:ring-primary/20 h-14 w-full rounded-lg border border-input bg-card pl-14 pr-4 text-base text-foreground shadow-soft outline-none backdrop-blur-xl transition placeholder:text-muted-foreground focus:border-primary focus:ring-4"
           />
         </div>
 
         {/* Resultados de búsqueda */}
         {!selected && query.trim().length >= 2 && (
-          <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-ninjaMd border border-border bg-popover/95 shadow-soft backdrop-blur-xl">
+          <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-lg border border-border bg-popover/95 shadow-soft backdrop-blur-xl">
             {search.isLoading ? (
               <div className="px-4 py-6 text-center text-sm text-muted-foreground">
                 Buscando…
@@ -172,7 +172,7 @@ function TypeBadge({ type }: { type: "MP" | "PT" }) {
   return (
     <span
       className={cn(
-        "grid h-7 w-9 shrink-0 place-items-center rounded-ninjaMd text-xs font-bold",
+        "grid h-7 w-9 shrink-0 place-items-center rounded-lg text-xs font-bold",
         type === "MP"
           ? "bg-amber-500/15 text-amber-500"
           : "bg-primary/15 text-primary",
@@ -188,7 +188,7 @@ function TypeBadge({ type }: { type: "MP" | "PT" }) {
 function EmptyState() {
   return (
     <div className="glass-card flex flex-col items-center gap-3 py-16 text-center">
-      <span className="bg-primary/15 grid h-16 w-16 place-items-center rounded-ninjaMd text-primary">
+      <span className="bg-primary/15 grid h-16 w-16 place-items-center rounded-lg text-primary">
         <PackageSearch size={30} />
       </span>
       <div>
@@ -443,7 +443,7 @@ function ChainColumn({
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <span className="bg-secondary/60 grid h-7 w-7 place-items-center rounded-ninjaMd text-primary">
+        <span className="bg-secondary/60 grid h-7 w-7 place-items-center rounded-lg text-primary">
           {icon}
         </span>
         {title}
@@ -466,7 +466,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 function EmptyColumn({ text }: { text: string }) {
   return (
-    <div className="rounded-ninjaMd border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-xs text-muted-foreground">
+    <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-xs text-muted-foreground">
       {text}
     </div>
   );
@@ -519,10 +519,10 @@ function AffectedPanel({
   totalKg: number;
 }) {
   return (
-    <section className="rounded-ninjaLg border border-destructive/30 bg-destructive/5 p-5 backdrop-blur-xl">
+    <section className="rounded-lg border border-destructive/30 bg-destructive/5 p-5 backdrop-blur-xl">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="bg-destructive/15 grid h-9 w-9 place-items-center rounded-ninjaMd text-destructive">
+          <span className="bg-destructive/15 grid h-9 w-9 place-items-center rounded-lg text-destructive">
             <Users size={18} />
           </span>
           <div>
@@ -543,11 +543,11 @@ function AffectedPanel({
       </div>
 
       {customers.length === 0 ? (
-        <p className="mt-4 rounded-ninjaMd border border-dashed border-destructive/30 bg-background/40 px-4 py-6 text-center text-sm text-muted-foreground">
+        <p className="mt-4 rounded-lg border border-dashed border-destructive/30 bg-background/40 px-4 py-6 text-center text-sm text-muted-foreground">
           No hay clientes afectados: este lote todavía no salió a despacho.
         </p>
       ) : (
-        <div className="mt-4 overflow-x-auto rounded-ninjaMd border border-border bg-card/60">
+        <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-card/60">
           <table className="w-full min-w-[680px] text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">

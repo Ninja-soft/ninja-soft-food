@@ -131,7 +131,7 @@ export function IngredientFormModal({
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-ninjaMd border border-dashed border-border bg-muted/40 text-muted-foreground transition hover:border-primary hover:text-primary"
+            className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/40 text-muted-foreground transition hover:border-primary hover:text-primary"
             aria-label="Subir foto"
           >
             {preview ? (
@@ -205,7 +205,7 @@ export function IngredientFormModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-ninjaSm border border-border bg-muted/30 px-4 py-3">
+        <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-4 py-3">
           <div>
             <p className="text-sm font-medium">Perecedero</p>
             <p className="text-xs text-muted-foreground">

@@ -263,7 +263,7 @@ export function StockEntryFormModal({
           />
         </div>
 
-        <div className="flex items-center justify-between rounded-ninjaSm border border-border bg-muted/30 px-4 py-3">
+        <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-4 py-3">
           <div>
             <p className="text-sm font-medium">Producto congelado</p>
             <p className="text-xs text-muted-foreground">
@@ -331,7 +331,7 @@ export function StockEntryFormModal({
         </div>
 
         {/* Factura */}
-        <div className="flex items-center justify-between rounded-ninjaSm border border-dashed border-border px-4 py-3">
+        <div className="flex items-center justify-between rounded-md border border-dashed border-border px-4 py-3">
           <div className="min-w-0">
             <p className="text-sm font-medium">Remito / factura</p>
             <p className="truncate text-xs text-muted-foreground">
@@ -367,7 +367,7 @@ export function StockEntryFormModal({
           />
         </div>
 
-        <div className="flex items-center justify-between rounded-ninjaSm border border-border bg-muted/30 px-4 py-3">
+        <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-4 py-3">
           <div>
             <p className="text-sm font-medium">Uso interno</p>
             <p className="text-xs text-muted-foreground">

@@ -113,7 +113,7 @@ export function SubmissionHistoryDrawer({
         {isLoading ? (
           <SpinnerBlock />
         ) : rows.length === 0 ? (
-          <div className="bg-muted/20 rounded-ninjaMd border border-border py-12 text-center text-sm text-muted-foreground">
+          <div className="bg-muted/20 rounded-lg border border-border py-12 text-center text-sm text-muted-foreground">
             Sin registros para el filtro elegido.
           </div>
         ) : (
@@ -124,7 +124,7 @@ export function SubmissionHistoryDrawer({
               return (
                 <div
                   key={s.id}
-                  className="rounded-ninjaSm border border-border bg-card"
+                  className="rounded-md border border-border bg-card"
                 >
                   <button
                     type="button"
@@ -174,7 +174,7 @@ export function SubmissionHistoryDrawer({
                             onCorrect(s);
                           }
                         }}
-                        className="hover:border-primary/40 inline-flex items-center gap-1 rounded-ninjaSm border border-border px-2 py-1 text-xs font-medium text-muted-foreground transition hover:text-primary"
+                        className="hover:border-primary/40 inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-muted-foreground transition hover:text-primary"
                       >
                         <Wrench size={12} />
                         Corregir
@@ -201,7 +201,7 @@ export function SubmissionHistoryDrawer({
                         ))}
                       </dl>
                       {s.corrective_action && (
-                        <div className="border-accent/30 bg-accent/10 mt-3 rounded-ninjaSm border px-3 py-2 text-xs text-accent">
+                        <div className="border-accent/30 bg-accent/10 mt-3 rounded-md border px-3 py-2 text-xs text-accent">
                           <span className="font-semibold">
                             Acción correctiva:
                           </span>{" "}

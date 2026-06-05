@@ -179,7 +179,7 @@ export function FillFormModal({
         {/* Semáforo en vivo */}
         <div
           className={cn(
-            "flex items-center gap-2 rounded-ninjaSm border px-3 py-2 text-sm font-medium",
+            "flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium",
             liveStatus === "ok"
               ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
               : "border-destructive/40 bg-destructive/10 text-destructive"
@@ -232,7 +232,7 @@ export function FillFormModal({
 
         {/* Firma */}
         {template.requires_signature && (
-          <div className="bg-muted/30 rounded-ninjaSm border border-border p-3">
+          <div className="bg-muted/30 rounded-md border border-border p-3">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Firma del operario
             </p>
@@ -265,7 +265,7 @@ export function FillFormModal({
         )}
 
         {formError && (
-          <p className="border-destructive/40 bg-destructive/10 rounded-ninjaSm border px-3 py-2 text-sm text-destructive">
+          <p className="border-destructive/40 bg-destructive/10 rounded-md border px-3 py-2 text-sm text-destructive">
             {formError}
           </p>
         )}
@@ -389,7 +389,7 @@ function BoolPill({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-ninjaSm border px-5 py-2 text-sm font-medium transition",
+        "rounded-md border px-5 py-2 text-sm font-medium transition",
         active
           ? "bg-primary/15 border-primary text-primary"
           : "hover:border-primary/40 border-border bg-card text-muted-foreground"

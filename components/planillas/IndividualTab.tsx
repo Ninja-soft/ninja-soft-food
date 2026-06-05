@@ -90,7 +90,7 @@ export function IndividualTab({ branding }: { branding: TenantBranding | undefin
                 type="button"
                 onClick={() => setSelectedId(p.id)}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-ninjaMd border px-4 py-3 text-left transition",
+                  "flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition",
                   active
                     ? "border-primary bg-primary/10 ring-1 ring-primary/30"
                     : "border-border bg-card hover:border-primary/40",
@@ -98,7 +98,7 @@ export function IndividualTab({ branding }: { branding: TenantBranding | undefin
               >
                 <span
                   className={cn(
-                    "grid h-9 w-9 shrink-0 place-items-center rounded-ninjaSm",
+                    "grid h-9 w-9 shrink-0 place-items-center rounded-md",
                     active
                       ? "bg-primary/20 text-primary"
                       : "bg-muted/60 text-muted-foreground",
@@ -130,7 +130,7 @@ export function IndividualTab({ branding }: { branding: TenantBranding | undefin
 function EmptyHint({ text }: { text: string }) {
   return (
     <div className="glass-card flex flex-col items-center gap-2 py-12 text-center">
-      <span className="grid h-12 w-12 place-items-center rounded-ninjaMd bg-primary/15 text-primary">
+      <span className="grid h-12 w-12 place-items-center rounded-lg bg-primary/15 text-primary">
         <FileText size={22} />
       </span>
       <p className="text-sm text-muted-foreground">{text}</p>

@@ -106,7 +106,7 @@ export function BulkTab({ branding }: { branding: TenantBranding | undefined }) 
         <SpinnerBlock />
       ) : list.length === 0 ? (
         <div className="glass-card flex flex-col items-center gap-2 py-12 text-center">
-          <span className="grid h-12 w-12 place-items-center rounded-ninjaMd bg-primary/15 text-primary">
+          <span className="grid h-12 w-12 place-items-center rounded-lg bg-primary/15 text-primary">
             <FileStack size={22} />
           </span>
           <p className="text-sm text-muted-foreground">
@@ -135,7 +135,7 @@ export function BulkTab({ branding }: { branding: TenantBranding | undefined }) 
                   type="button"
                   onClick={() => toggle(p.id)}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-ninjaMd border px-4 py-3 text-left transition",
+                    "flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition",
                     checked
                       ? "border-primary bg-primary/10"
                       : "border-border bg-card hover:border-primary/40",

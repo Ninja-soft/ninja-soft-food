@@ -16,7 +16,7 @@ function JsonBlock({ label, value }: { label: string; value: unknown }) {
       <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </div>
-      <pre className="max-h-64 overflow-auto rounded-ninjaSm border border-border bg-background p-3 font-mono text-xs text-foreground">
+      <pre className="max-h-64 overflow-auto rounded-md border border-border bg-background p-3 font-mono text-xs text-foreground">
         {JSON.stringify(value, null, 2)}
       </pre>
     </div>
@@ -108,7 +108,7 @@ export default function InternalAuditPage() {
         </select>
       </div>
 
-      <div className="mt-6 overflow-x-auto rounded-ninjaMd border border-border bg-card shadow-soft backdrop-blur-xl">
+      <div className="mt-6 overflow-x-auto rounded-lg border border-border bg-card shadow-soft backdrop-blur-xl">
         <table className="w-full min-w-[840px] text-sm">
           <thead className="bg-muted text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
             <tr>

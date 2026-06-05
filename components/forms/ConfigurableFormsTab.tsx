@@ -89,7 +89,7 @@ export function ConfigurableFormsTab({
   if (migrationPending) {
     return (
       <div className="flex flex-col items-center gap-3 py-14 text-center">
-        <span className="bg-accent/15 grid h-14 w-14 place-items-center rounded-ninjaMd text-accent">
+        <span className="bg-accent/15 grid h-14 w-14 place-items-center rounded-lg text-accent">
           <ClipboardList size={26} />
         </span>
         <div>
@@ -139,7 +139,7 @@ export function ConfigurableFormsTab({
         <SpinnerBlock />
       ) : rows.length === 0 ? (
         <div className="glass-card flex flex-col items-center gap-3 py-14 text-center">
-          <span className="bg-primary/15 grid h-14 w-14 place-items-center rounded-ninjaMd text-primary">
+          <span className="bg-primary/15 grid h-14 w-14 place-items-center rounded-lg text-primary">
             <ClipboardList size={26} />
           </span>
           <div>
@@ -171,9 +171,9 @@ export function ConfigurableFormsTab({
           {rows.map((t) => (
             <div
               key={t.id}
-              className="flex flex-wrap items-center gap-3 rounded-ninjaMd border border-border bg-card px-4 py-3"
+              className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3"
             >
-              <span className="bg-primary/15 grid h-10 w-10 shrink-0 place-items-center rounded-ninjaSm text-primary">
+              <span className="bg-primary/15 grid h-10 w-10 shrink-0 place-items-center rounded-md text-primary">
                 <ClipboardList size={18} />
               </span>
               <div className="min-w-0 flex-1">

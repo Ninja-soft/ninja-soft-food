@@ -48,10 +48,12 @@ const config: Config = {
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",
-        // Marca fija (degradé del logo) — no cambia con el tema
+        // Marca fija — ramp esmeralda saturado (soft/base/deep), espejo del
+        // ramp flame del POS (flameSoft/flame/flameDeep). No cambia con el tema.
         brand: {
-          forest: "#1F7A33",
-          green: "#3FA34D",
+          emeraldSoft: "#22C55E", // stop brillante: ring, glow, top de gradientes
+          emerald: "#16A34A", // base: identidad primaria
+          emeraldDeep: "#15803D", // forest: bottom de gradientes y primary en light
           apple: "#8CBF2F",
           lime: "#C6D420",
           ink: "#04140A",
@@ -76,16 +78,19 @@ const config: Config = {
       },
       boxShadow: {
         soft: "var(--shadow-soft)",
-        foodGlow: "0 0 24px rgba(63, 163, 77, 0.22)",
+        // Glow del stop esmeralda brillante (espejo del ninjaGlow del POS)
+        foodGlow: "0 0 24px rgba(34, 197, 94, 0.28)",
         limeGlow: "0 0 24px rgba(198, 212, 32, 0.16)",
         berryGlow: "0 0 24px rgba(142, 42, 72, 0.20)",
       },
       backgroundImage: {
+        // Degradé de marca (logo): esmeralda base -> apple -> lime
         "brand-gradient":
-          "linear-gradient(135deg, #1F7A33 0%, #8CBF2F 48%, #C6D420 100%)",
-        // Gradiente del CTA primario (equivalente food del flame del POS)
+          "linear-gradient(135deg, #16A34A 0%, #8CBF2F 48%, #C6D420 100%)",
+        // CTA primario: brillante arriba -> forest abajo (espejo del flame POS,
+        // que va #ff6a2c -> #ec3f17)
         "primary-gradient":
-          "linear-gradient(180deg, #3FA34D 0%, #2E7D32 100%)",
+          "linear-gradient(180deg, #1FBD63 0%, #15803D 100%)",
       },
       keyframes: {
         "fade-in": { from: { opacity: "0" }, to: { opacity: "1" } },

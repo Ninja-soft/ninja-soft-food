@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils/cn";
 // Marca del negocio — espejo del BrandingCard del POS en clave Food.
 // Presets de resalte en tonos alimentarios.
 const PRESET_ACCENTS = [
-  "#3FA34D", "#2E7D32", "#8CBF2F", "#C6D420", "#C9A227",
+  "#16A34A", "#15803D", "#8CBF2F", "#C6D420", "#C9A227",
   "#8E2A48", "#C95D63", "#14B8A6", "#0EA5E9", "#7C4DFF",
   "#E8456B", "#111827",
 ];
@@ -32,7 +32,7 @@ type Branding = {
 
 const EMPTY: Branding = {
   logo_url: null,
-  accent: "#3FA34D",
+  accent: "#16A34A",
   legal_name: null,
   cuit: null,
   phone: null,
@@ -215,7 +215,7 @@ export function BrandingCard() {
                 value={
                   /^#[0-9a-fA-F]{6}$/.test(form.accent)
                     ? form.accent
-                    : "#3FA34D"
+                    : "#16A34A"
                 }
                 onChange={(e) =>
                   setForm((f) =>

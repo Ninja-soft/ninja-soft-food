@@ -22,9 +22,9 @@ export const PRICE_ACCENTS: Record<
 > = {
   marca: {
     label: "Marca",
-    gradient: "linear-gradient(135deg, #1F7A33 0%, #8CBF2F 48%, #C6D420 100%)",
+    gradient: "linear-gradient(135deg, #16A34A 0%, #8CBF2F 48%, #C6D420 100%)",
   },
-  bosque: { label: "Bosque", gradient: "linear-gradient(135deg, #3FA34D, #1F7A33)" },
+  bosque: { label: "Bosque", gradient: "linear-gradient(135deg, #22C55E, #15803D)" },
   lima: { label: "Lima", gradient: "linear-gradient(135deg, #C6D420, #8CBF2F)" },
   miel: { label: "Miel", gradient: "linear-gradient(135deg, #E0B73E, #C9A227)" },
   berry: { label: "Berry", gradient: "linear-gradient(135deg, #C95D63, #8E2A48)" },
@@ -176,7 +176,7 @@ export const appearanceInitScript = `
     var p=localStorage.getItem('${KEYS.price}'); p=PF[p]?p:'${DEFAULTS.price}';
     var bgs=['dots','grid','crosses','diagonal','mesh'];
     var b=localStorage.getItem('${KEYS.bg}'); b=bgs.indexOf(b)!==-1?b:'${DEFAULTS.bg}';
-    var PA={marca:'linear-gradient(135deg, #1F7A33 0%, #8CBF2F 48%, #C6D420 100%)',bosque:'linear-gradient(135deg, #3FA34D, #1F7A33)',lima:'linear-gradient(135deg, #C6D420, #8CBF2F)',miel:'linear-gradient(135deg, #E0B73E, #C9A227)',berry:'linear-gradient(135deg, #C95D63, #8E2A48)',neutro:''};
+    var PA={marca:'linear-gradient(135deg, #16A34A 0%, #8CBF2F 48%, #C6D420 100%)',bosque:'linear-gradient(135deg, #22C55E, #15803D)',lima:'linear-gradient(135deg, #C6D420, #8CBF2F)',miel:'linear-gradient(135deg, #E0B73E, #C9A227)',berry:'linear-gradient(135deg, #C95D63, #8E2A48)',neutro:''};
     var a=localStorage.getItem('${KEYS.priceAccent}'); a=PA[a]!==undefined?a:'${DEFAULTS.priceAccent}';
     var r=document.documentElement;
     r.style.setProperty('--font-display','var('+DF[d]+')');

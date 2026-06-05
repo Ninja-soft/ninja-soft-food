@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 export function FinalCta() {
   return (
     <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-      <div className="relative overflow-hidden rounded-ninjaXl border border-primary/30 bg-card p-10 text-center backdrop-blur-xl sm:p-14">
+      <div className="relative overflow-hidden rounded-lg border border-primary/30 bg-card p-10 text-center backdrop-blur-xl sm:p-14">
         <div
           className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 -translate-y-1/3 rounded-full bg-primary/25 blur-[110px]"
           aria-hidden

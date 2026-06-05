@@ -4,7 +4,7 @@ import Image from "next/image";
 export function AbrBadge() {
   return (
     <section className="relative z-10 mx-auto -mt-4 max-w-3xl px-4 sm:px-6">
-      <div className="glass-card flex flex-col items-center gap-4 rounded-ninjaLg px-6 py-5 text-center sm:flex-row sm:gap-5 sm:text-left">
+      <div className="glass-card flex flex-col items-center gap-4 rounded-lg px-6 py-5 text-center sm:flex-row sm:gap-5 sm:text-left">
         <Image
           src="/img/Logo ABR Back Transparent.png"
           alt="ABR · Asesoría Bromatológica Rosario"

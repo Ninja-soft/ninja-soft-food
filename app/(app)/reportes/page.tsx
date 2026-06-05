@@ -266,7 +266,7 @@ function SectionShell({
   return (
     <section className="glass-card animate-fade-in p-5 sm:p-6">
       <div className="mb-5 flex items-center gap-3">
-        <span className="grid h-9 w-9 place-items-center rounded-ninjaSm bg-primary/15 text-primary">
+        <span className="grid h-9 w-9 place-items-center rounded-md bg-primary/15 text-primary">
           <Icon size={18} />
         </span>
         <div>
@@ -310,7 +310,7 @@ function StatTile({
   suffix?: string;
 }) {
   return (
-    <div className="rounded-ninjaMd border border-border bg-background/40 p-4">
+    <div className="rounded-lg border border-border bg-background/40 p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
@@ -442,7 +442,7 @@ function CostSection({
           </div>
 
           {data.uncoveredInputs > 0 && (
-            <p className="flex items-center gap-2 rounded-ninjaMd border border-accent/30 bg-accent/10 px-3 py-2 text-xs text-accent">
+            <p className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-xs text-accent">
               <AlertTriangle size={14} className="shrink-0" />
               {data.uncoveredInputs} insumo
               {data.uncoveredInputs === 1 ? "" : "s"} sin costo unitario cargado.
@@ -527,7 +527,7 @@ function CoverageBadge({ pct }: { pct: number | null }) {
   return (
     <span
       className={cn(
-        "inline-flex rounded-ninjaFull px-2 py-0.5 text-xs font-medium",
+        "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
         full
           ? "bg-primary/15 text-primary"
           : pct >= 50
@@ -613,9 +613,9 @@ function DispatchBars({
                 </span>
               </span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-ninjaFull bg-muted">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-ninjaFull bg-brand-gradient"
+                className="h-full rounded-full bg-brand-gradient"
                 style={{ width: `${widthPct}%` }}
                 title={`${r.customerName}: ${formatQty(r.kg, {
                   maximumFractionDigits: 1,

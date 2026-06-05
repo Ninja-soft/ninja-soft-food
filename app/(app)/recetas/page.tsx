@@ -209,7 +209,7 @@ export default function RecetasPage() {
           type="button"
           onClick={() => setGroupId(null)}
           className={cn(
-            "rounded-ninjaFull border px-4 py-1.5 text-sm transition",
+            "rounded-full border px-4 py-1.5 text-sm transition",
             groupId === null
               ? "border-primary bg-primary/15 font-semibold text-primary"
               : "border-border bg-card text-muted-foreground hover:text-foreground",
@@ -223,7 +223,7 @@ export default function RecetasPage() {
             type="button"
             onClick={() => setGroupId(g.id === groupId ? null : g.id)}
             className={cn(
-              "rounded-ninjaFull border px-4 py-1.5 text-sm transition",
+              "rounded-full border px-4 py-1.5 text-sm transition",
               groupId === g.id
                 ? "border-primary bg-primary/15 font-semibold text-primary"
                 : "border-border bg-card text-muted-foreground hover:text-foreground",
@@ -302,7 +302,7 @@ export default function RecetasPage() {
         <SpinnerBlock />
       ) : filtered.length === 0 ? (
         <div className="glass-card flex flex-col items-center gap-3 py-14 text-center">
-          <span className="grid h-14 w-14 place-items-center rounded-ninjaMd bg-primary/15 text-primary">
+          <span className="grid h-14 w-14 place-items-center rounded-lg bg-primary/15 text-primary">
             <UtensilsCrossed size={26} />
           </span>
           <div>
@@ -338,7 +338,7 @@ export default function RecetasPage() {
                   onClick={() => setRecipeModal({ open: true, recipe: r })}
                   className="flex min-w-0 flex-1 gap-3 text-left"
                 >
-                  <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-ninjaSm bg-muted/60 text-muted-foreground">
+                  <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-md bg-muted/60 text-muted-foreground">
                     {r.image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img

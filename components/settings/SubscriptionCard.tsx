@@ -179,7 +179,7 @@ export function SubscriptionCard() {
 
             {/* Trial / período */}
             {isTrial && trialDays !== null && (
-              <div className="flex items-center gap-2 rounded-ninjaMd border border-ninja-lime/30 bg-ninja-lime/5 px-4 py-3 text-sm">
+              <div className="flex items-center gap-2 rounded-lg border border-ninja-lime/30 bg-ninja-lime/5 px-4 py-3 text-sm">
                 <Sparkles size={16} className="text-ninja-lime" />
                 <span>
                   {trialDays > 0 ? (
@@ -196,7 +196,7 @@ export function SubscriptionCard() {
             )}
 
             {isActive && sub?.currentPeriodEnd && (
-              <div className="flex items-center gap-2 rounded-ninjaMd border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
                 <CalendarClock size={16} />
                 {sub.cancelAtPeriodEnd ? (
                   <span>
@@ -212,7 +212,7 @@ export function SubscriptionCard() {
             )}
 
             {status === "past_due" && (
-              <div className="flex items-center gap-2 rounded-ninjaMd border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
+              <div className="flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
                 <AlertTriangle size={16} />
                 Tu último pago no se acreditó. Reintentá para no perder acceso.
               </div>
@@ -224,7 +224,7 @@ export function SubscriptionCard() {
                 {FEATURE_LABELS.map((f) => (
                   <div
                     key={f.key}
-                    className="rounded-ninjaMd border border-border bg-muted/20 px-3 py-2.5"
+                    className="rounded-lg border border-border bg-muted/20 px-3 py-2.5"
                   >
                     <div className="text-xs text-muted-foreground">{f.label}</div>
                     <div className="font-price text-base font-bold tabular-nums">
@@ -283,7 +283,7 @@ export function SubscriptionCard() {
                 <div
                   key={plan.id}
                   className={cn(
-                    "flex flex-col rounded-ninjaLg border p-5 transition",
+                    "flex flex-col rounded-lg border p-5 transition",
                     isCurrent
                       ? "border-primary bg-primary/[0.06] ring-1 ring-primary/30"
                       : "border-border bg-muted/10 hover:border-primary/40",

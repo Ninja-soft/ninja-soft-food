@@ -292,7 +292,7 @@ export function ProductionFormModal({
                 <div
                   key={need.ingredient_id}
                   className={cn(
-                    "rounded-ninjaSm border p-3",
+                    "rounded-md border p-3",
                     ok ? "border-border" : "border-accent/50 bg-accent/5",
                   )}
                 >
@@ -389,7 +389,7 @@ export function ProductionFormModal({
         )}
 
         {recipe && needs.length === 0 && (
-          <p className="rounded-ninjaSm border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+          <p className="rounded-md border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
             Esta receta no tiene fórmula cargada: la producción se registra sin
             consumo de lotes.
           </p>

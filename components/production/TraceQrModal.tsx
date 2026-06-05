@@ -48,7 +48,7 @@ export function TraceQrModal({
           <img
             src={dataUrl}
             alt="QR de trazabilidad"
-            className="w-56 rounded-ninjaMd border border-border bg-white p-2"
+            className="w-56 rounded-lg border border-border bg-white p-2"
           />
         )}
         {traceUrl && (

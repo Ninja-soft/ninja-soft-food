@@ -20,7 +20,7 @@ export function UnderConstruction({
         </Heading>
       </div>
       <div className="glass-card flex flex-col items-center gap-3 py-16 text-center">
-        <span className="grid h-14 w-14 place-items-center rounded-ninjaMd bg-accent/15 text-accent">
+        <span className="grid h-14 w-14 place-items-center rounded-lg bg-accent/15 text-accent">
           <Hammer size={26} />
         </span>
         <div className="max-w-md">

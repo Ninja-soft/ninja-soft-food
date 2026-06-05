@@ -324,7 +324,7 @@ export function TemplateBuilderModal({
                       type="button"
                       onClick={() => toggleDay(d.value)}
                       className={cn(
-                        "rounded-ninjaSm border px-2.5 py-1 text-xs font-medium transition",
+                        "rounded-md border px-2.5 py-1 text-xs font-medium transition",
                         active
                           ? "bg-primary/15 border-primary text-primary"
                           : "hover:border-primary/40 border-border bg-card text-muted-foreground"
@@ -339,7 +339,7 @@ export function TemplateBuilderModal({
           </div>
 
           {/* Firma */}
-          <div className="bg-muted/30 flex items-center justify-between rounded-ninjaSm border border-border px-4 py-3">
+          <div className="bg-muted/30 flex items-center justify-between rounded-md border border-border px-4 py-3">
             <div>
               <p className="text-sm font-medium">Requiere firma del operario</p>
               <p className="text-xs text-muted-foreground">
@@ -396,7 +396,7 @@ export function TemplateBuilderModal({
           </div>
 
           {error && (
-            <p className="border-destructive/40 bg-destructive/10 rounded-ninjaSm border px-3 py-2 text-sm text-destructive">
+            <p className="border-destructive/40 bg-destructive/10 rounded-md border px-3 py-2 text-sm text-destructive">
               {error}
             </p>
           )}
@@ -413,7 +413,7 @@ export function TemplateBuilderModal({
 
         {/* ── Preview ── */}
         <div className="lg:sticky lg:top-0">
-          <div className="bg-muted/20 rounded-ninjaMd border border-border p-4">
+          <div className="bg-muted/20 rounded-lg border border-border p-4">
             <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               <Eye size={13} />
               Vista previa
@@ -469,7 +469,7 @@ function FieldEditor({
   const isSelect = field.type === "select";
 
   return (
-    <div className="rounded-ninjaSm border border-border bg-card p-3">
+    <div className="rounded-md border border-border bg-card p-3">
       <div className="flex items-start gap-2">
         <div className="flex flex-col gap-0.5 pt-1">
           <button
@@ -649,10 +649,10 @@ function PreviewField({ field }: { field: FormField }) {
       </label>
       {field.type === "bool" ? (
         <div className="flex gap-2">
-          <span className="rounded-ninjaSm border border-border px-3 py-1.5 text-xs">
+          <span className="rounded-md border border-border px-3 py-1.5 text-xs">
             Sí
           </span>
-          <span className="rounded-ninjaSm border border-border px-3 py-1.5 text-xs">
+          <span className="rounded-md border border-border px-3 py-1.5 text-xs">
             No
           </span>
         </div>

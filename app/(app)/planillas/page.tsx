@@ -79,7 +79,7 @@ export default function PlanillasPage() {
               type="button"
               onClick={() => setTab(t.value)}
               className={cn(
-                "group flex flex-col gap-2 rounded-ninjaLg border p-4 text-left transition",
+                "group flex flex-col gap-2 rounded-lg border p-4 text-left transition",
                 active
                   ? "bg-primary/10 ring-primary/30 border-primary shadow-foodGlow ring-1"
                   : "hover:border-primary/40 border-border bg-card"
@@ -87,7 +87,7 @@ export default function PlanillasPage() {
             >
               <span
                 className={cn(
-                  "grid h-10 w-10 place-items-center rounded-ninjaMd transition",
+                  "grid h-10 w-10 place-items-center rounded-lg transition",
                   active
                     ? "bg-primary/20 text-primary"
                     : "bg-muted/60 text-muted-foreground group-hover:text-primary"
