@@ -9,7 +9,12 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="food-dark-bg relative flex min-h-screen items-center justify-center px-4 py-12 text-brand-mist">
+    // data-theme fijo: el login es SIEMPRE oscuro; el tema del usuario
+    // aplica recién dentro de la app (pedido de producto, espejo del POS).
+    <div
+      data-theme="food-dark"
+      className="food-dark-bg relative flex min-h-screen items-center justify-center px-4 py-12 text-brand-mist"
+    >
       <div className="food-grid pointer-events-none absolute inset-0 opacity-20" />
       <div className="relative z-10 w-full max-w-md">
         <Link href="/" className="mb-8 flex items-center justify-center gap-3">
