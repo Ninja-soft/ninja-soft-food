@@ -89,6 +89,8 @@ describe.skipIf(!RLS_ENABLED)("RLS multi-tenant isolation (cloud)", () => {
     // Cleanup best-effort con service role (bypassa RLS). Borra filas rlstest-.
     if (!admin) return;
     const cleanupOrder = [
+      "api_keys",
+      "outbound_webhooks",
       "dispatch_items",
       "dispatches",
       "analysis_attachments",
@@ -966,6 +968,238 @@ describe.skipIf(!RLS_ENABLED)("RLS multi-tenant isolation (cloud)", () => {
           .eq("id", submissionAId!)
           .single();
         expect(row?.tenant_id).toBe(tenantA.tenantId);
+      },
+      TEST_TIMEOUT
+    );
+  });
+
+  // ── 5c. public_api: api_keys + outbound_webhooks + verify_api_key ────────────
+  //
+  // Tablas/RPC de la migración 0010. Mientras 0010 NO esté en cloud (pendiente
+  // junto a 0008/0009 para `supabase db push`), cada caso se SKIPEA al detectar
+  // que la tabla o la función no existen (no se marca verde). Patrón form_builder.
+  describe("public_api (api_keys / outbound_webhooks)", () => {
+    let apiKeyAId: string | null = null;
+    let webhookAId: string | null = null;
+    // sha256 hex (64 chars) determinista para el test de verify_api_key.
+    const keyHashA = "a".repeat(64);
+    const keyHashMissing = "f".repeat(64);
+
+    /** true si el error indica que 0010 todavía no está aplicada en cloud. */
+    function isMissingPublicApi(err: {
+      code?: string;
+      message?: string;
+    } | null): boolean {
+      if (!err) return false;
+      return (
+        err.code === "PGRST202" || // RPC no encontrada
+        err.code === "PGRST205" || // tabla no en el schema cache
+        err.code === "42P01" || // undefined_table
+        /api_keys|outbound_webhooks|verify_api_key|schema cache|does not exist|not found/i.test(
+          err.message ?? ""
+        )
+      );
+    }
+
+    test(
+      "A crea una api_key; B no la ve; staff sí (internal_read)",
+      async (ctx) => {
+        const { data, error } = await tenantA.client
+          .from("api_keys")
+          .insert({
+            tenant_id: tenantA.tenantId,
+            name: `${RUN_PREFIX} key produccion`,
+            key_hash: keyHashA,
+            key_prefix: "nf_live_aaaa",
+            scopes: ["read:productions", "read:traces"],
+          })
+          .select("id")
+          .single();
+
+        if (isMissingPublicApi(error)) {
+          console.warn(
+            "api_keys no está en cloud (migración 0010 pendiente): " +
+              error!.message
+          );
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+        apiKeyAId = data!.id;
+
+        // B no la ve.
+        const { data: bSee } = await tenantB.client
+          .from("api_keys")
+          .select("id")
+          .eq("id", apiKeyAId!);
+        expect(bSee ?? []).toEqual([]);
+
+        // staff sí (internal_read).
+        const { data: staffSee } = await staffClient
+          .from("api_keys")
+          .select("id, tenant_id")
+          .eq("id", apiKeyAId!);
+        expect(staffSee).toHaveLength(1);
+        expect(staffSee![0].tenant_id).toBe(tenantA.tenantId);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "B NO puede actualizar ni borrar la api_key de A",
+      async (ctx) => {
+        if (!apiKeyAId) {
+          ctx.skip();
+          return;
+        }
+        const { data: upd, error: updErr } = await tenantB.client
+          .from("api_keys")
+          .update({ revoked_at: new Date().toISOString() })
+          .eq("id", apiKeyAId!)
+          .select("id");
+        expect(updErr ? true : (upd ?? []).length === 0).toBe(true);
+
+        const { data: del, error: delErr } = await tenantB.client
+          .from("api_keys")
+          .delete()
+          .eq("id", apiKeyAId!)
+          .select("id");
+        expect(delErr ? true : (del ?? []).length === 0).toBe(true);
+
+        // Sigue viva (sin revocar) para A.
+        const { data: still } = await tenantA.client
+          .from("api_keys")
+          .select("id, revoked_at")
+          .eq("id", apiKeyAId!)
+          .single();
+        expect(still?.id).toBe(apiKeyAId);
+        expect(still?.revoked_at).toBeNull();
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "A crea un outbound_webhook; B no lo ve; staff sí",
+      async (ctx) => {
+        const { data, error } = await tenantA.client
+          .from("outbound_webhooks")
+          .insert({
+            tenant_id: tenantA.tenantId,
+            url: "https://example.test/hook",
+            events: ["production.completed", "dispatch.created"],
+            secret: `${RUN_PREFIX}-hmac-secret`,
+          })
+          .select("id")
+          .single();
+
+        if (isMissingPublicApi(error)) {
+          console.warn(
+            "outbound_webhooks no está en cloud (migración 0010 pendiente): " +
+              error!.message
+          );
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+        webhookAId = data!.id;
+
+        const { data: bSee } = await tenantB.client
+          .from("outbound_webhooks")
+          .select("id")
+          .eq("id", webhookAId!);
+        expect(bSee ?? []).toEqual([]);
+
+        const { data: staffSee } = await staffClient
+          .from("outbound_webhooks")
+          .select("id, tenant_id")
+          .eq("id", webhookAId!);
+        expect(staffSee).toHaveLength(1);
+        expect(staffSee![0].tenant_id).toBe(tenantA.tenantId);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "anon NO lee api_keys ni outbound_webhooks (sin policy)",
+      async (ctx) => {
+        if (!apiKeyAId && !webhookAId) {
+          ctx.skip();
+          return;
+        }
+        const anon = anonClient();
+        for (const table of ["api_keys", "outbound_webhooks"]) {
+          const { data, error } = await anon.from(table).select("id").limit(1);
+          expect(error, `${table} error`).toBeNull();
+          expect(data ?? [], `${table} leak`).toEqual([]);
+        }
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "verify_api_key (anon, SECURITY DEFINER) resuelve solo la key exacta de A",
+      async (ctx) => {
+        if (!apiKeyAId) {
+          ctx.skip();
+          return;
+        }
+        const anon = anonClient();
+
+        // Hash existente y no revocado → {tenant_id, scopes, key_id} de A.
+        const { data: ok, error: okErr } = await anon.rpc("verify_api_key", {
+          p_key_hash: keyHashA,
+        });
+        if (isMissingPublicApi(okErr)) {
+          console.warn(
+            "verify_api_key no está en cloud (migración 0010 pendiente): " +
+              okErr!.message
+          );
+          ctx.skip();
+          return;
+        }
+        expect(okErr).toBeNull();
+        expect(ok).toBeTruthy();
+        expect((ok as { tenant_id: string }).tenant_id).toBe(tenantA.tenantId);
+        expect((ok as { key_id: string }).key_id).toBe(apiKeyAId);
+        expect((ok as { scopes: string[] }).scopes).toContain("read:productions");
+
+        // Hash inexistente → null (no leak, no error).
+        const { data: missing, error: missErr } = await anon.rpc(
+          "verify_api_key",
+          { p_key_hash: keyHashMissing }
+        );
+        expect(missErr).toBeNull();
+        expect(missing).toBeNull();
+
+        // Hash mal formado (no 64 hex) → null.
+        const { data: bad, error: badErr } = await anon.rpc("verify_api_key", {
+          p_key_hash: "too-short",
+        });
+        expect(badErr).toBeNull();
+        expect(bad).toBeNull();
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "verify_api_key devuelve null para una key revocada (revoked_at)",
+      async (ctx) => {
+        if (!apiKeyAId) {
+          ctx.skip();
+          return;
+        }
+        // A revoca su propia key (soft, vía UPDATE bajo su sesión).
+        const { error: revErr } = await tenantA.client
+          .from("api_keys")
+          .update({ revoked_at: new Date().toISOString() })
+          .eq("id", apiKeyAId!);
+        expect(revErr).toBeNull();
+
+        const { data: gone, error } = await anonClient().rpc("verify_api_key", {
+          p_key_hash: keyHashA,
+        });
+        expect(error).toBeNull();
+        expect(gone).toBeNull();
       },
       TEST_TIMEOUT
     );

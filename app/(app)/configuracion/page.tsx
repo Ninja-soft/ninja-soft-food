@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, Globe2, Palette, Store } from "lucide-react";
+import { CreditCard, Globe2, Palette, Plug, Store } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Segmented } from "@/components/ui/Segmented";
 import { Display, Eyebrow } from "@/components/ui/Typography";
+import { ApiKeysCard } from "@/components/settings/ApiKeysCard";
 import { BrandingCard } from "@/components/settings/BrandingCard";
 import { GlobalizationCard } from "@/components/settings/GlobalizationCard";
 import { SubscriptionCard } from "@/components/settings/SubscriptionCard";
@@ -31,11 +32,12 @@ import { formatQty } from "@/lib/utils/format";
 // Configuración — espejo de la página del POS: menú lateral de secciones,
 // Apariencia (tema / fuentes / resalte / fondo) y Marca del negocio.
 
-type Section = "apariencia" | "marca" | "global" | "suscripcion";
+type Section = "apariencia" | "marca" | "global" | "api" | "suscripcion";
 const SECTIONS: { key: Section; label: string; icon: React.ElementType }[] = [
   { key: "apariencia", label: "Apariencia", icon: Palette },
   { key: "marca", label: "Marca del negocio", icon: Store },
   { key: "global", label: "Operacion global", icon: Globe2 },
+  { key: "api", label: "API e integraciones", icon: Plug },
   { key: "suscripcion", label: "Suscripción", icon: CreditCard },
 ];
 
@@ -297,6 +299,10 @@ export default function ConfiguracionPage() {
           {section === "marca" && <BrandingCard />}
 
           {section === "global" && <GlobalizationCard />}
+
+          {section === "api" && (
+            <ApiKeysCard onUpgrade={() => setSection("suscripcion")} />
+          )}
 
           {section === "suscripcion" && <SubscriptionCard />}
         </div>

@@ -161,12 +161,34 @@ JWT, template activo del tenant, y si `requires_signature` exige `member`+`PIN` 
 `crypt(pin, members.pin_hash)` (bcrypt, pgcrypto). Devuelve `{submission_id, signed}`.
 Pendiente anotado: rate-limit de intentos de PIN. Templates default por rubro: app-side (regla 10).
 
-### API pública (v1)
+### API pública (v1) — migración 0010
 
 ```
-api_keys              tenant_id, name, key_hash, scopes text[], last_used_at, revoked_at
-outbound_webhooks     tenant_id, url, events text[], secret, is_active
+api_keys              tenant_id, name, key_hash (sha256 hex, UNIQUE), key_prefix (visible, ej
+                      "nf_live_a1b2"), scopes text[] ('read:productions'|'read:stock'|
+                      'read:traces'|'read:dispatches'), last_used_at, revoked_at, created_at
+                      — el SECRET en claro NUNCA se guarda: solo el sha256; se muestra una vez al
+                      crear. Revocación = soft (revoked_at), nunca DELETE. SIN updated_at/deleted_at.
+outbound_webhooks     tenant_id, url, events text[] ('production.completed'|'dispatch.created'|
+                      'stock.low'), secret (firma HMAC los payloads salientes → se guarda en claro,
+                      a diferencia de api_keys), is_active, last_delivery_at, last_delivery_status,
+                      created_at/updated_at + trigger, deleted_at — editable.
 ```
+
+RLS: ambas con `tenant_isolation` (for all, authenticated) + `internal_read`. El SELECT del tenant
+sobre `api_keys` no expone secreto alguno (no se persiste). Gated por plan: `limits.api_access` /
+`tenant_operating_profiles.enabled_modules.public_api`.
+
+**RPC `verify_api_key(p_key_hash text)` → jsonb {tenant_id, scopes, key_id} | null.** Decisión de
+seguridad (arquitecto de datos): **SECURITY DEFINER + GRANT a anon**, mismo patrón con que el POS
+expone datos por slug sin sesión (`public_catalog(text)`). La API pública v1 entra SIN JWT
+(`Authorization: Bearer nf_live_...`), por lo que dentro del request no existe `current_tenant_id()`;
+resolver el tenant a partir del hash es el trabajo de la función. Es seguro porque `key_hash` es un
+sha256 hex de 64 chars (espacio no enumerable), la función no lista nada (recibe el hash ya calculado
+y devuelve solo la fila exacta o null), y `search_path=''` evita secuestro. `last_used_at` se
+actualiza con throttle de 60s (una escritura por minuto por key, no por request). Una key revocada
+(`revoked_at`) devuelve null. El secreto en claro se genera y muestra una vez en el handler de
+creación (app-side): allí se calcula sha256(secret)→key_hash y se deriva key_prefix.
 
 ---
 
