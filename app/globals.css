@@ -182,7 +182,10 @@
     @apply border-border;
   }
 
-  html {
+  html,
+  [data-theme="food-dark"],
+  [data-theme="food-bosque"],
+  [data-theme="food-mar"] {
     color-scheme: dark;
   }
 
@@ -190,6 +193,17 @@
   [data-theme="food-crema"],
   [data-theme="food-remolacha"] {
     color-scheme: light;
+  }
+
+  /* Autofill del navegador: respetar el tema (Chrome pinta blanco por defecto) */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--foreground);
+    -webkit-box-shadow: 0 0 0 1000px var(--background) inset;
+    box-shadow: 0 0 0 1000px var(--background) inset;
+    caret-color: var(--foreground);
+    transition: background-color 9999s ease-in-out 0s;
   }
 
   body {
