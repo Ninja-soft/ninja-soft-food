@@ -1829,6 +1829,83 @@ export type Database = {
           },
         ]
       }
+      tenant_operating_profiles: {
+        Row: {
+          compliance_frameworks: string[]
+          country: string
+          created_at: string
+          currency: string
+          date_format: string
+          default_tax_rate: number
+          enabled_modules: Json
+          label_languages: string[]
+          locale: string
+          measurement_system: string
+          tax_id_label: string
+          tax_id_value: string | null
+          tax_label: string
+          temperature_unit: string
+          tenant_id: string
+          timezone: string
+          traceability_config: Json
+          updated_at: string
+          volume_unit: string
+          weight_unit: string
+        }
+        Insert: {
+          compliance_frameworks?: string[]
+          country?: string
+          created_at?: string
+          currency?: string
+          date_format?: string
+          default_tax_rate?: number
+          enabled_modules?: Json
+          label_languages?: string[]
+          locale?: string
+          measurement_system?: string
+          tax_id_label?: string
+          tax_id_value?: string | null
+          tax_label?: string
+          temperature_unit?: string
+          tenant_id: string
+          timezone?: string
+          traceability_config?: Json
+          updated_at?: string
+          volume_unit?: string
+          weight_unit?: string
+        }
+        Update: {
+          compliance_frameworks?: string[]
+          country?: string
+          created_at?: string
+          currency?: string
+          date_format?: string
+          default_tax_rate?: number
+          enabled_modules?: Json
+          label_languages?: string[]
+          locale?: string
+          measurement_system?: string
+          tax_id_label?: string
+          tax_id_value?: string | null
+          tax_label?: string
+          temperature_unit?: string
+          tenant_id?: string
+          timezone?: string
+          traceability_config?: Json
+          updated_at?: string
+          volume_unit?: string
+          weight_unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_operating_profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_users: {
         Row: {
           created_at: string

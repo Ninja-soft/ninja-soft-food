@@ -17,7 +17,7 @@ function resolveLocale(options?: LocaleFormatOptions): string {
 /** Fecha localizada. Acepta Date o ISO string (date o timestamp). */
 export function formatDate(
   value: string | Date | null | undefined,
-  options?: LocaleFormatOptions,
+  options?: LocaleFormatOptions
 ): string {
   if (!value) return "-";
   const d = typeof value === "string" ? parseISO(value) : value;
@@ -27,7 +27,7 @@ export function formatDate(
 /** Cantidad localizada, sin ceros colgantes. */
 export function formatQty(
   value: number | null | undefined,
-  options?: LocaleFormatOptions & { maximumFractionDigits?: number },
+  options?: LocaleFormatOptions & { maximumFractionDigits?: number }
 ): string {
   if (value === null || value === undefined) return "-";
   return new Intl.NumberFormat(resolveLocale(options), {
@@ -38,7 +38,7 @@ export function formatQty(
 /** Moneda localizada. Default ARS para mantener compatibilidad. */
 export function formatMoney(
   value: number | null | undefined,
-  options?: MoneyFormatOptions,
+  options?: MoneyFormatOptions
 ): string {
   if (value === null || value === undefined) return "-";
   const profile = getCountryProfile(options?.country);

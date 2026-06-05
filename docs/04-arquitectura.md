@@ -6,20 +6,20 @@ Regla rectora: **calcar el POS**. Misma organización, mismas librerías, mismos
 
 ## 1. Stack
 
-| Capa | Elección | Justificación |
-|---|---|---|
-| Framework | Next.js 14 App Router + React 18 + TypeScript strict | Idéntico al POS |
-| Estilos | **Tailwind CSS 3.4** + CVA + tailwind-merge | Regla dura del proyecto; tokens CSS vars como el POS |
-| Server state | TanStack Query 5 | Idéntico POS |
-| Client state | Zustand 5 | Idéntico POS |
-| Forms | react-hook-form + zod | Idéntico POS |
-| Primitivos | Radix UI + componentes propios `components/ui` | Idéntico POS |
-| Calendarios | react-day-picker 9 + date-fns 4 (`DateRangePicker` con presets) | Componente POS, candidato a paquete compartido |
-| Excel / PDF | exceljs + jspdf | Idéntico POS |
-| Backend | Supabase: Postgres + Auth + Storage + Edge Functions (Deno) | Idéntico POS |
-| Deploy | GitHub → Vercel (auto desde `main`), GitHub Actions CI (lint+typecheck+test+build) | Idéntico POS |
-| Tests | Vitest + Testing Library + test RLS de integración | Idéntico POS |
-| Tooling | pnpm 9, Node ≥20, Prettier + prettier-plugin-tailwindcss, ESLint | Idéntico POS |
+| Capa         | Elección                                                                           | Justificación                                        |
+| ------------ | ---------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Framework    | Next.js 14 App Router + React 18 + TypeScript strict                               | Idéntico al POS                                      |
+| Estilos      | **Tailwind CSS 3.4** + CVA + tailwind-merge                                        | Regla dura del proyecto; tokens CSS vars como el POS |
+| Server state | TanStack Query 5                                                                   | Idéntico POS                                         |
+| Client state | Zustand 5                                                                          | Idéntico POS                                         |
+| Forms        | react-hook-form + zod                                                              | Idéntico POS                                         |
+| Primitivos   | Radix UI + componentes propios `components/ui`                                     | Idéntico POS                                         |
+| Calendarios  | react-day-picker 9 + date-fns 4 (`DateRangePicker` con presets)                    | Componente POS, candidato a paquete compartido       |
+| Excel / PDF  | exceljs + jspdf                                                                    | Idéntico POS                                         |
+| Backend      | Supabase: Postgres + Auth + Storage + Edge Functions (Deno)                        | Idéntico POS                                         |
+| Deploy       | GitHub → Vercel (auto desde `main`), GitHub Actions CI (lint+typecheck+test+build) | Idéntico POS                                         |
+| Tests        | Vitest + Testing Library + test RLS de integración                                 | Idéntico POS                                         |
+| Tooling      | pnpm 9, Node ≥20, Prettier + prettier-plugin-tailwindcss, ESLint                   | Idéntico POS                                         |
 
 ## 2. Estructura de carpetas (calcada del POS)
 
@@ -62,14 +62,14 @@ Misma arquitectura del POS: CSS vars semánticas (`--background`, `--card`, `--p
 
 **Mandato de calidad visual (regla dura):** la UI debe verse al nivel del POS — fondos atmosféricos con radial-gradients, cards glass con backdrop-blur, glows de acento, radios ninja (10/14/20/28px), animaciones con cubic-bezier, tipografía Nunito/Inter/JetBrains Mono. **Prohibido el look genérico**: nada de grises shadcn por defecto, ni `rounded-md shadow-sm` plano, ni layouts sin jerarquía. Cada pantalla nueva se contrasta contra una pantalla equivalente del POS antes de darse por terminada.
 
-| Tema | Tipo | background | foreground | primary | accent | secondary | border/input | Notas |
-|---|---|---|---|---|---|---|---|---|
-| `food-dark` (default) | dark | `#08120A` | `#F0F7EE` | `#3FA34D` | `#C6D420` | `rgba(255,255,255,.06)` | `rgba(255,255,255,.10)` | Gradiente atmosférico verde: radial verde 18%/lima 82% sobre `linear-gradient(135deg,#07110A,#0C1F10,#15331B)` |
-| `food-light` | light | `#F4F8F2` | `#13190F` | `#2E7D32` | `#9BB814` | `#E8F0E3` | `#DDE8D6` | Equivalente a ninja-light en clave verde |
-| `food-bosque` | dark | `#06120A` | `#EDF7EE` | `#4CAF50` | `#C6D420` | `rgba(255,255,255,.05)` | `rgba(255,255,255,.09)` | Dark profundo neutro-verde (rol del ninja-noir) |
-| `food-crema` | light | `#FBF7EC` | `#1D1A10` | `#2E7D32` | `#C9A227` (miel) | `#F3EDDA` | `#EAE2CC` | Cálido panadería (rol del ninja-sand) |
-| `food-remolacha` | light | `#FAF5F7` | `#221318` | `#8E2A48` | `#C95D63` | `#F2E4EA` | `#EBD8E0` | Identidad cárnica/frigorífico |
-| `food-mar` | dark | `#07171A` | `#ECFDF5` | `#14B8A6` | `#99E2B4` | `rgba(255,255,255,.05)` | `rgba(255,255,255,.09)` | Pescados/frescos |
+| Tema                  | Tipo  | background | foreground | primary   | accent           | secondary               | border/input            | Notas                                                                                                          |
+| --------------------- | ----- | ---------- | ---------- | --------- | ---------------- | ----------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `food-dark` (default) | dark  | `#08120A`  | `#F0F7EE`  | `#3FA34D` | `#C6D420`        | `rgba(255,255,255,.06)` | `rgba(255,255,255,.10)` | Gradiente atmosférico verde: radial verde 18%/lima 82% sobre `linear-gradient(135deg,#07110A,#0C1F10,#15331B)` |
+| `food-light`          | light | `#F4F8F2`  | `#13190F`  | `#2E7D32` | `#9BB814`        | `#E8F0E3`               | `#DDE8D6`               | Equivalente a ninja-light en clave verde                                                                       |
+| `food-bosque`         | dark  | `#06120A`  | `#EDF7EE`  | `#4CAF50` | `#C6D420`        | `rgba(255,255,255,.05)` | `rgba(255,255,255,.09)` | Dark profundo neutro-verde (rol del ninja-noir)                                                                |
+| `food-crema`          | light | `#FBF7EC`  | `#1D1A10`  | `#2E7D32` | `#C9A227` (miel) | `#F3EDDA`               | `#EAE2CC`               | Cálido panadería (rol del ninja-sand)                                                                          |
+| `food-remolacha`      | light | `#FAF5F7`  | `#221318`  | `#8E2A48` | `#C95D63`        | `#F2E4EA`               | `#EBD8E0`               | Identidad cárnica/frigorífico                                                                                  |
+| `food-mar`            | dark  | `#07171A`  | `#ECFDF5`  | `#14B8A6` | `#99E2B4`        | `rgba(255,255,255,.05)` | `rgba(255,255,255,.09)` | Pescados/frescos                                                                                               |
 
 Cada tema define además `--destructive #FF5A5A` (dark) / `#C62828` (light), sombras `--shadow-soft` por tema, y glows: `foodGlow rgba(63,163,77,.22)`, `limeGlow rgba(198,212,32,.16)`.
 
@@ -80,6 +80,7 @@ Cada tema define además `--destructive #FF5A5A` (dark) / `#C62828` (light), som
 Idéntico POS: Supabase Auth → trigger `handle_new_user()` → espejo `public.users` → Edge Function `create_tenant` (tenant + suscripción trial 14 días) → claim `tenant_id` en JWT → middleware refresca sesión → RLS con `current_tenant_id()`.
 
 Preparación SSO POS↔Food desde el día 1 (requisito del roadmap):
+
 - Mismo proyecto convention de claims (`app_metadata.tenant_id`, `app_metadata.products: ['food']`).
 - `users.email` como identidad pivote; tabla futura `ninja_accounts` federada.
 - No acoplar lógica al nombre del producto en auth; el dominio de login será configurable (`auth.ninja-soft.com` a futuro).
@@ -101,6 +102,7 @@ lib/billing/
 ```
 
 Principios:
+
 1. **La app es fuente de verdad** del estado de suscripción; la pasarela solo ejecuta cobros.
 2. Webhook = fuente de verdad del pago (nunca el redirect). Patrón thin-payload: re-fetch del recurso al recibir.
 3. Idempotencia por `provider_event_id` en `payment_events`.
@@ -130,6 +132,7 @@ Buckets Supabase Storage por dominio: `ingredients`, `recipes`, `invoices`, `att
 ## 10. Observabilidad
 
 Sentry (DSN en env, patrón POS), `app/api/health`, logs de Edge Functions vía Supabase, `internal_tenant_health` para el panel interno.
+
 ## 11. Operacion internacional
 
 La app no debe asumir Argentina en la capa de producto. El tenant conserva un

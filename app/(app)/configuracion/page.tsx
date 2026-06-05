@@ -126,7 +126,7 @@ export default function ConfiguracionPage() {
                   "flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition md:w-full",
                   active
                     ? "bg-primary/[0.12] font-medium text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 <Icon size={17} />
@@ -153,8 +153,8 @@ export default function ConfiguracionPage() {
                           className={cn(
                             "rounded-lg border p-2 text-left transition",
                             active
-                              ? "border-primary ring-2 ring-primary/30"
-                              : "border-border hover:border-primary/40",
+                              ? "ring-primary/30 border-primary ring-2"
+                              : "hover:border-primary/40 border-border"
                           )}
                         >
                           <div
@@ -174,7 +174,7 @@ export default function ConfiguracionPage() {
                             <span
                               className={cn(
                                 "h-1.5 w-1.5 rounded-full",
-                                active ? "bg-primary" : "bg-transparent",
+                                active ? "bg-primary" : "bg-transparent"
                               )}
                             />
                             {THEME_LABELS[t]}
@@ -238,8 +238,8 @@ export default function ConfiguracionPage() {
                           className={cn(
                             "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition",
                             active
-                              ? "border-primary ring-2 ring-primary/30"
-                              : "border-border hover:border-primary/40",
+                              ? "ring-primary/30 border-primary ring-2"
+                              : "hover:border-primary/40 border-border"
                           )}
                         >
                           <span
@@ -269,8 +269,8 @@ export default function ConfiguracionPage() {
                           className={cn(
                             "rounded-lg border p-2 transition",
                             active
-                              ? "border-primary ring-2 ring-primary/30"
-                              : "border-border hover:border-primary/40",
+                              ? "ring-primary/30 border-primary ring-2"
+                              : "hover:border-primary/40 border-border"
                           )}
                         >
                           <div

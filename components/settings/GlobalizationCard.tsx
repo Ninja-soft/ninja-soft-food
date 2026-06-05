@@ -39,7 +39,7 @@ function SelectField({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full rounded-lg border border-input bg-background px-4 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+        className="focus:ring-primary/20 h-11 w-full rounded-lg border border-input bg-background px-4 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2"
       >
         {children}
       </select>
@@ -57,7 +57,7 @@ function SummaryItem({
   value: string;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/30 p-3">
+    <div className="bg-muted/30 rounded-lg border border-border p-3">
       <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
         <Icon size={14} />
         {label}
@@ -99,7 +99,9 @@ export function GlobalizationCard() {
 
   useEffect(() => {
     if (!data) return;
-    const base = getDefaultOperatingProfile(data.profile?.country ?? data.country);
+    const base = getDefaultOperatingProfile(
+      data.profile?.country ?? data.country
+    );
     setForm({
       ...base,
       ...data.profile,
@@ -113,7 +115,7 @@ export function GlobalizationCard() {
 
   const activeCountry = useMemo(
     () => getCountryProfile(form?.country),
-    [form?.country],
+    [form?.country]
   );
 
   const save = useMutation({
@@ -186,7 +188,11 @@ export function GlobalizationCard() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <SelectField label="Pais operativo" value={form.country} onChange={setCountry}>
+          <SelectField
+            label="Pais operativo"
+            value={form.country}
+            onChange={setCountry}
+          >
             {COUNTRY_OPTIONS.map((country) => (
               <option key={country.code} value={country.code}>
                 {country.name} · {country.currency}
@@ -213,16 +219,28 @@ export function GlobalizationCard() {
             maxLength={3}
             onChange={(e) =>
               setForm((f) =>
-                f ? { ...f, currency: e.target.value.toUpperCase() } : f,
+                f ? { ...f, currency: e.target.value.toUpperCase() } : f
               )
             }
           />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <SummaryItem icon={Landmark} label="Autoridades" value={activeCountry.foodAuthorities.join(", ")} />
-          <SummaryItem icon={ShieldCheck} label="Frameworks" value={form.compliance_frameworks.slice(0, 3).join(", ")} />
-          <SummaryItem icon={Languages} label="Etiquetas" value={form.label_languages.join(", ").toUpperCase()} />
+          <SummaryItem
+            icon={Landmark}
+            label="Autoridades"
+            value={activeCountry.foodAuthorities.join(", ")}
+          />
+          <SummaryItem
+            icon={ShieldCheck}
+            label="Frameworks"
+            value={form.compliance_frameworks.slice(0, 3).join(", ")}
+          />
+          <SummaryItem
+            icon={Languages}
+            label="Etiquetas"
+            value={form.label_languages.join(", ").toUpperCase()}
+          />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
@@ -246,7 +264,7 @@ export function GlobalizationCard() {
             value={String(form.default_tax_rate)}
             onChange={(e) =>
               setForm((f) =>
-                f ? { ...f, default_tax_rate: Number(e.target.value) } : f,
+                f ? { ...f, default_tax_rate: Number(e.target.value) } : f
               )
             }
           />
@@ -263,7 +281,7 @@ export function GlobalizationCard() {
               value={form.weight_unit}
               onChange={(value) =>
                 setForm((f) =>
-                  f ? { ...f, weight_unit: value as "kg" | "lb" } : f,
+                  f ? { ...f, weight_unit: value as "kg" | "lb" } : f
                 )
               }
             >
@@ -275,7 +293,7 @@ export function GlobalizationCard() {
               value={form.volume_unit}
               onChange={(value) =>
                 setForm((f) =>
-                  f ? { ...f, volume_unit: value as "l" | "gal" } : f,
+                  f ? { ...f, volume_unit: value as "l" | "gal" } : f
                 )
               }
             >
@@ -292,7 +310,7 @@ export function GlobalizationCard() {
                         ...f,
                         temperature_unit: value as "celsius" | "fahrenheit",
                       }
-                    : f,
+                    : f
                 )
               }
             >
@@ -302,7 +320,7 @@ export function GlobalizationCard() {
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-muted/30 p-4">
+        <div className="bg-muted/30 rounded-lg border border-border p-4">
           <div className="text-sm font-medium">Vista previa comercial</div>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             <div>
@@ -337,7 +355,7 @@ export function GlobalizationCard() {
                       ...f,
                       date_format: value as OperatingProfile["date_format"],
                     }
-                  : f,
+                  : f
               )
             }
             options={[

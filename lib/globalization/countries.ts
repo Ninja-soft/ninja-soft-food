@@ -113,7 +113,12 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     labelLanguages: ["es"],
     foodAuthorities: ["SEREMI de Salud", "SAG"],
     complianceFrameworks: ["RSA", "HACCP", "BPM", "Ley de etiquetado"],
-    traceabilityFields: ["lote", "vencimiento", "resolucion sanitaria", "origen"],
+    traceabilityFields: [
+      "lote",
+      "vencimiento",
+      "resolucion sanitaria",
+      "origen",
+    ],
   },
   BR: {
     code: "BR",
@@ -176,7 +181,12 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     labelLanguages: ["es"],
     foodAuthorities: ["INVIMA", "ICA"],
     complianceFrameworks: ["BPM", "HACCP", "rotulado INVIMA"],
-    traceabilityFields: ["lote", "vencimiento", "registro sanitario", "fabricante"],
+    traceabilityFields: [
+      "lote",
+      "vencimiento",
+      "registro sanitario",
+      "fabricante",
+    ],
   },
   PE: {
     code: "PE",
@@ -217,7 +227,12 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     billingProviders: ["stripe", "paypal", "manual"],
     labelLanguages: ["en", "es"],
     foodAuthorities: ["FDA", "USDA"],
-    complianceFrameworks: ["FSMA", "HACCP", "GMP", "FDA Food Traceability Rule"],
+    complianceFrameworks: [
+      "FSMA",
+      "HACCP",
+      "GMP",
+      "FDA Food Traceability Rule",
+    ],
     traceabilityFields: ["lot", "expiration", "facility", "TLC", "CTE", "KDE"],
   },
   CA: {
@@ -538,7 +553,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
 };
 
 export const COUNTRY_OPTIONS = Object.values(COUNTRY_PROFILES).sort((a, b) =>
-  a.name.localeCompare(b.name),
+  a.name.localeCompare(b.name)
 );
 
 export function getCountryProfile(code?: string | null): CountryProfile {

@@ -17,14 +17,14 @@ describe("scaffolding smoke", () => {
     expect(getCountryProfile("BR").taxIdLabel).toBe("CNPJ");
     expect(getCountryProfile("missing").code).toBe("AR");
     expect(getDefaultOperatingProfile("ES").compliance_frameworks).toContain(
-      "EU 178/2002",
+      "EU 178/2002"
     );
   });
 
   it("formats values with tenant locale and currency", () => {
     expect(formatQty(1234.5, { locale: "en-US" })).toBe("1,234.5");
     expect(formatMoney(12, { locale: "en-US", currency: "USD" })).toBe(
-      "$12.00",
+      "$12.00"
     );
   });
 });
