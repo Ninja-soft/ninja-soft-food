@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getBillingProvider } from "@/lib/billing";
+import { sendSystemEmail } from "@/lib/emails/enqueue";
 import type { Database } from "@/types/database";
 
 // =============================================================================
@@ -153,6 +154,53 @@ async function applySubscriptionUpdate(
   // Sincronizamos el estado canónico también en tenants.status (consistencia
   // con el ciclo de vida del POS).
   await admin.from("tenants").update({ status: info.status }).eq("id", sub.tenant_id);
+
+  // Aviso de pago al owner cuando el cobro deja de estar al día. Best-effort:
+  // un email caído NO afecta el procesamiento del webhook (regla dura).
+  if (info.status === "past_due" || info.status === "cancelled") {
+    await notifyOwnerPaymentFailed(admin, sub.tenant_id);
+  }
+}
+
+/** Encola payment_failed al owner del tenant (best-effort, no lanza). */
+async function notifyOwnerPaymentFailed(
+  admin: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+) {
+  try {
+    const { data: owner } = await admin
+      .from("tenant_users")
+      .select("user_id, users(email)")
+      .eq("tenant_id", tenantId)
+      .eq("role", "owner")
+      .maybeSingle();
+    const userRel = (owner as { users?: { email?: string } | { email?: string }[] } | null)
+      ?.users;
+    const ownerRow = Array.isArray(userRel) ? userRel[0] : userRel;
+    const email = ownerRow?.email;
+    if (!email) return;
+
+    const { data: tenant } = await admin
+      .from("tenants")
+      .select("name")
+      .eq("id", tenantId)
+      .maybeSingle();
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+
+    await sendSystemEmail({
+      tenantId,
+      templateKey: "payment_failed",
+      to: email,
+      variables: {
+        negocio: tenant?.name ?? "tu cuenta",
+        plan: "",
+        monto: "",
+        link: `${appUrl}/configuracion`,
+      },
+    });
+  } catch (e) {
+    console.warn("[emails] no se pudo avisar el pago al owner:", e);
+  }
 }
 
 async function markProcessed(

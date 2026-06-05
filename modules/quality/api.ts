@@ -335,7 +335,30 @@ export async function createReport(input: ReportInput): Promise<Report> {
     .select(REPORT_SELECT)
     .single();
   if (error) throw error;
-  return data as unknown as Report;
+  const report = data as unknown as Report;
+
+  // Notificacion por email a los operarios elegidos. Best-effort: el route
+  // handler resuelve los emails (RLS) y encola via la Edge Function send_email.
+  // Un fallo de email NUNCA tira la creacion del informe (regla dura): se loguea
+  // y se sigue. No esperamos la respuesta (fire-and-forget).
+  if (report.notify_member_ids?.length) {
+    void notifyReportByEmail(report.id);
+  }
+
+  return report;
+}
+
+/** Dispara la notificacion por email de un informe (no lanza). */
+async function notifyReportByEmail(reportId: string): Promise<void> {
+  try {
+    await fetch("/api/emails/notify-report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reportId }),
+    });
+  } catch (e) {
+    console.warn("[emails] no se pudo notificar el informe:", e);
+  }
 }
 
 export async function updateReport(

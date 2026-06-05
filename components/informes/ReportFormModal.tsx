@@ -275,8 +275,8 @@ export function ReportFormModal({
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            Se guardan los destinatarios. El envío por email llega en una próxima
-            etapa.
+            Al crear el informe se envía un email a los operarios elegidos que
+            tengan correo cargado.
           </p>
         </div>
 
