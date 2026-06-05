@@ -51,7 +51,8 @@ Ingrediente → ingreso de stock con **lote** (proveedor + RNE + vencimiento; co
 
 - [x] Planificación completa (`PLAN-MAESTRO.md` + `docs/`)
 - [x] **Fase 0 — Fundaciones**: repo GitHub (`Ninja-soft/ninja-soft-food`), Supabase cloud (`skitcpzszonyybeqymzd`, São Paulo) con migraciones 0001-0002 aplicadas, componentes `ui/` portados del POS, auth completo (signup → Edge Function `create_tenant` → trial + claim `tenant_id`, smoke test `scripts/smoke-auth.mjs` verde), AppShell, deploy Vercel producción: https://ninja-soft-food.vercel.app
-  - Pendientes menores de fase 0: instalar la GitHub App de Vercel en la org Ninja-soft (auto-deploy por push; hoy se deploya con `vercel deploy --prod`), landing comercial real, desactivar `mailer_autoconfirm` cuando haya SMTP propio.
+  - Pendientes menores de fase 0: instalar la GitHub App de Vercel en la org Ninja-soft (auto-deploy por push; hoy se deploya con `vercel deploy --prod`), desactivar `mailer_autoconfirm` cuando haya SMTP propio.
+  - Landing comercial: HECHA — `app/(public)/page.tsx` + `components/landing/` (hero dark, aval ABR, 6 features, pricing con toggle, strip normativa). `/` ya NO redirige a /login: anónimo ve landing, logueado → /dashboard u /onboarding server-side.
   - Tests RLS de integración: FORMALES y verdes — `tests/integration/rls.test.ts` (88 tests contra cloud: aislamiento A/B en 11 tablas + hijas vía parent, staff internal_read solo-SELECT, anon sin fugas, public_traces legible por slug, RPCs tenant-scoped; skipIf sin credenciales para CI). Correr con `pnpm test:rls`.
 - [x] **Fase 1 — Núcleo trazabilidad** (completa):
   - [x] Ingredientes (familias, fotos, búsqueda, CRUD) — smoke verde
@@ -59,7 +60,7 @@ Ingrediente → ingreso de stock con **lote** (proveedor + RNE + vencimiento; co
   - [x] Recetas (fórmula con sustitutos, RNPA + filtros, octógonos Ley 27.642, nutrición, aging) — smoke verde
   - [x] Producción (RPC `complete_production`: consume lotes FEFO en una transacción, vencimiento con aging, secuencia PROD-NNNNN por tenant, snapshot inmutable) + traza pública `/t/[slug]` con QR — smoke 7/7 verde
   - [x] Planillas PDF (individual/masiva/semanal con QR de traza, firma Elaboró/Controló, branding por tenant) + exports Excel en ingredientes/inventario/recetas/produccion (`lib/utils/{xlsx,pdf}.ts`, `modules/planillas/*`) — gate CI verde
-  - Nota de flujo: signup liviano (nombre/email/pass) → `/onboarding` completa empresa/rubro; raíz `/` redirige a `/login` (sin landing por ahora)
+  - Nota de flujo: signup liviano (nombre/email/pass) → `/onboarding` completa empresa/rubro; raíz `/` muestra la landing (logueados → /dashboard)
 - [~] Fase 2 — MVP completo:
   - [x] Despacho (clientes, vehículos UTA/URA con alerta de vencimiento, RPC `create_dispatch` atómica, remito PDF con branding, export Excel) — ⚠️ migración 0008 pendiente de aplicar en cloud (permiso denegado en sesión autónoma): correr `supabase db push` y luego `pnpm db:types`; smoke clientes/vehículos verde, RPC valida tras aplicar
   - [x] Calidad: análisis de laboratorio (8 tipos, conformidad 0-100 con categorías, laboratorios por tenant, adjuntos en bucket privado `attachments`, smoke 10/10) + informes bromatológicos (editor Tiptap `components/ui/RichTextEditor.tsx`, importancia 0-100, notificados persistidos, adjuntos, smoke 8/8) — pendientes de otra fase: formato IA y envío real de emails
