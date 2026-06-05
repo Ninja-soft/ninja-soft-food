@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { getTenantId } from "@/lib/utils/tenant";
+import type { Json } from "@/types/database";
 import type {
   FormField,
   FormKind,
@@ -10,10 +11,12 @@ import type {
 } from "./schemas";
 import { getStarterTemplates } from "./starterTemplates";
 
-// API del Builder de planillas configurables (migración 0009). La migración NO
-// está aplicada en cloud y types/database.ts NO tiene estas tablas todavía: se
-// usan casts locales tipados (patrón de modules/dispatch/api.ts createDispatch).
-// regenerated after db:types — quitar los casts cuando se regeneren los tipos.
+// API del Builder de planillas configurables (migración 0009, ya aplicada en
+// cloud). El cliente está tipado contra types/database.ts: las tablas
+// form_templates / form_submissions y la RPC submit_form son tipos generados.
+// Los tipos de dominio (FormTemplate.fields: FormField[]) difieren de las Row
+// generadas (fields: Json), así que se castea puntualmente desde Json al mapear
+// (patrón del repo). MigrationPendingError se mantiene por robustez.
 
 // ── Tipos de dominio ─────────────────────────────────────────────────────────
 
@@ -61,10 +64,11 @@ export type SubmitFormArgs = {
 export type SubmitFormResult = { submission_id: string; signed: boolean };
 
 /**
- * Las tablas/RPC de 0009 todavía no existen en cloud ni en los tipos generados.
- * Errores de "tabla inexistente" (PostgREST PGRST205 / Postgres 42P01) y de
+ * Robustez defensiva: la migración 0009 (form_templates / form_submissions /
+ * submit_form) ya está aplicada en cloud, pero si un entorno quedara sin migrar,
+ * los errores de "tabla inexistente" (PostgREST PGRST205 / Postgres 42P01) y de
  * "función inexistente" (PGRST202) se traducen a este flag para que la UI muestre
- * un empty state ("Pendiente de migración 0009") en vez de romper.
+ * un empty state en vez de romper.
  */
 export class MigrationPendingError extends Error {
   constructor() {
@@ -89,13 +93,6 @@ function isMigrationPending(error: PgError): boolean {
   );
 }
 
-// El cliente de Supabase está tipado contra types/database.ts (sin estas tablas).
-// Casteamos a `any` SOLO para las operaciones de 0009. // regenerated after db:types
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function db(): any {
-  return createClient();
-}
-
 const TEMPLATE_SELECT =
   "id, name, kind, fields, frequency, requires_signature, action_on_fail, is_active, created_at, updated_at";
 
@@ -105,7 +102,8 @@ const SUBMISSION_SELECT =
 // ── Templates ────────────────────────────────────────────────────────────────
 
 export async function listTemplates(search = ""): Promise<FormTemplate[]> {
-  let query = db()
+  const supabase = createClient();
+  let query = supabase
     .from("form_templates")
     .select(TEMPLATE_SELECT)
     .is("deleted_at", null)
@@ -117,23 +115,25 @@ export async function listTemplates(search = ""): Promise<FormTemplate[]> {
     if (isMigrationPending(error)) throw new MigrationPendingError();
     throw error;
   }
-  return (data ?? []) as FormTemplate[];
+  // Row.fields/frequency/action_on_fail son Json; el dominio los tipa estructurado.
+  return (data ?? []) as unknown as FormTemplate[];
 }
 
 export async function createTemplate(
   input: TemplateInput
 ): Promise<FormTemplate> {
+  const supabase = createClient();
   const tenant_id = await getTenantId();
-  const { data, error } = await db()
+  const { data, error } = await supabase
     .from("form_templates")
     .insert({
       tenant_id,
       name: input.name,
       kind: input.kind,
-      fields: input.fields,
-      frequency: input.frequency,
+      fields: input.fields as Json,
+      frequency: input.frequency as Json,
       requires_signature: input.requires_signature,
-      action_on_fail: input.action_on_fail ?? null,
+      action_on_fail: (input.action_on_fail ?? null) as Json,
     })
     .select(TEMPLATE_SELECT)
     .single();
@@ -141,22 +141,23 @@ export async function createTemplate(
     if (isMigrationPending(error)) throw new MigrationPendingError();
     throw error;
   }
-  return data as FormTemplate;
+  return data as unknown as FormTemplate;
 }
 
 export async function updateTemplate(
   id: string,
   input: TemplateInput
 ): Promise<FormTemplate> {
-  const { data, error } = await db()
+  const supabase = createClient();
+  const { data, error } = await supabase
     .from("form_templates")
     .update({
       name: input.name,
       kind: input.kind,
-      fields: input.fields,
-      frequency: input.frequency,
+      fields: input.fields as Json,
+      frequency: input.frequency as Json,
       requires_signature: input.requires_signature,
-      action_on_fail: input.action_on_fail ?? null,
+      action_on_fail: (input.action_on_fail ?? null) as Json,
     })
     .eq("id", id)
     .select(TEMPLATE_SELECT)
@@ -165,11 +166,12 @@ export async function updateTemplate(
     if (isMigrationPending(error)) throw new MigrationPendingError();
     throw error;
   }
-  return data as FormTemplate;
+  return data as unknown as FormTemplate;
 }
 
 export async function softDeleteTemplate(id: string): Promise<void> {
-  const { error } = await db()
+  const supabase = createClient();
+  const { error } = await supabase
     .from("form_templates")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id);
@@ -188,7 +190,8 @@ export type SeedStarterResult = { seeded: number; skipped: boolean };
 
 /** Cuenta de templates vivos del tenant (idempotencia del seed). */
 async function countLiveTemplates(): Promise<number> {
-  const { count, error } = await db()
+  const supabase = createClient();
+  const { count, error } = await supabase
     .from("form_templates")
     .select("id", { count: "exact", head: true })
     .is("deleted_at", null);
@@ -246,7 +249,8 @@ export async function listSubmissions(params: {
   from?: string | null;
   to?: string | null;
 }): Promise<FormSubmission[]> {
-  let query = db()
+  const supabase = createClient();
+  let query = supabase
     .from("form_submissions")
     .select(SUBMISSION_SELECT)
     .eq("template_id", params.templateId)
@@ -261,12 +265,14 @@ export async function listSubmissions(params: {
     if (isMigrationPending(error)) throw new MigrationPendingError();
     throw error;
   }
-  return (data ?? []) as FormSubmission[];
+  // Row.values es Json; el dominio lo tipa como FormValues (parse del jsonb).
+  return (data ?? []) as unknown as FormSubmission[];
 }
 
 /** Cuenta de registros por template (mostrar el badge sin traer las filas). */
 export async function countSubmissions(templateId: string): Promise<number> {
-  const { count, error } = await db()
+  const supabase = createClient();
+  const { count, error } = await supabase
     .from("form_submissions")
     .select("id", { count: "exact", head: true })
     .eq("template_id", templateId);
@@ -284,17 +290,19 @@ export async function countSubmissions(templateId: string): Promise<number> {
 export async function submitForm(
   args: SubmitFormArgs
 ): Promise<SubmitFormResult> {
-  const supabase = db();
-  const rpcArgs = {
+  const supabase = createClient();
+  // Los opcionales se omiten (?? undefined) para que aplique el DEFAULT de la RPC
+  // (member_id/pin/corrective/corrects → null, status → 'ok'): mismo efecto que
+  // pasar null, pero alineado con la firma generada (p_* opcionales: string).
+  const { data, error } = await supabase.rpc("submit_form", {
     p_template_id: args.templateId,
-    p_values: args.values,
-    p_member_id: args.memberId ?? null,
-    p_pin: args.pin ?? null,
+    p_values: args.values as Json,
+    p_member_id: args.memberId ?? undefined,
+    p_pin: args.pin ?? undefined,
     p_status: args.status ?? "ok",
-    p_corrective_action: args.correctiveAction ?? null,
-    p_corrects: args.correctsSubmissionId ?? null,
-  };
-  const { data, error } = await supabase.rpc("submit_form", rpcArgs);
+    p_corrective_action: args.correctiveAction ?? undefined,
+    p_corrects: args.correctsSubmissionId ?? undefined,
+  });
   if (error) {
     if (isMigrationPending(error)) throw new MigrationPendingError();
     if (error.message?.includes("invalid_pin"))
@@ -313,7 +321,7 @@ export async function submitForm(
       throw new Error("Los datos del registro son inválidos");
     throw new Error(error.message ?? "No se pudo registrar la planilla");
   }
-  return data as SubmitFormResult;
+  return data as unknown as SubmitFormResult;
 }
 
 // ── Operarios (members) — firma de la planilla ────────────────────────────────
@@ -321,7 +329,8 @@ export async function submitForm(
 // para no acoplar el módulo de calidad con el de planillas.
 
 export async function listMembers(): Promise<Member[]> {
-  const { data, error } = await db()
+  const supabase = createClient();
+  const { data, error } = await supabase
     .from("members")
     .select("id, full_name, email")
     .is("deleted_at", null)

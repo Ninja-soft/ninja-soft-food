@@ -5,11 +5,11 @@ import { getTenantId } from "@/lib/utils/tenant";
 // modules/api-keys/api.ts — gestión de credenciales de la API pública y de los
 // webhooks salientes desde el panel del tenant (RLS normal del tenant).
 //
-// La migración 0010 (api_keys / outbound_webhooks) NO está aplicada en cloud ni
-// reflejada en types/database.ts: se usan casts locales (patrón modules/forms/
-// api.ts) y los errores de "tabla inexistente" se traducen a MigrationPendingError
-// para que la UI muestre un empty state ("Pendiente de migración 0010").
-// regenerated after db:types — quitar los casts al regenerar los tipos.
+// La migración 0010 (api_keys / outbound_webhooks) ya está aplicada en cloud y
+// reflejada en types/database.ts: el cliente está tipado contra esas tablas.
+// MigrationPendingError se mantiene por robustez: si un entorno quedara sin
+// migrar, los errores de "tabla inexistente" se traducen a ese flag para que la
+// UI muestre un empty state en vez de romper.
 //
 // SEGURIDAD DEL SECRETO:
 //   El secreto en claro de una API key se genera en el cliente (crypto.getRandom
@@ -100,13 +100,6 @@ function isMigrationPending(error: PgError): boolean {
   );
 }
 
-// El cliente está tipado contra types/database.ts (sin estas tablas).
-// Casteamos a `any` SOLO para las operaciones de 0010. // regenerated after db:types
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function db(): any {
-  return createClient();
-}
-
 // ── Generación de secreto + hash (Web Crypto, todo en el navegador) ──────────
 
 const KEY_BODY_LENGTH = 40; // chars base62 tras el prefijo nf_live_
@@ -152,7 +145,8 @@ const WEBHOOK_SELECT =
 // ── API keys ─────────────────────────────────────────────────────────────────
 
 export async function listApiKeys(): Promise<ApiKey[]> {
-  const { data, error } = await db()
+  const supabase = createClient();
+  const { data, error } = await supabase
     .from("api_keys")
     .select(KEY_SELECT)
     .order("created_at", { ascending: false });
@@ -160,19 +154,21 @@ export async function listApiKeys(): Promise<ApiKey[]> {
     if (isMigrationPending(error)) throw new MigrationPendingError();
     throw error;
   }
-  return (data ?? []) as ApiKey[];
+  // Row.scopes es string[]; el dominio lo estrecha a ApiScope[].
+  return (data ?? []) as unknown as ApiKey[];
 }
 
 export async function createApiKey(input: {
   name: string;
   scopes: ApiScope[];
 }): Promise<CreatedApiKey> {
+  const supabase = createClient();
   const tenant_id = await getTenantId();
   const secret = generateApiSecret();
   const key_hash = await sha256Hex(secret);
   const key_prefix = secret.slice(0, 12); // "nf_live_" + 4 chars
 
-  const { data, error } = await db()
+  const { data, error } = await supabase
     .from("api_keys")
     .insert({
       tenant_id,
@@ -188,11 +184,12 @@ export async function createApiKey(input: {
     throw error;
   }
   // El secreto en claro vuelve UNA sola vez; no se persiste en ningún lado.
-  return { key: data as ApiKey, secret };
+  return { key: data as unknown as ApiKey, secret };
 }
 
 export async function revokeApiKey(id: string): Promise<void> {
-  const { error } = await db()
+  const supabase = createClient();
+  const { error } = await supabase
     .from("api_keys")
     .update({ revoked_at: new Date().toISOString() })
     .eq("id", id);
@@ -205,7 +202,8 @@ export async function revokeApiKey(id: string): Promise<void> {
 // ── Outbound webhooks ─────────────────────────────────────────────────────────
 
 export async function listWebhooks(): Promise<OutboundWebhook[]> {
-  const { data, error } = await db()
+  const supabase = createClient();
+  const { data, error } = await supabase
     .from("outbound_webhooks")
     .select(WEBHOOK_SELECT)
     .is("deleted_at", null)
@@ -214,17 +212,19 @@ export async function listWebhooks(): Promise<OutboundWebhook[]> {
     if (isMigrationPending(error)) throw new MigrationPendingError();
     throw error;
   }
-  return (data ?? []) as OutboundWebhook[];
+  // Row.events es string[]; el dominio lo estrecha a WebhookEvent[].
+  return (data ?? []) as unknown as OutboundWebhook[];
 }
 
 export async function createWebhook(input: {
   url: string;
   events: WebhookEvent[];
 }): Promise<CreatedWebhook> {
+  const supabase = createClient();
   const tenant_id = await getTenantId();
   const secret = generateWebhookSecret();
 
-  const { data, error } = await db()
+  const { data, error } = await supabase
     .from("outbound_webhooks")
     .insert({
       tenant_id,
@@ -241,14 +241,15 @@ export async function createWebhook(input: {
   }
   // El secret de firma vuelve UNA sola vez (el receptor lo necesita para
   // verificar la cabecera X-NinjaFood-Signature).
-  return { webhook: data as OutboundWebhook, secret };
+  return { webhook: data as unknown as OutboundWebhook, secret };
 }
 
 export async function setWebhookActive(
   id: string,
   isActive: boolean,
 ): Promise<void> {
-  const { error } = await db()
+  const supabase = createClient();
+  const { error } = await supabase
     .from("outbound_webhooks")
     .update({ is_active: isActive })
     .eq("id", id);
@@ -259,7 +260,8 @@ export async function setWebhookActive(
 }
 
 export async function deleteWebhook(id: string): Promise<void> {
-  const { error } = await db()
+  const supabase = createClient();
+  const { error } = await supabase
     .from("outbound_webhooks")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id);

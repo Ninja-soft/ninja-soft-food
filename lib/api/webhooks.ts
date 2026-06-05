@@ -12,13 +12,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // Cabecera de firma (estilo Stripe / MP):
 //   X-NinjaFood-Signature: ts=<unix_seconds>,v1=<hex_hmac_sha256(ts.body)>
 //
-// emitWebhookEvent es best-effort: NUNCA lanza. Si la migración 0010 no está
-// aplicada, si no hay webhooks suscritos, o si la entrega falla, registra y
-// sigue. El wiring real (llamar a esta función cuando se completa una producción
-// / se crea un despacho / baja el stock) va vía database webhook o pg_net en una
-// fase posterior: no se puede disparar desde el flujo client-side de completar
-// producción. Por ahora la función queda expuesta + testeada (firma verificable).
-// regenerated after db:types — outbound_webhooks no está en los tipos aún.
+// emitWebhookEvent es best-effort: NUNCA lanza. Si no hay webhooks suscritos o
+// si la entrega falla, registra y sigue. El wiring real (llamar a esta función
+// cuando se completa una producción / se crea un despacho / baja el stock) va vía
+// database webhook o pg_net en una fase posterior: no se puede disparar desde el
+// flujo client-side de completar producción. Por ahora la función queda expuesta
+// + testeada (firma verificable). La tabla outbound_webhooks (migración 0010) ya
+// está en types/database.ts y el admin client va tipado: las queries salen directas.
 // =============================================================================
 
 export const WEBHOOK_EVENTS = [
@@ -102,26 +102,8 @@ export async function emitWebhookEvent(
     const admin = createAdminClient();
 
     // SCOPING: la API no tiene JWT de tenant; filtramos SIEMPRE por tenant_id.
-    // regenerated after db:types — outbound_webhooks no está en los tipos.
-    const { data, error } = await (
-      admin.from as unknown as (table: string) => {
-        select: (cols: string) => {
-          eq: (col: string, val: string) => {
-            is: (col: string, val: null) => {
-              eq: (col: string, val: boolean) => {
-                contains: (
-                  col: string,
-                  val: string[],
-                ) => Promise<{
-                  data: OutboundWebhookRow[] | null;
-                  error: unknown;
-                }>;
-              };
-            };
-          };
-        };
-      }
-    )("outbound_webhooks")
+    const { data, error } = await admin
+      .from("outbound_webhooks")
       .select("id, url, secret")
       .eq("tenant_id", tenantId)
       .is("deleted_at", null)
@@ -188,14 +170,8 @@ async function recordDelivery(
   status: number,
 ): Promise<void> {
   try {
-    // regenerated after db:types — outbound_webhooks no está en los tipos.
-    await (
-      admin.from as unknown as (table: string) => {
-        update: (vals: Record<string, unknown>) => {
-          eq: (col: string, val: string) => Promise<{ error: unknown }>;
-        };
-      }
-    )("outbound_webhooks")
+    await admin
+      .from("outbound_webhooks")
       .update({
         last_delivery_at: new Date().toISOString(),
         last_delivery_status: status,

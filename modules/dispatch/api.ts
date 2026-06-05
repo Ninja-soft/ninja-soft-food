@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { getTenantId } from "@/lib/utils/tenant";
+import type { Json } from "@/types/database";
 import type { CustomerInput, DispatchInput, VehicleInput } from "./schemas";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
@@ -75,15 +76,6 @@ export type ProductionOption = {
 export type CreateDispatchResult = {
   dispatch_id: string;
   items: number;
-};
-
-// La RPC create_dispatch todavía no está en types/database.ts.
-// regenerated after db:types
-type DispatchRpcArgs = {
-  p_customer_id: string;
-  p_dispatch_date: string;
-  p_items: DispatchInput["items"];
-  p_vehicle_id?: string | null;
 };
 
 const DISPATCH_ITEM_SELECT = `
@@ -277,19 +269,13 @@ export async function createDispatch(
   input: DispatchInput
 ): Promise<CreateDispatchResult> {
   const supabase = createClient();
-  const args: DispatchRpcArgs = {
+  // p_items viaja como Json (la RPC valida cada ítem); p_vehicle_id es opcional.
+  const { data, error } = await supabase.rpc("create_dispatch", {
     p_customer_id: input.customer_id,
     p_dispatch_date: input.dispatch_date,
-    p_items: input.items,
+    p_items: input.items as Json,
     p_vehicle_id: input.vehicle_id ?? undefined,
-  };
-  // regenerated after db:types — cast local hasta regenerar los tipos de la RPC.
-  const { data, error } = await (
-    supabase.rpc as unknown as (
-      fn: "create_dispatch",
-      params: DispatchRpcArgs
-    ) => Promise<{ data: unknown; error: { message: string } | null }>
-  )("create_dispatch", args);
+  });
   if (error) {
     if (error.message.includes("empty_items"))
       throw new Error("El despacho debe tener al menos un ítem");

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 
 // =============================================================================
 // lib/api/auth.ts — autenticación de la API pública v1 (server-only de hecho).
@@ -20,11 +21,11 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 // credencial privilegiada; el data-access privilegiado se hace después, ya con
 // el tenantId resuelto y SIEMPRE filtrando por .eq("tenant_id", tenantId)).
 //
-// La migración 0010 (api_keys / outbound_webhooks / verify_api_key) todavía NO
-// está aplicada en cloud ni reflejada en types/database.ts: por eso el cliente
-// anon es genérico (sin tipo Database) y los errores de "función inexistente"
-// (PGRST202 / 42883) se tratan como key inválida sin romper.
-// regenerated after db:types — tipar la RPC cuando se regeneren los tipos.
+// La migración 0010 (api_keys / outbound_webhooks / verify_api_key) ya está
+// aplicada en cloud y reflejada en types/database.ts: el cliente anon va tipado
+// con Database y la RPC verify_api_key se llama directo. Los errores de "función
+// inexistente" (PGRST202 / 42883) se siguen tratando como key inválida sin
+// romper (robustez ante un entorno sin migrar).
 // =============================================================================
 
 /** Scopes de lectura concedibles a una API key (alineados con migración 0010). */
@@ -87,7 +88,7 @@ function createAnonClient() {
       "Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY",
     );
   }
-  return createSupabaseClient(url, anonKey, {
+  return createSupabaseClient<Database>(url, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
@@ -96,7 +97,7 @@ type VerifyResult = {
   tenant_id?: string;
   scopes?: unknown;
   key_id?: string;
-} | null;
+};
 
 function parseScopes(raw: unknown): ApiScope[] {
   if (!Array.isArray(raw)) return [];
@@ -120,25 +121,26 @@ export async function authenticateApiRequest(
   const keyHash = hashApiSecret(secret);
   const supabase = createAnonClient();
 
-  // regenerated after db:types — la RPC verify_api_key no está en los tipos aún.
-  const { data, error } = await (
-    supabase.rpc as unknown as (
-      fn: "verify_api_key",
-      params: { p_key_hash: string },
-    ) => Promise<{ data: VerifyResult; error: { code?: string } | null }>
-  )("verify_api_key", { p_key_hash: keyHash });
+  const { data, error } = await supabase.rpc("verify_api_key", {
+    p_key_hash: keyHash,
+  });
 
-  // Migración 0010 pendiente / RPC ausente → tratamos como key inválida (401),
-  // no rompemos el endpoint.
+  // RPC ausente / error (entorno sin migrar) → tratamos como key inválida (401),
+  // no rompemos el endpoint. La RPC devuelve Json: lo estrechamos a VerifyResult.
   if (error) return null;
-  if (!data || typeof data.tenant_id !== "string" || !data.tenant_id) {
+  const result = (data ?? null) as VerifyResult | null;
+  if (
+    !result ||
+    typeof result.tenant_id !== "string" ||
+    !result.tenant_id
+  ) {
     return null;
   }
 
   return {
-    tenantId: data.tenant_id,
-    scopes: parseScopes(data.scopes),
-    keyId: typeof data.key_id === "string" ? data.key_id : "",
+    tenantId: result.tenant_id,
+    scopes: parseScopes(result.scopes),
+    keyId: typeof result.key_id === "string" ? result.key_id : "",
   };
 }
 
