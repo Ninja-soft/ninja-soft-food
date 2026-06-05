@@ -279,7 +279,7 @@ export function AppShell({
       </Link>
 
       {/* Navegación scrolleable */}
-      <div className="-mr-1 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+      <div className="slim-scrollbar -mr-1 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
         {NAV.top.map((it) => (
           <NavLink
             key={it.href}
@@ -389,7 +389,7 @@ export function AppShell({
           <Isotype className="h-6" />
         </header>
 
-        <main className="app-bg min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="app-bg slim-scrollbar min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
           {children}
         </main>
       </div>
