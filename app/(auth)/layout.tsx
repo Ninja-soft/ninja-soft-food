@@ -30,9 +30,26 @@ export default function AuthLayout({
       <div className="glass-card w-full max-w-md animate-slide-up p-8">
         {children}
       </div>
-      <p className="mt-6 text-xs text-muted-foreground">
-        Avalado técnicamente por Asesoría Bromatológica Rosario
-      </p>
+      <div className="mt-6 flex items-center gap-2.5">
+        {/* Logo ABR en blanco (temas oscuros) / oscuro (temas claros) */}
+        <Image
+          src="/img/Logo ABR Back Transparent.png"
+          alt="ABR"
+          width={44}
+          height={27}
+          className="wordmark-on-dark h-auto w-11 brightness-0 invert opacity-80"
+        />
+        <Image
+          src="/img/Logo ABR Back Transparent.png"
+          alt="ABR"
+          width={44}
+          height={27}
+          className="wordmark-on-light h-auto w-11 brightness-0 opacity-60"
+        />
+        <p className="text-xs text-muted-foreground">
+          Avalado técnicamente por Asesoría Bromatológica Rosario
+        </p>
+      </div>
     </main>
   );
 }
