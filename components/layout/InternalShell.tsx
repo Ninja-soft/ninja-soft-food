@@ -15,6 +15,7 @@ import {
   ScrollText,
   Store,
   Sun,
+  Tag,
   X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -38,6 +39,7 @@ import {
 const NAV = [
   { href: "/internal", label: "Inicio", icon: LayoutDashboard },
   { href: "/internal/tenants", label: "Negocios", icon: Building2 },
+  { href: "/internal/planes", label: "Planes", icon: Tag },
   { href: "/internal/pagos", label: "Pagos", icon: CreditCard },
   { href: "/internal/emails", label: "Emails", icon: Mail },
   { href: "/internal/audit", label: "Auditoría", icon: ScrollText },

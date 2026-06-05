@@ -30,6 +30,14 @@ export function useInternalAudit(tenantId?: string | null) {
   });
 }
 
+export function useInternalPlans() {
+  return useQuery({
+    queryKey: ["internal", "plans"],
+    queryFn: () => internalApi.listPlans(),
+    staleTime: 30_000,
+  });
+}
+
 // ── Mutaciones (route handlers server con admin client + check is_internal) ───
 
 async function postAction<T>(path: string, body: unknown): Promise<T> {
@@ -67,4 +75,25 @@ export function useTenantActions(tenantId: string) {
       onSuccess: invalidate,
     }),
   };
+}
+
+export interface UpdatePlanPayload {
+  plan_id: string;
+  monthly_price_ars: number | null;
+  yearly_price_ars: number | null;
+  is_active?: boolean;
+}
+
+export function useUpdatePlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: UpdatePlanPayload) =>
+      postAction<{ ok: boolean }>("/api/internal/update-plan", payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["internal", "plans"] });
+      // El catálogo de billing del tenant (modules/billing/hooks → usePlans)
+      // lee la misma tabla; refrescamos por si el cache convive.
+      qc.invalidateQueries({ queryKey: ["plans"] });
+    },
+  });
 }

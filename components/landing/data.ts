@@ -3,6 +3,10 @@
 // yearly = 10 meses (2 de descuento por pago anual). enterprise es a medida.
 // No se leen de la base a propósito: la landing es pública/anónima y los precios
 // son contenido comercial estático (igual que en el seed).
+//
+// FUENTE DE VERDAD COMERCIAL = tabla `plans` (editable desde el panel interno,
+// /internal/planes). Estos valores son solo marketing estático: si se cambian
+// los precios en el panel, SINCRONIZAR MANUALMENTE este archivo.
 
 import type { LucideIcon } from "lucide-react";
 import {

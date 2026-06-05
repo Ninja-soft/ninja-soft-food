@@ -68,6 +68,17 @@ export interface TenantDetail {
   };
 }
 
+export interface InternalPlan {
+  id: string;
+  key: string;
+  name: string;
+  monthlyPriceArs: number | null;
+  yearlyPriceArs: number | null;
+  monthlyPriceUsd: number | null;
+  limits: Database["public"]["Tables"]["plans"]["Row"]["limits"];
+  isActive: boolean;
+}
+
 export interface AuditEntry {
   id: string;
   tenantId: string | null;
@@ -242,6 +253,34 @@ export const internalApi = {
         dispatchesThisMonth: dispatches.count ?? 0,
       },
     };
+  },
+
+  // ── Planes ──────────────────────────────────────────────────────────────────
+  // Lectura con el cliente autenticado: plans tiene policy plans_public_read
+  // (select to authenticated). La escritura va por route handler admin
+  // (app/api/internal/update-plan) porque plans no tiene policy de UPDATE.
+  // Orden por precio USD ascendente con nulls al final (enterprise queda último),
+  // y por key como desempate estable.
+  listPlans: async (): Promise<InternalPlan[]> => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("plans")
+      .select(
+        "id, key, name, monthly_price_ars, yearly_price_ars, monthly_price_usd, limits, is_active",
+      )
+      .order("monthly_price_usd", { ascending: true, nullsFirst: false })
+      .order("key", { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map((p) => ({
+      id: p.id,
+      key: p.key,
+      name: p.name,
+      monthlyPriceArs: p.monthly_price_ars,
+      yearlyPriceArs: p.yearly_price_ars,
+      monthlyPriceUsd: p.monthly_price_usd,
+      limits: p.limits,
+      isActive: p.is_active,
+    }));
   },
 
   // ── Auditoría ───────────────────────────────────────────────────────────────
