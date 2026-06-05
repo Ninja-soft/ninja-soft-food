@@ -8,6 +8,7 @@ import type {
   SubmissionStatus,
   TemplateInput,
 } from "./schemas";
+import { getStarterTemplates } from "./starterTemplates";
 
 // API del Builder de planillas configurables (migración 0009). La migración NO
 // está aplicada en cloud y types/database.ts NO tiene estas tablas todavía: se
@@ -175,6 +176,66 @@ export async function softDeleteTemplate(id: string): Promise<void> {
   if (error) {
     if (isMigrationPending(error)) throw new MigrationPendingError();
     throw error;
+  }
+}
+
+// ── Starter pack por rubro (onboarding) ───────────────────────────────────────
+// Siembra los templates default del rubro al onboardear el tenant. Son un PUNTO
+// DE PARTIDA editable (regla 10): el tenant los ajusta o borra. Idempotente: si
+// el tenant ya tiene templates vivos, no hace nada. NUNCA lanza — best-effort.
+
+export type SeedStarterResult = { seeded: number; skipped: boolean };
+
+/** Cuenta de templates vivos del tenant (idempotencia del seed). */
+async function countLiveTemplates(): Promise<number> {
+  const { count, error } = await db()
+    .from("form_templates")
+    .select("id", { count: "exact", head: true })
+    .is("deleted_at", null);
+  if (error) {
+    if (isMigrationPending(error)) throw new MigrationPendingError();
+    throw error;
+  }
+  return count ?? 0;
+}
+
+/**
+ * Inserta los templates iniciales del rubro vía createTemplate (RLS) si el
+ * tenant todavía no tiene ninguno. Best-effort: nunca lanza.
+ * - Migración 0009 pendiente → { seeded: 0, skipped: true }.
+ * - Ya hay templates → { seeded: 0, skipped: true }.
+ * - Cualquier otro error → log + { seeded: count_parcial, skipped: false }.
+ */
+export async function seedStarterTemplates(
+  rubro: string
+): Promise<SeedStarterResult> {
+  try {
+    const existing = await countLiveTemplates();
+    if (existing > 0) return { seeded: 0, skipped: true };
+
+    const templates = getStarterTemplates(rubro);
+    let seeded = 0;
+    for (const t of templates) {
+      try {
+        await createTemplate(t);
+        seeded += 1;
+      } catch (err) {
+        if (err instanceof MigrationPendingError) {
+          return { seeded, skipped: seeded === 0 };
+        }
+        // Un template que falla no debe abortar el resto del pack.
+        // eslint-disable-next-line no-console
+        console.warn(`seedStarterTemplates: fallo "${t.name}"`, err);
+      }
+    }
+    return { seeded, skipped: false };
+  } catch (err) {
+    if (err instanceof MigrationPendingError) {
+      return { seeded: 0, skipped: true };
+    }
+    // eslint-disable-next-line no-console
+    console.warn("seedStarterTemplates: error inesperado", err);
+    return { seeded: 0, skipped: false };
   }
 }
 

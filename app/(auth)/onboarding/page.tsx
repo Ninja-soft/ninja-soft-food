@@ -17,6 +17,7 @@ import {
 import { Accent, Eyebrow } from "@/components/ui/Typography";
 import { createTenant } from "@/modules/auth/api";
 import { INDUSTRY_OPTIONS } from "@/modules/auth/schemas";
+import { seedStarterTemplates } from "@/modules/forms/api";
 
 // Onboarding de rescate: usuario autenticado sin tenant
 // (ej. falló create_tenant durante el signup). Mismo patrón visual POS.
@@ -49,6 +50,12 @@ export default function OnboardingPage() {
     setServerError(null);
     try {
       await createTenant(values.businessName, values.industry);
+      // Starter pack de planillas por rubro (BPM/POES) best-effort: no bloquea
+      // la navegación al dashboard ni rompe el onboarding si falla (regla 10:
+      // son un punto de partida editable).
+      void seedStarterTemplates(values.industry).catch((err) =>
+        console.warn("seedStarterTemplates", err),
+      );
       router.push("/dashboard");
       router.refresh();
     } catch (e) {
