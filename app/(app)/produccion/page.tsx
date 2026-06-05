@@ -1,11 +1,162 @@
-import { UnderConstruction } from "@/components/system/UnderConstruction";
+"use client";
 
-export default function Page() {
+import { useState } from "react";
+import { Plus, QrCode, Search, Soup } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { SpinnerBlock } from "@/components/ui/Spinner";
+import { Eyebrow, Heading, Money } from "@/components/ui/Typography";
+import { ProductionFormModal } from "@/components/production/ProductionFormModal";
+import { TraceQrModal } from "@/components/production/TraceQrModal";
+import { cn } from "@/lib/utils/cn";
+import { daysUntil, formatDate, formatQty } from "@/lib/utils/format";
+import { useProductions } from "@/modules/production/hooks";
+
+// Producción: historial + alta que consume lotes (corazón de la trazabilidad).
+export default function ProduccionPage() {
+  const [search, setSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [qr, setQr] = useState<{ slug: string; code: string } | null>(null);
+
+  const { data: productions, isLoading } = useProductions(search);
+
   return (
-    <UnderConstruction
-      title="Producción"
-      phase="Fase 1"
-      description="Producciones que consumen lotes con trazabilidad completa, reservas y borradores."
-    />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <Eyebrow>Trazabilidad</Eyebrow>
+          <Heading as="h1" className="mt-3">
+            Producción
+          </Heading>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Cada producción consume lotes de materia prima y genera el lote
+            trazable del producto terminado.
+          </p>
+        </div>
+        <Button onClick={() => setModalOpen(true)}>
+          <Plus size={16} />
+          Nueva producción
+        </Button>
+      </div>
+
+      {/* Búsqueda */}
+      <div className="relative max-w-md">
+        <Search
+          size={16}
+          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+        />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por código o lote…"
+          className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+        />
+      </div>
+
+      {/* Listado */}
+      {isLoading ? (
+        <SpinnerBlock />
+      ) : (productions ?? []).length === 0 ? (
+        <div className="glass-card flex flex-col items-center gap-3 py-14 text-center">
+          <span className="grid h-14 w-14 place-items-center rounded-ninjaMd bg-primary/15 text-primary">
+            <Soup size={26} />
+          </span>
+          <div>
+            <p className="font-semibold">
+              {search ? "Sin resultados" : "Todavía no hay producciones"}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {search
+                ? "Probá con otro código o lote."
+                : "Registrá tu primera producción para generar trazabilidad."}
+            </p>
+          </div>
+          {!search && (
+            <Button onClick={() => setModalOpen(true)}>
+              <Plus size={16} />
+              Nueva producción
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="glass-card overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-4 py-3 font-medium">Código</th>
+                <th className="px-4 py-3 font-medium">Producto</th>
+                <th className="px-4 py-3 font-medium">Fecha</th>
+                <th className="px-4 py-3 text-right font-medium">Cantidad</th>
+                <th className="px-4 py-3 font-medium">Lote</th>
+                <th className="px-4 py-3 font-medium">Vence</th>
+                <th className="px-4 py-3 font-medium">Traza</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {(productions ?? []).map((p) => {
+                const d = daysUntil(p.product_expiry_date);
+                const slug = p.trace?.[0]?.slug ?? null;
+                return (
+                  <tr key={p.id} className="transition hover:bg-secondary/40">
+                    <td className="px-4 py-3">
+                      <Money className="text-xs font-semibold">{p.code}</Money>
+                    </td>
+                    <td className="px-4 py-3 font-medium">
+                      {p.recipe?.title ?? "-"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {formatDate(p.production_date)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Money>{formatQty(p.quantity_kg)} kg</Money>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Money className="text-xs">
+                        {p.product_lot_number ?? "-"}
+                      </Money>
+                    </td>
+                    <td
+                      className={cn(
+                        "px-4 py-3 text-muted-foreground",
+                        d !== null && d < 0 && "font-semibold text-destructive",
+                        d !== null && d >= 0 && d <= 7 && "text-accent",
+                      )}
+                    >
+                      {formatDate(p.product_expiry_date)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {slug ? (
+                        <button
+                          type="button"
+                          onClick={() => setQr({ slug, code: p.code })}
+                          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-primary transition hover:bg-primary/10"
+                        >
+                          <QrCode size={14} />
+                          QR
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <ProductionFormModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        onCompleted={(slug, code) => setQr({ slug, code })}
+      />
+      <TraceQrModal
+        slug={qr?.slug ?? null}
+        code={qr?.code ?? null}
+        onClose={() => setQr(null)}
+      />
+    </div>
   );
 }

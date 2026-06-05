@@ -52,7 +52,13 @@ Ingrediente → ingreso de stock con **lote** (proveedor + RNE + vencimiento; co
 - [x] Planificación completa (`PLAN-MAESTRO.md` + `docs/`)
 - [x] **Fase 0 — Fundaciones**: repo GitHub (`Ninja-soft/ninja-soft-food`), Supabase cloud (`skitcpzszonyybeqymzd`, São Paulo) con migraciones 0001-0002 aplicadas, componentes `ui/` portados del POS, auth completo (signup → Edge Function `create_tenant` → trial + claim `tenant_id`, smoke test `scripts/smoke-auth.mjs` verde), AppShell, deploy Vercel producción: https://ninja-soft-food.vercel.app
   - Pendientes menores de fase 0: instalar la GitHub App de Vercel en la org Ninja-soft (auto-deploy por push; hoy se deploya con `vercel deploy --prod`), landing comercial real, tests RLS de integración formales, desactivar `mailer_autoconfirm` cuando haya SMTP propio.
-- [ ] Fase 1 — Núcleo trazabilidad (ingredientes, stock/lotes, recetas, producción, QR, planillas PDF/Excel) ← SIGUIENTE
+- [~] **Fase 1 — Núcleo trazabilidad** (en curso):
+  - [x] Ingredientes (familias, fotos, búsqueda, CRUD) — smoke verde
+  - [x] Inventario (lotes con RPC atómica `create_stock_entry`/`adjust_stock_entry`, ledger append-only, alertas, regla congelados CAA, proveedores, facturas privadas) — smoke verde
+  - [x] Recetas (fórmula con sustitutos, RNPA + filtros, octógonos Ley 27.642, nutrición, aging) — smoke verde
+  - [x] Producción (RPC `complete_production`: consume lotes FEFO en una transacción, vencimiento con aging, secuencia PROD-NNNNN por tenant, snapshot inmutable) + traza pública `/t/[slug]` con QR — smoke 7/7 verde
+  - [ ] Planillas PDF (individual/masiva/semanal) + exports Excel ← SIGUIENTE
+  - Nota de flujo: signup liviano (nombre/email/pass) → `/onboarding` completa empresa/rubro; raíz `/` redirige a `/login` (sin landing por ahora)
 - [ ] Fase 2 — MVP completo (despacho, calidad, dashboard, billing MP, panel interno, migración La Jamonera)
 - [ ] Fase 3 — v1 diferenciación (builder de planillas, recall, costos, API pública, `@ninja-soft/ui`)
 - [ ] Fase 4 — v2 escala (multi-planta, MercadoLibre/PedidosYa/Rappi, SSO POS↔Food, Stripe/PayPal)

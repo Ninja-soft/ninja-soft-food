@@ -802,6 +802,29 @@ export type Database = {
         }
         Relationships: []
       }
+      production_counters: {
+        Row: {
+          last_value: number
+          tenant_id: string
+        }
+        Insert: {
+          last_value?: number
+          tenant_id: string
+        }
+        Update: {
+          last_value?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_counters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_inputs: {
         Row: {
           id: string
@@ -2022,6 +2045,18 @@ export type Database = {
           p_type?: Database["public"]["Enums"]["stock_movement_type"]
         }
         Returns: number
+      }
+      complete_production: {
+        Args: {
+          p_inputs: Json
+          p_manager_member_id?: string
+          p_notes?: string
+          p_product_lot_number?: string
+          p_production_date: string
+          p_quantity_kg: number
+          p_recipe_id: string
+        }
+        Returns: Json
       }
       create_stock_entry: {
         Args: {
