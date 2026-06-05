@@ -2014,6 +2014,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adjust_stock_entry: {
+        Args: {
+          p_delta: number
+          p_entry_id: string
+          p_reason: string
+          p_type?: Database["public"]["Enums"]["stock_movement_type"]
+        }
+        Returns: number
+      }
+      create_stock_entry: {
+        Args: {
+          p_establishment_id?: string
+          p_expiry_date?: string
+          p_ingredient_id: string
+          p_invoice_url?: string
+          p_is_frozen?: boolean
+          p_is_internal_use?: boolean
+          p_lot_number: string
+          p_manufacture_date?: string
+          p_quantity: number
+          p_supplier_id?: string
+          p_unit: string
+          p_unit_cost?: number
+        }
+        Returns: string
+      }
       current_tenant_id: { Args: never; Returns: string }
       is_internal: { Args: never; Returns: boolean }
     }
