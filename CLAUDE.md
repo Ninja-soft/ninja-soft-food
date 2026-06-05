@@ -63,8 +63,8 @@ Ingrediente → ingreso de stock con **lote** (proveedor + RNE + vencimiento; co
   - [x] Despacho (clientes, vehículos UTA/URA con alerta de vencimiento, RPC `create_dispatch` atómica, remito PDF con branding, export Excel) — ⚠️ migración 0008 pendiente de aplicar en cloud (permiso denegado en sesión autónoma): correr `supabase db push` y luego `pnpm db:types`; smoke clientes/vehículos verde, RPC valida tras aplicar
   - [x] Calidad: análisis de laboratorio (8 tipos, conformidad 0-100 con categorías, laboratorios por tenant, adjuntos en bucket privado `attachments`, smoke 10/10) + informes bromatológicos (editor Tiptap `components/ui/RichTextEditor.tsx`, importancia 0-100, notificados persistidos, adjuntos, smoke 8/8) — pendientes de otra fase: formato IA y envío real de emails
   - [x] Dashboard del tenant (KPIs del mes con delta, chart barras 6 meses estilo POS sin deps, cards compliance RNPA/UTA-URA/RNE, alertas stock reutilizando modules/stock, actividad reciente) — agregación client-side, views SQL como optimización futura
-  - [ ] Billing MP (preapproval, webhooks idempotentes) ← SIGUIENTE
-  - [ ] Panel interno staff
+  - [x] Billing MP (`lib/billing` BillingProvider + provider MP fetch puro, preapproval, webhook `/api/webhooks/mp` con firma x-signature HMAC + idempotencia por unique provider_event_id + re-fetch del recurso, `lib/supabase/admin.ts` service role, card Suscripción en configuración, seed precios ARS, 17 tests unit) — pendientes: registrar webhook URL en panel MP, job de reconciliación diario
+  - [ ] Panel interno staff ← SIGUIENTE
   - [ ] Migración La Jamonera
 - [ ] Fase 3 — v1 diferenciación (builder de planillas, recall, costos, API pública, `@ninja-soft/ui`)
 - [ ] Fase 4 — v2 escala (multi-planta, MercadoLibre/PedidosYa/Rappi, SSO POS↔Food, Stripe/PayPal)
