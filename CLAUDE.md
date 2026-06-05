@@ -62,8 +62,8 @@ Ingrediente → ingreso de stock con **lote** (proveedor + RNE + vencimiento; co
 - [~] Fase 2 — MVP completo:
   - [x] Despacho (clientes, vehículos UTA/URA con alerta de vencimiento, RPC `create_dispatch` atómica, remito PDF con branding, export Excel) — ⚠️ migración 0008 pendiente de aplicar en cloud (permiso denegado en sesión autónoma): correr `supabase db push` y luego `pnpm db:types`; smoke clientes/vehículos verde, RPC valida tras aplicar
   - [x] Calidad: análisis de laboratorio (8 tipos, conformidad 0-100 con categorías, laboratorios por tenant, adjuntos en bucket privado `attachments`, smoke 10/10) + informes bromatológicos (editor Tiptap `components/ui/RichTextEditor.tsx`, importancia 0-100, notificados persistidos, adjuntos, smoke 8/8) — pendientes de otra fase: formato IA y envío real de emails
-  - [ ] Dashboard del tenant ← SIGUIENTE
-  - [ ] Billing MP (preapproval, webhooks idempotentes)
+  - [x] Dashboard del tenant (KPIs del mes con delta, chart barras 6 meses estilo POS sin deps, cards compliance RNPA/UTA-URA/RNE, alertas stock reutilizando modules/stock, actividad reciente) — agregación client-side, views SQL como optimización futura
+  - [ ] Billing MP (preapproval, webhooks idempotentes) ← SIGUIENTE
   - [ ] Panel interno staff
   - [ ] Migración La Jamonera
 - [ ] Fase 3 — v1 diferenciación (builder de planillas, recall, costos, API pública, `@ninja-soft/ui`)

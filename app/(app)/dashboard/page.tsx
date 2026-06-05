@@ -1,62 +1,26 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/Card";
-import { Eyebrow, Heading } from "@/components/ui/Typography";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { DashboardClient } from "@/components/dashboard/DashboardClient";
 
-// Dashboard placeholder — fase 1 lo completa con KPIs reales (docs/06).
-const UPCOMING = [
-  {
-    title: "Producción",
-    description: "Kilos producidos por período y receta, con gráfico interactivo.",
-  },
-  {
-    title: "Compliance",
-    description: "RNE de proveedores, RNPA por vencer y transporte habilitado.",
-  },
-  {
-    title: "Stock",
-    description: "Alertas de stock bajo y lotes próximos a vencer.",
-  },
-  {
-    title: "Calidad",
-    description: "Último informe bromatológico y conformidad de análisis.",
-  },
-];
+// Dashboard del tenant (Fase 2). Server component fino: resuelve el nombre del
+// tenant (patrón del dashboard del POS) y delega los KPIs/charts/alertas al
+// cliente, que los agrega vía modules/dashboard.
+export default async function DashboardPage() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-export default function DashboardPage() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <Eyebrow>Fase 0 · fundaciones</Eyebrow>
-        <Heading as="h1" className="mt-3">
-          Dashboard
-        </Heading>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Tu cuenta y tu empresa quedaron creadas. Los módulos operativos se
-          construyen en la fase 1 del roadmap.
-        </p>
-      </div>
+  // El layout (app) ya garantiza sesión + tenant; doble check defensivo.
+  if (!user) redirect("/login");
+  const tenantId = (user.app_metadata as Record<string, unknown>)?.tenant_id;
+  if (typeof tenantId !== "string" || !tenantId) redirect("/onboarding");
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {UPCOMING.map((item) => (
-          <Card key={item.title}>
-            <CardHeader>
-              <CardTitle>{item.title}</CardTitle>
-              <CardDescription>{item.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
-                Próximamente
-              </span>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("name")
+    .eq("id", tenantId)
+    .single();
+
+  return <DashboardClient tenantName={tenant?.name ?? "Mi empresa"} />;
 }
