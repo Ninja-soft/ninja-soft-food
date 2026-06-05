@@ -51,7 +51,8 @@ Ingrediente → ingreso de stock con **lote** (proveedor + RNE + vencimiento; co
 
 - [x] Planificación completa (`PLAN-MAESTRO.md` + `docs/`)
 - [x] **Fase 0 — Fundaciones**: repo GitHub (`Ninja-soft/ninja-soft-food`), Supabase cloud (`skitcpzszonyybeqymzd`, São Paulo) con migraciones 0001-0002 aplicadas, componentes `ui/` portados del POS, auth completo (signup → Edge Function `create_tenant` → trial + claim `tenant_id`, smoke test `scripts/smoke-auth.mjs` verde), AppShell, deploy Vercel producción: https://ninja-soft-food.vercel.app
-  - Pendientes menores de fase 0: instalar la GitHub App de Vercel en la org Ninja-soft (auto-deploy por push; hoy se deploya con `vercel deploy --prod`), landing comercial real, tests RLS de integración formales, desactivar `mailer_autoconfirm` cuando haya SMTP propio.
+  - Pendientes menores de fase 0: instalar la GitHub App de Vercel en la org Ninja-soft (auto-deploy por push; hoy se deploya con `vercel deploy --prod`), landing comercial real, desactivar `mailer_autoconfirm` cuando haya SMTP propio.
+  - Tests RLS de integración: FORMALES y verdes — `tests/integration/rls.test.ts` (88 tests contra cloud: aislamiento A/B en 11 tablas + hijas vía parent, staff internal_read solo-SELECT, anon sin fugas, public_traces legible por slug, RPCs tenant-scoped; skipIf sin credenciales para CI). Correr con `pnpm test:rls`.
 - [x] **Fase 1 — Núcleo trazabilidad** (completa):
   - [x] Ingredientes (familias, fotos, búsqueda, CRUD) — smoke verde
   - [x] Inventario (lotes con RPC atómica `create_stock_entry`/`adjust_stock_entry`, ledger append-only, alertas, regla congelados CAA, proveedores, facturas privadas) — smoke verde
