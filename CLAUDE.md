@@ -70,7 +70,8 @@ Ingrediente → ingreso de stock con **lote** (proveedor + RNE + vencimiento; co
   - [ ] Migración La Jamonera — BLOQUEADO: requiere datos reales del cliente (export de su sistema actual), coordinar con Lucas
 - [~] Fase 3 — v1 diferenciación:
   - [x] Recall / trazabilidad inversa (`modules/trace`: traceForward lote MP → clientes afectados con contacto, traceBackward lote PT → proveedores, búsqueda unificada de lotes, despachos anulados/borrados SIEMPRE visibles en recall por requisito regulatorio, acta PDF + Excel multi-hoja, smoke 5/5) — UI en /trazabilidad
-  - [ ] Builder de planillas, costos, API pública, `@ninja-soft/ui`
+  - [x] Reportes + KPIs de costos (`modules/reports-kpi`: producción por día/semana con presets estilo POS, costos por receta con $/kg y % cobertura de unit_cost, top clientes por kg, export Excel multi-hoja, chart compartido `components/charts/BarsChart.tsx`, 17 tests) — app sin placeholders
+  - [ ] Builder de planillas, API pública, `@ninja-soft/ui`
 - [ ] Fase 4 — v2 escala (multi-planta, MercadoLibre/PedidosYa/Rappi, SSO POS↔Food, Stripe/PayPal)
 
 Detalle y criterios de salida: `docs/07-roadmap.md`. Catálogo funcional completo (no perder NINGUNA feature de La Jamonera): `docs/02-catalogo-funcionalidades.md`.

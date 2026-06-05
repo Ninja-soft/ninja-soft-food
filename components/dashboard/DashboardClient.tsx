@@ -16,6 +16,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { Accent, Display, Eyebrow, Heading, Money } from "@/components/ui/Typography";
+import { BarsChart } from "@/components/charts/BarsChart";
 import { cn } from "@/lib/utils/cn";
 import { formatDate, formatQty } from "@/lib/utils/format";
 import type {
@@ -310,7 +311,6 @@ function ProductionChart({
   loading: boolean;
 }) {
   const points = data ?? [];
-  const max = Math.max(1, ...points.map((p) => p.kg));
   const totalKg = points.reduce((a, p) => a + p.kg, 0);
   const hasData = totalKg > 0;
 
@@ -343,33 +343,18 @@ function ProductionChart({
           </p>
         </div>
       ) : (
-        <div className="flex h-44 items-end gap-2 sm:gap-4">
-          {points.map((p) => {
-            const h = p.kg > 0 ? Math.max(4, (p.kg / max) * 100) : 1.5;
-            return (
-              <div
-                key={p.key}
-                className="group flex min-w-0 flex-1 flex-col items-center gap-1.5"
-              >
-                <span className="text-[10px] font-medium tabular-nums text-muted-foreground opacity-0 transition group-hover:opacity-100">
-                  {p.kg > 0 ? formatQty(p.kg, { maximumFractionDigits: 0 }) : ""}
-                </span>
-                <div className="flex w-full flex-1 items-end">
-                  <div
-                    className="w-full rounded-t-md bg-brand-gradient shadow-foodGlow transition-all duration-300 group-hover:opacity-90"
-                    style={{ height: `${h}%` }}
-                    title={`${p.label}: ${formatQty(p.kg, {
-                      maximumFractionDigits: 1,
-                    })} kg · ${p.count} producción${p.count === 1 ? "" : "es"}`}
-                  />
-                </div>
-                <span className="text-[11px] capitalize text-muted-foreground">
-                  {p.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+        <BarsChart
+          capitalizeLabels
+          points={points.map((p) => ({
+            key: p.key,
+            label: p.label,
+            value: p.kg,
+            hoverLabel: formatQty(p.kg, { maximumFractionDigits: 0 }),
+            title: `${p.label}: ${formatQty(p.kg, {
+              maximumFractionDigits: 1,
+            })} kg · ${p.count} producción${p.count === 1 ? "" : "es"}`,
+          }))}
+        />
       )}
     </Panel>
   );
