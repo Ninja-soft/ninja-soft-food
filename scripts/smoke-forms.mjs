@@ -137,14 +137,27 @@ if (subFailErr) throw new Error("submit_form fail: " + subFailErr.message);
 if (!subFail?.submission_id) throw new Error("submit_form fail sin id");
 console.log("3. submit_form (desvío + acción correctiva) OK");
 
-// 4. Inmutabilidad: UPDATE de una submission debe ser rechazado por el trigger
-const { error: immErr } = await supabase
+// 4. Inmutabilidad: con el client del tenant, RLS no tiene policy de UPDATE →
+// PostgREST NO devuelve error: afecta 0 filas. La aserción correcta es que
+// ninguna fila cambió (el trigger inmutable se prueba con service_role en
+// tests/integration/rls.test.ts, donde sí llega a la fila).
+const { data: immRows, error: immErr } = await supabase
   .from("form_submissions")
   .update({ status: "ok" })
-  .eq("id", subFail.submission_id);
-if (!immErr)
+  .eq("id", subFail.submission_id)
+  .select("id");
+if (immErr && !immErr.message.includes("immutable_submission"))
+  throw new Error("update inesperado: " + immErr.message);
+if (!immErr && (immRows?.length ?? 0) > 0)
   throw new Error("FAIL: se permitió editar una form_submission (inmutable)");
-console.log("4. inmutabilidad (UPDATE rechazado) OK ·", immErr.message);
+const { data: stillFail } = await supabase
+  .from("form_submissions")
+  .select("status")
+  .eq("id", subFail.submission_id)
+  .single();
+if (stillFail?.status !== "fail")
+  throw new Error("FAIL: la submission cambió de estado (inmutable)");
+console.log("4. inmutabilidad OK (0 filas afectadas, estado intacto)");
 
 // 5. Corrección: fila nueva que apunta a la submission con desvío
 const { data: subCorr, error: subCorrErr } = await supabase.rpc("submit_form", {
@@ -198,8 +211,10 @@ const { error: badPinErr } = await supabase.rpc("submit_form", {
   p_member_id: member.id,
   p_pin: "0000",
 });
-if (!badPinErr || !badPinErr.message.includes("invalid_pin"))
+if (!badPinErr || !badPinErr.message.includes("invalid_pin")) {
+  console.error("DEBUG 6b error real:", JSON.stringify(badPinErr));
   throw new Error("FAIL: PIN incorrecto no rechazado");
+}
 console.log("6b. PIN incorrecto → invalid_pin OK");
 
 // 7. Listado de submissions del template (más reciente primero)
