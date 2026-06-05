@@ -9,6 +9,16 @@
    Paletas aprobadas: docs/04-arquitectura.md §3
    ============================================================ */
 
+/* Swatches estáticos para el selector de temas (no cambian con el tema) */
+:root {
+  --swatch-food-dark: linear-gradient(135deg, #08120a 50%, #3fa34d 50%);
+  --swatch-food-light: linear-gradient(135deg, #f4f8f2 50%, #2e7d32 50%);
+  --swatch-food-bosque: linear-gradient(135deg, #06120a 50%, #4caf50 50%);
+  --swatch-food-crema: linear-gradient(135deg, #fbf7ec 50%, #c9a227 50%);
+  --swatch-food-remolacha: linear-gradient(135deg, #faf5f7 50%, #8e2a48 50%);
+  --swatch-food-mar: linear-gradient(135deg, #07171a 50%, #14b8a6 50%);
+}
+
 /* ---------- food-dark (default) ---------- */
 :root,
 [data-theme="food-dark"] {
@@ -16,6 +26,8 @@
   --foreground: #f0f7ee;
   --card: rgba(16, 34, 19, 0.72);
   --card-foreground: #f0f7ee;
+  --popover: #0d2012;
+  --popover-foreground: #f0f7ee;
   --primary: #3fa34d;
   --primary-foreground: #04140a;
   --secondary: rgba(255, 255, 255, 0.06);
@@ -43,6 +55,8 @@
   --foreground: #13190f;
   --card: #ffffff;
   --card-foreground: #13190f;
+  --popover: #ffffff;
+  --popover-foreground: #13190f;
   --primary: #2e7d32;
   --primary-foreground: #ffffff;
   --secondary: #e8f0e3;
@@ -69,6 +83,8 @@
   --foreground: #edf7ee;
   --card: rgba(255, 255, 255, 0.04);
   --card-foreground: #edf7ee;
+  --popover: #0a1a0d;
+  --popover-foreground: #edf7ee;
   --primary: #4caf50;
   --primary-foreground: #04140a;
   --secondary: rgba(255, 255, 255, 0.05);
@@ -92,6 +108,8 @@
   --foreground: #1d1a10;
   --card: #ffffff;
   --card-foreground: #1d1a10;
+  --popover: #ffffff;
+  --popover-foreground: #1d1a10;
   --primary: #2e7d32;
   --primary-foreground: #ffffff;
   --secondary: #f3edda;
@@ -117,6 +135,8 @@
   --foreground: #221318;
   --card: #ffffff;
   --card-foreground: #221318;
+  --popover: #ffffff;
+  --popover-foreground: #221318;
   --primary: #8e2a48;
   --primary-foreground: #ffffff;
   --secondary: #f2e4ea;
@@ -143,6 +163,8 @@
   --foreground: #ecfdf5;
   --card: rgba(255, 255, 255, 0.04);
   --card-foreground: #ecfdf5;
+  --popover: #0b2024;
+  --popover-foreground: #ecfdf5;
   --primary: #14b8a6;
   --primary-foreground: #04201c;
   --secondary: rgba(255, 255, 255, 0.05);
@@ -202,4 +224,72 @@
   .brand-gradient-text {
     @apply bg-brand-gradient bg-clip-text text-transparent;
   }
+}
+
+/* ============================================================
+   Calendario (react-day-picker) — port del .rdp-ninja del POS
+   en clave verde, atado a los tokens del tema activo.
+   ============================================================ */
+.rdp-ninja {
+  --rdp-accent-color: var(--primary);
+  --rdp-accent-background-color: color-mix(in srgb, var(--primary) 15%, transparent);
+  --rdp-day-width: 2.25rem;
+  --rdp-day-height: 2.25rem;
+  --rdp-day_button-width: 2.25rem;
+  --rdp-day_button-height: 2.25rem;
+  --rdp-range_start-color: var(--primary-foreground);
+  --rdp-range_end-color: var(--primary-foreground);
+  --rdp-range_start-background: var(--primary);
+  --rdp-range_end-background: var(--primary);
+  margin: 0;
+  font-size: 0.875rem;
+}
+.rdp-ninja .rdp-day_button {
+  border-radius: 0.5rem;
+}
+.rdp-ninja .rdp-day_button:hover {
+  background-color: rgba(127, 127, 127, 0.15);
+}
+/* "Hoy" (salvo seleccionado o dentro del rango): resaltado en primary */
+.rdp-ninja .rdp-today:not(.rdp-selected):not(.rdp-range_middle) .rdp-day_button {
+  color: var(--primary);
+  font-weight: 700;
+}
+/* Inicio y fin del rango: solo el chip, sin la media barra de conexión */
+.rdp-ninja .rdp-range_start,
+.rdp-ninja .rdp-range_end,
+.rdp-ninja .rdp-range_middle {
+  background: transparent !important;
+}
+.rdp-ninja .rdp-range_start .rdp-day_button,
+.rdp-ninja .rdp-range_end .rdp-day_button,
+.rdp-ninja .rdp-selected:not(.rdp-range_middle) .rdp-day_button {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border-color: var(--primary) !important;
+}
+/* Días intermedios: fondo tenue + número en primary (visible en dark y light) */
+.rdp-ninja .rdp-range_middle .rdp-day_button {
+  background-color: color-mix(in srgb, var(--primary) 16%, transparent) !important;
+  color: var(--primary) !important;
+  font-weight: 600;
+  border: none !important;
+}
+.rdp-ninja .rdp-chevron {
+  fill: currentColor;
+}
+
+/* Swap del wordmark Ninja Food según tema (logo dark/light de img/) */
+.wordmark-on-light {
+  display: none;
+}
+[data-theme="food-light"] .wordmark-on-dark,
+[data-theme="food-crema"] .wordmark-on-dark,
+[data-theme="food-remolacha"] .wordmark-on-dark {
+  display: none;
+}
+[data-theme="food-light"] .wordmark-on-light,
+[data-theme="food-crema"] .wordmark-on-light,
+[data-theme="food-remolacha"] .wordmark-on-light {
+  display: inline;
 }

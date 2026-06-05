@@ -29,14 +29,6 @@ returns uuid language sql stable as $$
   )::uuid
 $$;
 
-create or replace function public.is_internal()
-returns boolean language sql stable security definer set search_path = public as $$
-  select coalesce(
-    (select u.is_internal from public.users u where u.id = auth.uid()),
-    false
-  )
-$$;
-
 -- ------------------------------------------------------------
 -- Núcleo SaaS
 -- ------------------------------------------------------------
@@ -71,6 +63,15 @@ create table public.users (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Definida acá (post-users) porque las funciones SQL validan el body al crearse
+create or replace function public.is_internal()
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce(
+    (select u.is_internal from public.users u where u.id = auth.uid()),
+    false
+  )
+$$;
 
 create table public.tenant_users (
   id uuid primary key default gen_random_uuid(),

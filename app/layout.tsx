@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Nunito } from "next/font/google";
 import { ThemeProvider } from "@/lib/theme/ThemeProvider";
+import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -41,7 +42,9 @@ export default function RootLayout({
       className={`${nunito.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

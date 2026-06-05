@@ -21,6 +21,10 @@ const config: Config = {
           DEFAULT: "var(--card)",
           foreground: "var(--card-foreground)",
         },
+        popover: {
+          DEFAULT: "var(--popover)",
+          foreground: "var(--popover-foreground)",
+        },
         primary: {
           DEFAULT: "var(--primary)",
           foreground: "var(--primary-foreground)",
@@ -63,6 +67,8 @@ const config: Config = {
         display: ["var(--font-display)", "Nunito", "sans-serif"],
         sans: ["var(--font-sans)", "Inter", "sans-serif"],
         mono: ["var(--font-mono)", "JetBrains Mono", "monospace"],
+        // Números/códigos tabulares (paridad de API con <Money> del POS)
+        price: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       boxShadow: {
         soft: "var(--shadow-soft)",
@@ -73,25 +79,34 @@ const config: Config = {
       backgroundImage: {
         "brand-gradient":
           "linear-gradient(135deg, #1F7A33 0%, #8CBF2F 48%, #C6D420 100%)",
+        // Gradiente del CTA primario (equivalente food del flame del POS)
+        "primary-gradient":
+          "linear-gradient(180deg, #3FA34D 0%, #2E7D32 100%)",
       },
       keyframes: {
-        "fade-in": {
-          from: { opacity: "0" },
-          to: { opacity: "1" },
-        },
+        "fade-in": { from: { opacity: "0" }, to: { opacity: "1" } },
         "slide-up": {
-          from: { opacity: "0", transform: "translateY(12px)" },
+          from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "overlay-in": { from: { opacity: "0" }, to: { opacity: "1" } },
+        "overlay-out": { from: { opacity: "1" }, to: { opacity: "0" } },
         "modal-in": {
-          from: { opacity: "0", transform: "scale(0.96) translateY(8px)" },
-          to: { opacity: "1", transform: "scale(1) translateY(0)" },
+          from: { opacity: "0", transform: "translate(-50%, -50%) scale(0.95)" },
+          to: { opacity: "1", transform: "translate(-50%, -50%) scale(1)" },
+        },
+        "modal-out": {
+          from: { opacity: "1", transform: "translate(-50%, -50%) scale(1)" },
+          to: { opacity: "0", transform: "translate(-50%, -50%) scale(0.97)" },
         },
       },
       animation: {
         "fade-in": "fade-in 180ms ease-out",
         "slide-up": "slide-up 240ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "overlay-in": "overlay-in 160ms ease-out",
+        "overlay-out": "overlay-out 130ms ease-in forwards",
         "modal-in": "modal-in 210ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "modal-out": "modal-out 130ms ease-in forwards",
       },
     },
   },

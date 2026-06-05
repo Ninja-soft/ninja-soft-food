@@ -1,0 +1,68 @@
+"use client";
+
+import * as Dialog from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
+
+// Modal sólido sobre Radix Dialog — port 1:1 del POS.
+interface ModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title?: string;
+  description?: string;
+  children?: React.ReactNode;
+  className?: string;
+}
+
+export function Modal({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  className,
+}: ModalProps) {
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[3px] data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
+        <Dialog.Content
+          className={cn(
+            "fixed left-1/2 top-1/2 z-50 flex max-h-[92dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-soft outline-none data-[state=open]:animate-modal-in data-[state=closed]:animate-modal-out",
+            className,
+          )}
+        >
+          {(title || description) && (
+            <div className="shrink-0 border-b border-border px-6 py-4 pr-12">
+              {title && (
+                <Dialog.Title className="text-lg font-bold tracking-tight">
+                  {title}
+                </Dialog.Title>
+              )}
+              {description && (
+                <Dialog.Description className="mt-1 text-sm text-muted-foreground">
+                  {description}
+                </Dialog.Description>
+              )}
+            </div>
+          )}
+          {/* Descripción accesible siempre presente (evita warning de Radix). */}
+          {!description && (
+            <Dialog.Description className="sr-only">
+              {title ?? "Diálogo"}
+            </Dialog.Description>
+          )}
+          <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
+          <Dialog.Close
+            className="absolute right-3 top-3 rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Cerrar"
+          >
+            <X size={18} />
+          </Dialog.Close>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+export const ModalTrigger = Dialog.Trigger;
