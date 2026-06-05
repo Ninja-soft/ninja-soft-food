@@ -59,7 +59,13 @@ Ingrediente → ingreso de stock con **lote** (proveedor + RNE + vencimiento; co
   - [x] Producción (RPC `complete_production`: consume lotes FEFO en una transacción, vencimiento con aging, secuencia PROD-NNNNN por tenant, snapshot inmutable) + traza pública `/t/[slug]` con QR — smoke 7/7 verde
   - [x] Planillas PDF (individual/masiva/semanal con QR de traza, firma Elaboró/Controló, branding por tenant) + exports Excel en ingredientes/inventario/recetas/produccion (`lib/utils/{xlsx,pdf}.ts`, `modules/planillas/*`) — gate CI verde
   - Nota de flujo: signup liviano (nombre/email/pass) → `/onboarding` completa empresa/rubro; raíz `/` redirige a `/login` (sin landing por ahora)
-- [~] Fase 2 — MVP completo (despacho ← SIGUIENTE, calidad, dashboard, billing MP, panel interno, migración La Jamonera)
+- [~] Fase 2 — MVP completo:
+  - [x] Despacho (clientes, vehículos UTA/URA con alerta de vencimiento, RPC `create_dispatch` atómica, remito PDF con branding, export Excel) — ⚠️ migración 0008 pendiente de aplicar en cloud (permiso denegado en sesión autónoma): correr `supabase db push` y luego `pnpm db:types`; smoke clientes/vehículos verde, RPC valida tras aplicar
+  - [ ] Calidad (informes bromatológicos + análisis de laboratorio) ← SIGUIENTE
+  - [ ] Dashboard del tenant
+  - [ ] Billing MP (preapproval, webhooks idempotentes)
+  - [ ] Panel interno staff
+  - [ ] Migración La Jamonera
 - [ ] Fase 3 — v1 diferenciación (builder de planillas, recall, costos, API pública, `@ninja-soft/ui`)
 - [ ] Fase 4 — v2 escala (multi-planta, MercadoLibre/PedidosYa/Rappi, SSO POS↔Food, Stripe/PayPal)
 
