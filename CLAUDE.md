@@ -42,6 +42,7 @@ Deploy: push a `main` → Vercel auto-deploy. PRs generan preview. CI bloquea me
 8. **Idioma:** UI y docs en español rioplatense; código, tablas y commits en inglés.
 9. **Excel-first:** todo listado significativo debe poder exportarse a Excel; toda planilla debe poder imprimirse.
 10. **Nada hardcodeado al cliente:** localidades, prefijos de lote, logos, umbrales — todo configurable por tenant (lección de La Jamonera).
+11. **Nada hardcodeado al país:** normativa (RNE/RNPA/octógonos/CAA), moneda, locale, sellos y pasarelas se resuelven SIEMPRE vía el perfil de país del tenant (`lib/globalization` + `tenant_operating_profiles`). Prohibido asumir Argentina en UI, schemas, PDFs o billing — un tenant de México no debe ver jamás un concepto regulatorio argentino (auditoría: `docs/11-auditoria-2026-06.md`).
 
 ## Dominio (vocabulario)
 
@@ -75,9 +76,15 @@ Ingrediente → ingreso de stock con **lote** (proveedor + RNE + vencimiento; co
   - [x] Builder de planillas configurables (migración 0009: `form_templates` + `form_submissions` INMUTABLES con triple defensa policy/trigger/diseño, RPC `submit_form` con firma PIN bcrypt vía pgcrypto; `modules/forms` con zod dinámico por campos, semáforo ok/fail, acción correctiva, correcciones encadenadas; 4to tab en /planillas con builder visual, captura firmada, historial, PDF en blanco + Excel aplanado) — ⚠️ migración 0009 pendiente de aplicar junto a 0008
   - [x] API pública v1 (migración 0010: `api_keys` sha256+prefix+scopes y `outbound_webhooks` con secret HMAC, RPC `verify_api_key` DEFINER grant anon; `lib/api` auth/data/webhooks, endpoints GET `/api/v1/{productions,stock,dispatches,traces}` con cursor y scoping explícito por tenant, ApiKeysCard en configuración con gating por plan, firma saliente `X-NinjaFood-Signature`, 19 tests, docs/10-api-publica.md) — ⚠️ migración 0010 pendiente junto a 0008/0009; wiring de eventos salientes va vía pg_net en fase posterior
   - [ ] `@ninja-soft/ui` (extracción multi-repo — requiere coordinación manual)
-- [ ] Fase 4 — v2 escala (multi-planta, MercadoLibre/PedidosYa/Rappi, SSO POS↔Food, Stripe/PayPal)
+- **Roadmap reescrito 2026-06-06 tras auditoría integral** (`docs/11-auditoria-2026-06.md`): el producto era Argentina-first con disfraz de world-ready, el panel interno un visor y faltaban diferenciadores. Nuevas fases:
+- [ ] **Fase 4 — Motor de compliance internacional** (CRÍTICO, va primero porque toca schema): `regulatory_labels` por país (octógonos AR / NOM-051 MX / sellos CL / ANVISA BR / Nutri-Score EU / FDA US), `regulatory_permits` genérico (absorbe RNE/RNPA/RUCA/UTA/URA), `regulatory_seals` (ABR deja de ser booleano hardcodeado), moneda dinámica en MP (hoy ARS fijo en `lib/billing/mercadopago.ts:135`), formatters por locale (hoy es-AR fijo en planillas/remito/trace), onboarding obliga país, `cuit`→`tax_id`. Criterio: tenant MX opera sin ver NADA argentino.
+- [ ] **Fase 5 — Consola interna SaaS** (CRÍTICO comercial): cobros desde la ficha del tenant (link MP + pago manual por transferencia), acceso vitalicio/cortesía, cambio de plan, facturación a suscriptores, SMTP UI + templates + campañas de email, impersonation, feature flags, staff mgmt, usuarios globales, notas, salud del tenant, audit avanzado. Paridad POS internal y más.
+- [ ] **Fase 6 — UX de planta y Excel-first real**: diagrama de trazabilidad con React Flow (grafo nodos MP→PT→clientes, ref captura LJ en `img/`), Excel IMPORT con plantillas+preview+validación (hoy solo export), builder de planillas v2 (drag&drop dnd-kit, campos foto/firma/hora, colores de PDF por tenant — hoy hardcodeados en `lib/utils/pdf.ts`), foto en producción, receta PDF descargable, barcode scanner (EAN por cámara), pase estético transversal (paddings, íconos).
+- [ ] **Fase 7 — IA**: `lib/ai` abstracción AIProvider (Gemini + Claude). **Key de plataforma únicamente, configurada desde /internal** (cifrada, server-side) — el cliente NUNCA carga su key. IA incluida en planes altos; en planes bajos es add-on pago que suma a la suscripción (`ai_enabled` por plan+add-on en limits, metering de uso por tenant). Tabla nutricional generada por IA en formato del país, sellos frontales automáticos desde umbrales legales, rótulo print-ready vectorial guardado en la receta, formato IA en informes.
+- [ ] **Fase 8 — Ecosistema**: delivery (MercadoLibre, PedidosYa, Rappi, Uber Eats), SSO POS↔Food, conector Ninja POS, multi-planta, Stripe/PayPal, `@ninja-soft/ui`.
+- Paralelización: 5 corre en paralelo a 4; 6 y 7 dependen de 4.
 
-Detalle y criterios de salida: `docs/07-roadmap.md`. Catálogo funcional completo (no perder NINGUNA feature de La Jamonera): `docs/02-catalogo-funcionalidades.md`.
+Detalle y criterios de salida: `docs/07-roadmap.md`. Auditoría de gaps: `docs/11-auditoria-2026-06.md`. Catálogo funcional completo (no perder NINGUNA feature de La Jamonera): `docs/02-catalogo-funcionalidades.md`.
 
 ## Agentes
 
