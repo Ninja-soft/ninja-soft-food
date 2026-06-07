@@ -65,7 +65,13 @@ const { data: recipe, error: rErr } = await supabase
     packaging_delay_type: "aging",
     rnpa_number: "21-098765",
     rnpa_expiry: "2026-08-01",
-    front_labels: ["exceso_sodio", "exceso_grasas_totales"],
+    // regulatory_labels: rotulado frontal resuelto por país (migración 0013).
+    // Reemplaza la columna front_labels (DEPRECATED, octógonos AR-only). Para un
+    // tenant AR el sistema es ar_octogonos; values son los sellos de la Ley 27.642.
+    regulatory_labels: {
+      system: "ar_octogonos",
+      values: ["exceso_sodio", "exceso_grasas_totales"],
+    },
     nutrition: { calories: 320, proteins: 28, fats: 22, carbs: 1, sodium: 1800 },
   })
   .select("id")
@@ -86,7 +92,7 @@ console.log("3. fórmula con sustituto OK");
 const { data: full, error: fullErr } = await supabase
   .from("recipes")
   .select(
-    "title, rnpa_number, front_labels, group:recipe_groups(name), recipe_ingredients(quantity, is_substitute, ingredient:ingredients!recipe_ingredients_ingredient_id_fkey(name))",
+    "title, rnpa_number, regulatory_labels, group:recipe_groups(name), recipe_ingredients(quantity, is_substitute, ingredient:ingredients!recipe_ingredients_ingredient_id_fkey(name))",
   )
   .eq("id", recipe.id)
   .single();
@@ -94,10 +100,11 @@ if (fullErr) throw new Error("read: " + fullErr.message);
 if (
   full.group?.name !== "Embutidos" ||
   full.recipe_ingredients.length !== 3 ||
-  full.front_labels.length !== 2
+  full.regulatory_labels?.system !== "ar_octogonos" ||
+  full.regulatory_labels?.values?.length !== 2
 )
   throw new Error("shape inesperada: " + JSON.stringify(full));
-console.log("4. lectura anidada OK");
+console.log("4. lectura anidada (regulatory_labels) OK");
 
 // 5. Reemplazo de fórmula (patrón update de la UI)
 await supabase.from("recipe_ingredients").delete().eq("recipe_id", recipe.id);

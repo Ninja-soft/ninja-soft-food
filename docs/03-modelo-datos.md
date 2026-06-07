@@ -243,6 +243,107 @@ policy `tenant_read` (solo SELECT, NO `for all`) + `internal_read`; writes nunca
 authenticated. La tabla se llama `tenant_flags` (no `tenant_feature_flags`) para no chocar con la
 tabla homónima de 0001 ligada al catálogo `feature_flags`.
 
+### Plantillas de email globales (migración 0015)
+
+```
+system_email_templates  key PK, subject, html, updated_by, updated_at. Overrides GLOBALES de
+                        plataforma de las plantillas del sistema (editables desde /internal sin
+                        tocar código). SOLO service_role (sin políticas anon/authenticated, como
+                        system_email_smtp / system_emails).
+```
+
+Cadena de resolución de subject/html en la Edge Function `send_email`:
+`email_templates` (override por TENANT) → `system_email_templates` (override GLOBAL) →
+`DEFAULT_TEMPLATES` en código (fallback). Writes vía route handler
+`/api/internal/email-templates` con `requireInternal()` + admin client + audit.
+
+### Foto de producción (migración 0016)
+
+```
+productions.photo_url   text null. Foto del producto terminado, capturada DESPUÉS de completar la
+                        producción (la RPC complete_production 0005 está congelada). Dato vivo: NO
+                        entra en el snapshot inmutable de public_traces.payload (regla 5) — la traza
+                        pública la lee del registro vivo (public_traces.production_id → productions).
+                        Bucket público `recipes` (0003), path <tenant_id>/productions/...
+```
+
+### Colores de planillas PDF (migración 0017)
+
+```
+tenant_branding.pdf_primary_color   text null (hex #RRGGBB): banda del header del PDF.
+tenant_branding.pdf_secondary_color text null (hex #RRGGBB): títulos de sección, headers de tabla,
+                                    acentos. Ambos NULL → fallback de marca Ninja Food (#08120A /
+                                    #2E7D32) vía resolvePalette() en lib/utils/pdf.ts.
+```
+
+Regla dura 10 (nada hardcodeado al cliente). Aditivo: no toca RLS (tenant_branding ya scoped por
+`current_tenant_id()` desde 0001/0006). Validación de formato hex en la app, no en SQL.
+
+### Barcode de ingredientes (migración 0018)
+
+```
+ingredients.barcode   text null. Código de barras comercial (EAN-13/EAN-8/Code-128/QR) para escaneo
+                      por cámara en ingreso de stock y búsqueda del catálogo. Dato de conveniencia,
+                      NO regulatorio (identifica el producto comercial, no el lote). NO unique a
+                      propósito (datos sucios pueden compartir EAN entre proveedores). Índice parcial
+                      ingredients_tenant_barcode_idx (tenant_id, barcode) where deleted_at is null
+                      and barcode is not null para el lookup por código escaneado.
+```
+
+### Metering de IA (migración 0019)
+
+```
+ai_usage   tenant_id, feature (texto libre: 'nutrition_table'|'front_labels'|'report_format'|...),
+           provider, model, input_tokens, output_tokens, created_at. Registra cada generación de IA
+           para controlar el costo de la key de PLATAFORMA (de Ninja-Soft, no del cliente) y aplicar
+           límites por plan. Índice (tenant_id, created_at) para uso mensual. SOLO staff lee
+           (internal_read SELECT); writes por service_role (lib/ai/usage.logAIUsage, best-effort,
+           nunca rompe el flujo). El tenant NO ve esta tabla.
+```
+
+### Identidad de remitente del tenant (migración 0020)
+
+```
+tenant_branding.email_from_name   text null. Nombre que firma los envíos manuales del tenant
+                                  (planillas, remitos, recetas, recall, informes vía /api/emails/send).
+                                  Null → tenants.name → marca de plataforma.
+tenant_branding.email_reply_to    text null. Reply-To del cliente (el From sigue siendo no-reply de
+                                  plataforma; el SMTP real es system_email_smtp, no propio del tenant).
+tenant_branding.email_signature   text null. Pie/firma opcional (texto plano, escapado). Regla 6: sin
+                                  emojis ni em-dashes (validado en cliente/route handler con zod).
+```
+
+Cuelga de `tenant_branding` (1:1 con tenant, hogar natural de la identidad visible): hereda su RLS.
+
+### Traza con regulatory_labels (migración 0021)
+
+`CREATE OR REPLACE complete_production` con el MISMO cuerpo de 0005 (0016 solo agregó
+`productions.photo_url`, no tocó la función) + un único agregado al payload de la traza:
+`'regulatory_labels'` (rotulado frontal resuelto por país, `recipes.regulatory_labels` de 0013).
+Sin esto, un tenant NO argentino producía y su traza pública quedaba SIN sellos (el snapshot solo
+copiaba `front_labels`, octógonos AR-only). Solo afecta producciones NUEVAS (regla 5: las
+public_traces ya escritas no se tocan). La traza pública (`app/(public)/t/[slug]`) lee
+`payload.regulatory_labels` con fallback a `payload.front_labels` para trazas viejas. SECURITY
+INVOKER (RLS con el JWT del usuario, igual que 0005).
+
+### Rótulo legal de recetas (migración 0022)
+
+```
+recipes.allergens       text[] null. Alérgenos declarados del producto (gluten, leche, huevo, soja,
+                        maní, frutos_secos, pescado, mariscos, sésamo, sulfitos, ...). Se resaltan en
+                        negrita en el rótulo print-ready. Catálogo de chips en modules/recipes/
+                        schemas.ts (set común CAA/ANVISA/FDA). NO hardcodeado al país (regla 11).
+recipes.label_versions  jsonb not null default '[]'. Historial APPEND-ONLY de rótulos print-ready:
+                        [{version, path (bucket recipes <tenant>/labels/<recipeId>/v<N>.pdf),
+                        created_at, created_by}]. Índice de los PDF en Storage (el PDF es el artefacto
+                        inmutable). Dato vivo de trabajo, NO registro firmado (regla 5): append-only
+                        por convención del cliente (appendLabelVersion), no por trigger.
+```
+
+Aditivo: ambas columnas nullable/default-vacío (recetas viejas validan sin backfill). RLS sin
+cambios (recipes ya tenant-scoped en 0001; el bucket `recipes` restringe escritura a la carpeta del
+propio tenant en 0003).
+
 ---
 
 ## 3. RLS — estrategia
