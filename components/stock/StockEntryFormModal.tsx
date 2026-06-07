@@ -27,6 +27,7 @@ import {
   type StockEntryInput,
 } from "@/modules/stock/schemas";
 import { useOperatingProfile } from "@/modules/tenant-profile/hooks";
+import { useActiveEstablishment } from "@/modules/establishments/hooks";
 
 function genLotNumber(): string {
   const date = format(new Date(), "yyMMdd");
@@ -49,6 +50,15 @@ export function StockEntryFormModal({
   const createMut = useCreateEntry();
   const createSupplierMut = useCreateSupplier();
   const findByBarcodeMut = useFindIngredientByBarcode();
+
+  // Planta del ingreso: si hay planta activa, el lote entra ahí; si está en
+  // "Todas" y el tenant es multi-planta, el operario elige (default = la planta
+  // por defecto). Mono-planta: campo invisible, queda null (legacy compatible).
+  const { activeId, active, establishments, isMulti } =
+    useActiveEstablishment();
+  const defaultEstId =
+    establishments.find((e) => e.is_default)?.id ?? establishments[0]?.id ?? "";
+  const [establishmentId, setEstablishmentId] = useState<string>("");
 
   // Identificador fiscal del proveedor con etiqueta por país (CUIT/RFC/CNPJ/...).
   // Los permisos finos (RNE/registro) se gestionan en la gestión completa de
@@ -101,6 +111,8 @@ export function StockEntryFormModal({
     setShowNewSupplier(false);
     setNewSupplierName("");
     setNewSupplierTaxId("");
+    // Planta inicial: la activa, o la por defecto si estamos en "Todas".
+    setEstablishmentId(activeId ?? defaultEstId);
     reset({
       ingredient_id: undefined as unknown as string,
       quantity: undefined as unknown as number,
@@ -112,7 +124,7 @@ export function StockEntryFormModal({
       unit_cost: null,
       is_internal_use: false,
     });
-  }, [open, reset]);
+  }, [open, reset, activeId, defaultEstId]);
 
   // Sugerencia de vencimiento: fecha fab + días típicos del ingrediente,
   // +60 días si está congelado (regla CAA heredada de La Jamonera).
@@ -186,6 +198,7 @@ export function StockEntryFormModal({
         ...values,
         unit: ingredient.unit,
         invoice_url,
+        establishment_id: establishmentId || null,
       });
       toast({
         title: "Ingreso registrado",
@@ -251,6 +264,39 @@ export function StockEntryFormModal({
             </p>
           )}
         </div>
+
+        {/* Planta destino del lote (solo multi-planta). Si hay planta activa,
+            mostramos un hint fijo; en "Todas" el operario elige. */}
+        {isMulti &&
+          (activeId ? (
+            <p className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+              Este ingreso se registra en{" "}
+              <span className="font-medium text-foreground">{active?.name}</span>{" "}
+              (planta activa).
+            </p>
+          ) : (
+            <div>
+              <label
+                htmlFor="entry-establishment"
+                className="mb-2 block text-sm font-medium text-muted-foreground"
+              >
+                Planta
+              </label>
+              <select
+                id="entry-establishment"
+                value={establishmentId}
+                onChange={(e) => setEstablishmentId(e.target.value)}
+                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              >
+                {establishments.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                    {e.is_default ? " · por defecto" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
 
         <div className="grid grid-cols-2 gap-3">
           <Input

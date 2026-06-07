@@ -23,6 +23,7 @@ import {
 import { dispatchSchema, type DispatchInput } from "@/modules/dispatch/schemas";
 import { useRecipes } from "@/modules/recipes/hooks";
 import { useOperatingProfile } from "@/modules/tenant-profile/hooks";
+import { useActiveEstablishment } from "@/modules/establishments/hooks";
 
 const selectCls =
   "h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20";
@@ -48,6 +49,13 @@ export function DispatchFormModal({
   const isAr = (profile?.country ?? "AR").toUpperCase() === "AR";
   const createCustomerMut = useCreateCustomer();
   const createVehicleMut = useCreateVehicle();
+
+  // Planta de salida del despacho: la activa, o (en "Todas" + multi) la elegida.
+  const { activeId, active, establishments, isMulti } =
+    useActiveEstablishment();
+  const defaultEstId =
+    establishments.find((e) => e.is_default)?.id ?? establishments[0]?.id ?? "";
+  const [establishmentId, setEstablishmentId] = useState<string>("");
 
   const [newCustomerName, setNewCustomerName] = useState("");
   const [showNewCustomer, setShowNewCustomer] = useState(false);
@@ -107,6 +115,7 @@ export function DispatchFormModal({
     setShowNewVehicle(false);
     setNewCustomerName("");
     setNewVehiclePlate("");
+    setEstablishmentId(activeId ?? defaultEstId);
     reset({
       customer_id: undefined as unknown as string,
       dispatch_date: format(new Date(), "yyyy-MM-dd"),
@@ -119,7 +128,7 @@ export function DispatchFormModal({
         },
       ],
     });
-  }, [open, reset]);
+  }, [open, reset, activeId, defaultEstId]);
 
   async function handleCreateCustomer() {
     const name = newCustomerName.trim();
@@ -172,7 +181,10 @@ export function DispatchFormModal({
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      const result = await createDispatchMut.mutateAsync(values);
+      const result = await createDispatchMut.mutateAsync({
+        input: values,
+        establishmentId: (activeId ?? (isMulti ? establishmentId : null)) || null,
+      });
       toast({
         title: "Despacho registrado",
         description: `${result.items} ${result.items === 1 ? "ítem" : "ítems"} despachados`,
@@ -252,6 +264,34 @@ export function DispatchFormModal({
             </p>
           )}
         </div>
+
+        {/* Planta de salida (solo multi-planta) */}
+        {isMulti &&
+          (activeId ? (
+            <p className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+              Sale desde{" "}
+              <span className="font-medium text-foreground">{active?.name}</span>{" "}
+              (planta activa).
+            </p>
+          ) : (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                Planta de salida
+              </label>
+              <select
+                className={selectCls}
+                value={establishmentId}
+                onChange={(e) => setEstablishmentId(e.target.value)}
+              >
+                {establishments.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                    {e.is_default ? " · por defecto" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
 
         <div className="grid grid-cols-2 gap-3">
           {/* Fecha */}

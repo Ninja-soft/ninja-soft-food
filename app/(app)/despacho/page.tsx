@@ -14,6 +14,8 @@ import { CustomersModal } from "@/components/despacho/CustomersModal";
 import { DispatchDetailDrawer } from "@/components/despacho/DispatchDetailDrawer";
 import { DispatchFormModal } from "@/components/despacho/DispatchFormModal";
 import { VehiclesModal } from "@/components/despacho/VehiclesModal";
+import { ActivePlantBadge } from "@/components/establishments/ActivePlantBadge";
+import { useActiveEstablishment } from "@/modules/establishments/hooks";
 import { cn } from "@/lib/utils/cn";
 import { formatDate, formatQty } from "@/lib/utils/format";
 import { exportToExcel } from "@/lib/utils/xlsx";
@@ -37,13 +39,15 @@ export default function DespachoPage() {
   const [vehiclesOpen, setVehiclesOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
+  const { activeId } = useActiveEstablishment();
   const params = useMemo(
     () => ({
       search,
       from: range?.from ? format(range.from, "yyyy-MM-dd") : null,
       to: range?.to ? format(range.to, "yyyy-MM-dd") : null,
+      establishmentId: activeId,
     }),
-    [search, range]
+    [search, range, activeId]
   );
 
   const { data: dispatches, isLoading, isError } = useDispatches(params);
@@ -85,10 +89,13 @@ export default function DespachoPage() {
           <Heading as="h1" className="mt-3">
             Despacho
           </Heading>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Salidas a clientes con vehículo habilitado (UTA/URA) y lotes
-            trazables para recall.
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <p className="text-sm text-muted-foreground">
+              Salidas a clientes con vehículo habilitado (UTA/URA) y lotes
+              trazables para recall.
+            </p>
+            <ActivePlantBadge />
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => setCustomersOpen(true)}>

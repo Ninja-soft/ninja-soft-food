@@ -1,7 +1,15 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { CreditCard, Globe2, Mail, Palette, Plug, Store } from "lucide-react";
+import {
+  CreditCard,
+  Factory,
+  Globe2,
+  Mail,
+  Palette,
+  Plug,
+  Store,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Segmented } from "@/components/ui/Segmented";
 import { Display, Eyebrow } from "@/components/ui/Typography";
@@ -9,6 +17,7 @@ import { AICard } from "@/components/settings/AICard";
 import { ApiKeysCard } from "@/components/settings/ApiKeysCard";
 import { BrandingCard } from "@/components/settings/BrandingCard";
 import { EmailCard } from "@/components/settings/EmailCard";
+import { EstablishmentsCard } from "@/components/settings/EstablishmentsCard";
 import { GlobalizationCard } from "@/components/settings/GlobalizationCard";
 import { SubscriptionCard } from "@/components/settings/SubscriptionCard";
 import { cn } from "@/lib/utils/cn";
@@ -37,6 +46,7 @@ import { formatQty } from "@/lib/utils/format";
 type Section =
   | "apariencia"
   | "marca"
+  | "establecimientos"
   | "email"
   | "global"
   | "api"
@@ -44,6 +54,7 @@ type Section =
 const SECTIONS: { key: Section; label: string; icon: React.ElementType }[] = [
   { key: "apariencia", label: "Apariencia", icon: Palette },
   { key: "marca", label: "Marca del negocio", icon: Store },
+  { key: "establecimientos", label: "Establecimientos", icon: Factory },
   { key: "email", label: "Email", icon: Mail },
   { key: "global", label: "Operacion global", icon: Globe2 },
   { key: "api", label: "API e integraciones", icon: Plug },
@@ -306,6 +317,10 @@ export default function ConfiguracionPage() {
           )}
 
           {section === "marca" && <BrandingCard />}
+
+          {section === "establecimientos" && (
+            <EstablishmentsCard onUpgrade={() => setSection("suscripcion")} />
+          )}
 
           {section === "email" && <EmailCard />}
 

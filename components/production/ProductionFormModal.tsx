@@ -22,6 +22,7 @@ import {
 } from "@/modules/production/schemas";
 import { useRecipes } from "@/modules/recipes/hooks";
 import { useAvailableEntries } from "@/modules/stock/hooks";
+import { useActiveEstablishment } from "@/modules/establishments/hooks";
 
 const selectCls =
   "h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20";
@@ -47,8 +48,19 @@ export function ProductionFormModal({
 }) {
   const { toast } = useToast();
   const { data: recipes } = useRecipes("", null);
-  const { data: stock } = useAvailableEntries();
   const completeMut = useCompleteProduction();
+
+  // Planta de la producción: la activa, o (en "Todas" + multi) la elegida en el
+  // form. El stock disponible y el consumo FEFO se acotan a esa planta para no
+  // consumir lotes de otra (la RPC vuelve a validarlo, doc 12 §5).
+  const { activeId, active, establishments, isMulti } =
+    useActiveEstablishment();
+  const defaultEstId =
+    establishments.find((e) => e.is_default)?.id ?? establishments[0]?.id ?? "";
+  const [establishmentId, setEstablishmentId] = useState<string>("");
+  // Planta efectiva para acotar el stock: la activa pisa el selector.
+  const effectiveEstId = activeId ?? (isMulti ? establishmentId : null);
+  const { data: stock } = useAvailableEntries(effectiveEstId || null);
 
   const [assignments, setAssignments] = useState<Record<string, Assignment>>(
     {},
@@ -143,11 +155,12 @@ export function ProductionFormModal({
       product_lot_number: null,
       notes: null,
     });
+    setEstablishmentId(activeId ?? defaultEstId);
     setAssignments({});
     setAssignError(null);
     setPhotoFile(null);
     setPhotoPreview(null);
-  }, [open, reset]);
+  }, [open, reset, activeId, defaultEstId]);
 
   function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -241,6 +254,7 @@ export function ProductionFormModal({
         input: values,
         inputs: rows,
         photoUrl,
+        establishmentId: effectiveEstId || null,
       });
       toast({
         title: `Producción ${result.code} completada`,
@@ -297,6 +311,34 @@ export function ProductionFormModal({
             onChange={onPickPhoto}
           />
         </div>
+
+        {/* Planta de la producción (solo multi-planta) */}
+        {isMulti &&
+          (activeId ? (
+            <p className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+              Se produce en{" "}
+              <span className="font-medium text-foreground">{active?.name}</span>{" "}
+              (planta activa). Solo se consumen lotes de esta planta.
+            </p>
+          ) : (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                Planta
+              </label>
+              <select
+                className={selectCls}
+                value={establishmentId}
+                onChange={(e) => setEstablishmentId(e.target.value)}
+              >
+                {establishments.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                    {e.is_default ? " · por defecto" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
 
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2 sm:col-span-1">

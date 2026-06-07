@@ -8,10 +8,10 @@ import {
 import * as api from "./api";
 import type { ProductionInput, ProductionInputRow } from "./schemas";
 
-export function useProductions(search: string) {
+export function useProductions(search: string, establishmentId?: string | null) {
   return useQuery({
-    queryKey: ["productions", search],
-    queryFn: () => api.listProductions(search),
+    queryKey: ["productions", search, establishmentId ?? null],
+    queryFn: () => api.listProductions(search, { establishmentId }),
   });
 }
 
@@ -22,11 +22,13 @@ export function useCompleteProduction() {
       input,
       inputs,
       photoUrl,
+      establishmentId,
     }: {
       input: ProductionInput;
       inputs: ProductionInputRow[];
       photoUrl?: string | null;
-    }) => api.completeProduction(input, inputs, photoUrl),
+      establishmentId?: string | null;
+    }) => api.completeProduction(input, inputs, photoUrl, establishmentId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["productions"] });
       qc.invalidateQueries({ queryKey: ["stock-available"] });

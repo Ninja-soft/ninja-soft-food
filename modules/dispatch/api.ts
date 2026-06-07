@@ -46,6 +46,7 @@ export type Dispatch = {
   dispatch_date: string;
   status: string;
   created_at: string;
+  establishment_id: string | null;
   customer: { name: string; locality: string | null } | null;
   vehicle: {
     plate: string;
@@ -85,7 +86,7 @@ const DISPATCH_ITEM_SELECT = `
 `;
 
 const DISPATCH_SELECT = `
-  id, dispatch_date, status, created_at,
+  id, dispatch_date, status, created_at, establishment_id,
   customer:customers(id, name, address, locality, phone, email),
   vehicle:vehicles(plate, uta_expiry, ura_expiry),
   items:dispatch_items(${DISPATCH_ITEM_SELECT})
@@ -217,6 +218,7 @@ export async function listDispatches(params: {
   search?: string;
   from?: string | null;
   to?: string | null;
+  establishmentId?: string | null;
 }): Promise<Dispatch[]> {
   const supabase = createClient();
   let query = supabase
@@ -229,6 +231,9 @@ export async function listDispatches(params: {
 
   if (params.from) query = query.gte("dispatch_date", params.from);
   if (params.to) query = query.lte("dispatch_date", params.to);
+  // Filtro de planta activa (doc 12 §3): con planta, solo sus despachos.
+  if (params.establishmentId)
+    query = query.eq("establishment_id", params.establishmentId);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -264,9 +269,11 @@ export async function getDispatchDetail(id: string): Promise<DispatchDetail> {
   return data as unknown as DispatchDetail;
 }
 
-/** Alta de despacho + ítems: transacción única en Postgres (RPC). */
+/** Alta de despacho + ítems: transacción única en Postgres (RPC).
+ *  establishmentId opcional: la planta de la que sale el despacho. */
 export async function createDispatch(
-  input: DispatchInput
+  input: DispatchInput,
+  establishmentId?: string | null,
 ): Promise<CreateDispatchResult> {
   const supabase = createClient();
   // p_items viaja como Json (la RPC valida cada ítem); p_vehicle_id es opcional.
@@ -275,6 +282,7 @@ export async function createDispatch(
     p_dispatch_date: input.dispatch_date,
     p_items: input.items as Json,
     p_vehicle_id: input.vehicle_id ?? undefined,
+    p_establishment_id: establishmentId ?? undefined,
   });
   if (error) {
     if (error.message.includes("empty_items"))

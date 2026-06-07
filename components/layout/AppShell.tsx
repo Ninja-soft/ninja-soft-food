@@ -32,6 +32,8 @@ import { DARK_THEMES, useTheme } from "@/lib/theme/ThemeProvider";
 import { Isotype, WordmarkFood } from "@/components/brand/Logo";
 import { Avatar } from "@/components/ui/Avatar";
 import { MembershipProfileModal } from "@/components/account/MembershipProfileModal";
+import { EstablishmentSwitcher } from "@/components/establishments/EstablishmentSwitcher";
+import { useActiveEstablishment } from "@/modules/establishments/hooks";
 import {
   Dropdown,
   DropdownContent,
@@ -260,6 +262,11 @@ export function AppShell({
   });
   const isInternal = shell?.isInternal ?? false;
 
+  // El selector de planta solo aparece con >1 establecimiento (doc 12). En
+  // desktop, si no hay selector, la barra superior se oculta para no dejar un
+  // header vacío; en mobile la barra siempre está (lleva el botón de menú).
+  const { isMulti } = useActiveEstablishment();
+
   async function signOut() {
     await createClient().auth.signOut();
     router.push("/login");
@@ -382,11 +389,26 @@ export function AppShell({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-background/70 px-4 backdrop-blur-xl lg:hidden">
-          <button onClick={() => setDrawer(true)} aria-label="Abrir menú">
+        <header
+          className={cn(
+            "sticky top-0 z-40 h-14 items-center gap-3 border-b border-border bg-background/70 px-4 backdrop-blur-xl",
+            // Mobile: siempre (botón de menú). Desktop: solo con selector.
+            "flex",
+            isMulti ? "lg:flex" : "lg:hidden",
+          )}
+        >
+          <button
+            onClick={() => setDrawer(true)}
+            aria-label="Abrir menú"
+            className="lg:hidden"
+          >
             <Menu size={20} />
           </button>
-          <Isotype className="h-6" />
+          <Isotype className="h-6 lg:hidden" />
+          {/* Selector de planta activa (solo si el tenant tiene >1 planta) */}
+          <div className="ml-auto">
+            <EstablishmentSwitcher />
+          </div>
         </header>
 
         <main className="app-bg slim-scrollbar min-h-0 flex-1 overflow-y-auto p-4 md:p-6">

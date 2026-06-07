@@ -90,6 +90,7 @@ export function useDispatches(params: {
   search?: string;
   from?: string | null;
   to?: string | null;
+  establishmentId?: string | null;
 }) {
   return useQuery({
     queryKey: ["dispatches", params],
@@ -108,7 +109,13 @@ export function useDispatchDetail(id: string | null) {
 export function useCreateDispatch() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: DispatchInput) => api.createDispatch(input),
+    mutationFn: ({
+      input,
+      establishmentId,
+    }: {
+      input: DispatchInput;
+      establishmentId?: string | null;
+    }) => api.createDispatch(input, establishmentId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["dispatches"] }),
   });
 }

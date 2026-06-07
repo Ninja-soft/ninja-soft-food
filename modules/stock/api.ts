@@ -6,6 +6,7 @@ export type StockEntry = {
   id: string;
   ingredient_id: string;
   supplier_id: string | null;
+  establishment_id: string | null;
   quantity: number;
   remaining_quantity: number;
   unit: string;
@@ -35,28 +36,41 @@ export type Supplier = {
 };
 
 const ENTRY_SELECT = `
-  id, ingredient_id, supplier_id, quantity, remaining_quantity, unit,
-  lot_number, expiry_date, manufacture_date, is_frozen, invoice_url,
+  id, ingredient_id, supplier_id, establishment_id, quantity, remaining_quantity,
+  unit, lot_number, expiry_date, manufacture_date, is_frozen, invoice_url,
   unit_cost, is_internal_use, created_at,
   ingredient:ingredients(name, image_url, is_perishable, low_stock_threshold),
   supplier:suppliers(name)
 `;
 
+// Filtro de planta activa (doc 12 §3): con planta seleccionada, SOLO los lotes
+// de esa planta (los legacy con establishment_id null quedan visibles únicamente
+// en "Todas"). establishmentId null/undefined = sin filtro.
+type StockListOpts = { establishmentId?: string | null };
+
 /** Lotes con stock disponible (para vista "stock actual" agregada en cliente). */
-export async function listAvailableEntries(): Promise<StockEntry[]> {
+export async function listAvailableEntries(
+  opts: StockListOpts = {},
+): Promise<StockEntry[]> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("stock_entries")
     .select(ENTRY_SELECT)
     .is("deleted_at", null)
     .gt("remaining_quantity", 0)
     .order("expiry_date", { ascending: true, nullsFirst: false });
+  if (opts.establishmentId)
+    query = query.eq("establishment_id", opts.establishmentId);
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as unknown as StockEntry[];
 }
 
 /** Historial de ingresos (todos los lotes, consumidos o no). */
-export async function listEntryHistory(search: string): Promise<StockEntry[]> {
+export async function listEntryHistory(
+  search: string,
+  opts: StockListOpts = {},
+): Promise<StockEntry[]> {
   const supabase = createClient();
   let query = supabase
     .from("stock_entries")
@@ -65,14 +79,21 @@ export async function listEntryHistory(search: string): Promise<StockEntry[]> {
     .order("created_at", { ascending: false })
     .limit(200);
   if (search.trim()) query = query.ilike("lot_number", `%${search.trim()}%`);
+  if (opts.establishmentId)
+    query = query.eq("establishment_id", opts.establishmentId);
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as unknown as StockEntry[];
 }
 
-/** Ingreso atómico (entrada + movimiento) vía RPC. */
+/** Ingreso atómico (entrada + movimiento) vía RPC. establishment_id opcional:
+ *  la planta a la que pertenece el lote (default null = sin planta / legacy). */
 export async function createEntry(
-  input: StockEntryInput & { unit: string; invoice_url?: string | null },
+  input: StockEntryInput & {
+    unit: string;
+    invoice_url?: string | null;
+    establishment_id?: string | null;
+  },
 ): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.rpc("create_stock_entry", {
@@ -87,6 +108,7 @@ export async function createEntry(
     p_unit_cost: input.unit_cost ?? undefined,
     p_is_internal_use: input.is_internal_use,
     p_invoice_url: input.invoice_url ?? undefined,
+    p_establishment_id: input.establishment_id ?? undefined,
   });
   if (error) throw error;
 }

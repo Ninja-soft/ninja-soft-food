@@ -15,6 +15,7 @@ export type Production = {
   notes: string | null;
   created_at: string;
   recipe_id: string;
+  establishment_id: string | null;
   recipe: { title: string; image_url: string | null } | null;
   trace: { slug: string }[] | null;
 };
@@ -27,14 +28,17 @@ export type CompleteProductionResult = {
   trace_slug: string;
 };
 
-export async function listProductions(search: string): Promise<Production[]> {
+export async function listProductions(
+  search: string,
+  opts: { establishmentId?: string | null } = {},
+): Promise<Production[]> {
   const supabase = createClient();
   let query = supabase
     .from("productions")
     .select(
       `id, code, status, production_date, packaging_date, quantity_kg,
        product_lot_number, product_expiry_date, photo_url, notes, created_at,
-       recipe_id,
+       recipe_id, establishment_id,
        recipe:recipes(title, image_url),
        trace:public_traces(slug)`,
     )
@@ -45,6 +49,9 @@ export async function listProductions(search: string): Promise<Production[]> {
     const q = search.trim();
     query = query.or(`code.ilike.%${q}%,product_lot_number.ilike.%${q}%`);
   }
+  // Filtro de planta activa (doc 12 §3): con planta, solo sus producciones.
+  if (opts.establishmentId)
+    query = query.eq("establishment_id", opts.establishmentId);
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as unknown as Production[];
@@ -63,6 +70,7 @@ export async function completeProduction(
   input: ProductionInput,
   inputs: ProductionInputRow[],
   photoUrl?: string | null,
+  establishmentId?: string | null,
 ): Promise<CompleteProductionResult> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("complete_production", {
@@ -72,6 +80,7 @@ export async function completeProduction(
     p_inputs: inputs,
     p_product_lot_number: input.product_lot_number ?? undefined,
     p_notes: input.notes ?? undefined,
+    p_establishment_id: establishmentId ?? undefined,
   });
   if (error) {
     if (error.message.includes("insufficient_stock"))

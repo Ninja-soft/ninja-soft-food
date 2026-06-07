@@ -19,6 +19,8 @@ import { Eyebrow, Heading, Money } from "@/components/ui/Typography";
 import { AdjustEntryModal } from "@/components/stock/AdjustEntryModal";
 import { StockEntryFormModal } from "@/components/stock/StockEntryFormModal";
 import { SuppliersModal } from "@/components/stock/SuppliersModal";
+import { ActivePlantBadge } from "@/components/establishments/ActivePlantBadge";
+import { useActiveEstablishment } from "@/modules/establishments/hooks";
 import { cn } from "@/lib/utils/cn";
 import { daysUntil, formatDate, formatQty } from "@/lib/utils/format";
 import { exportToExcel } from "@/lib/utils/xlsx";
@@ -53,9 +55,12 @@ export default function InventarioPage() {
     null,
   );
 
-  const { data: available, isLoading: loadingStock } = useAvailableEntries();
+  const { activeId } = useActiveEstablishment();
+  const { data: available, isLoading: loadingStock } =
+    useAvailableEntries(activeId);
   const { data: history, isLoading: loadingHistory } = useEntryHistory(
     tab === "ingresos" ? search : "",
+    activeId,
   );
 
   // Agregado por ingrediente (los lotes ya vienen FEFO: vence antes primero)
@@ -173,9 +178,12 @@ export default function InventarioPage() {
           <Heading as="h1" className="mt-3">
             Inventario
           </Heading>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Lotes disponibles con trazabilidad desde el ingreso.
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <p className="text-sm text-muted-foreground">
+              Lotes disponibles con trazabilidad desde el ingreso.
+            </p>
+            <ActivePlantBadge />
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setSuppliersOpen(true)}>

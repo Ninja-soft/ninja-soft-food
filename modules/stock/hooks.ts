@@ -8,17 +8,19 @@ import {
 import * as api from "./api";
 import type { StockEntryInput, SupplierInput } from "./schemas";
 
-export function useAvailableEntries() {
+// El filtro de planta activa entra como parte de la queryKey para que el cache
+// distinga "Todas" de cada planta. null/undefined = sin filtro.
+export function useAvailableEntries(establishmentId?: string | null) {
   return useQuery({
-    queryKey: ["stock-available"],
-    queryFn: api.listAvailableEntries,
+    queryKey: ["stock-available", establishmentId ?? null],
+    queryFn: () => api.listAvailableEntries({ establishmentId }),
   });
 }
 
-export function useEntryHistory(search: string) {
+export function useEntryHistory(search: string, establishmentId?: string | null) {
   return useQuery({
-    queryKey: ["stock-history", search],
-    queryFn: () => api.listEntryHistory(search),
+    queryKey: ["stock-history", search, establishmentId ?? null],
+    queryFn: () => api.listEntryHistory(search, { establishmentId }),
   });
 }
 
@@ -42,7 +44,11 @@ export function useCreateEntry() {
   const invalidate = useInvalidateStock();
   return useMutation({
     mutationFn: (
-      input: StockEntryInput & { unit: string; invoice_url?: string | null },
+      input: StockEntryInput & {
+        unit: string;
+        invoice_url?: string | null;
+        establishment_id?: string | null;
+      },
     ) => api.createEntry(input),
     onSuccess: invalidate,
   });

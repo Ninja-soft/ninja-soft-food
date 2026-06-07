@@ -8,6 +8,8 @@ import { useToast } from "@/components/ui/Toast";
 import { Eyebrow, Heading, Money } from "@/components/ui/Typography";
 import { ProductionFormModal } from "@/components/production/ProductionFormModal";
 import { TraceQrModal } from "@/components/production/TraceQrModal";
+import { ActivePlantBadge } from "@/components/establishments/ActivePlantBadge";
+import { useActiveEstablishment } from "@/modules/establishments/hooks";
 import { cn } from "@/lib/utils/cn";
 import { daysUntil, formatDate, formatQty } from "@/lib/utils/format";
 import { exportToExcel } from "@/lib/utils/xlsx";
@@ -30,7 +32,8 @@ export default function ProduccionPage() {
   const [qr, setQr] = useState<{ slug: string; code: string } | null>(null);
   const [recipePdfBusy, setRecipePdfBusy] = useState<string | null>(null);
 
-  const { data: productions, isLoading } = useProductions(search);
+  const { activeId } = useActiveEstablishment();
+  const { data: productions, isLoading } = useProductions(search, activeId);
   const { data: branding } = useTenantBranding();
 
   // Descarga la ficha técnica (PDF) de la receta usada en la producción.
@@ -94,10 +97,13 @@ export default function ProduccionPage() {
           <Heading as="h1" className="mt-3">
             Producción
           </Heading>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Cada producción consume lotes de materia prima y genera el lote
-            trazable del producto terminado.
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <p className="text-sm text-muted-foreground">
+              Cada producción consume lotes de materia prima y genera el lote
+              trazable del producto terminado.
+            </p>
+            <ActivePlantBadge />
+          </div>
         </div>
         <div className="flex gap-2">
           <Button

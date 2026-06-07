@@ -18,6 +18,8 @@ import {
 import { Accent, Display, Eyebrow, Heading, Money } from "@/components/ui/Typography";
 import { buttonVariants } from "@/components/ui/Button";
 import { BarsChart } from "@/components/charts/BarsChart";
+import { ActivePlantBadge } from "@/components/establishments/ActivePlantBadge";
+import { useActiveEstablishment } from "@/modules/establishments/hooks";
 import { cn } from "@/lib/utils/cn";
 import { formatDate, formatQty } from "@/lib/utils/format";
 import type { PermitEntityType } from "@/modules/permits/schemas";
@@ -39,11 +41,12 @@ import {
 } from "@/modules/dashboard/hooks";
 
 export function DashboardClient({ tenantName }: { tenantName: string }) {
-  const kpis = useMonthKpis();
-  const series = useProductionSeries(6);
+  const { activeId } = useActiveEstablishment();
+  const kpis = useMonthKpis(activeId);
+  const series = useProductionSeries(6, activeId);
   const compliance = useComplianceCards();
-  const stock = useStockAlerts();
-  const activity = useRecentActivity();
+  const stock = useStockAlerts(activeId);
+  const activity = useRecentActivity(activeId);
   // Las cards de compliance son dinámicas por permit_type real (un MX ve
   // COFEPRIS, un AR RNPA/UTA/URA); los labels salen del catálogo vía
   // getPermitLabel, sin depender del país del perfil.
@@ -56,10 +59,13 @@ export function DashboardClient({ tenantName }: { tenantName: string }) {
         <Display className="mt-4 text-3xl md:text-4xl">
           Hola, <Accent>{tenantName}</Accent>.
         </Display>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Tu centro de control bromatológico. Producción, compliance y alertas
-          en un vistazo.
-        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <p className="text-sm text-muted-foreground">
+            Tu centro de control bromatológico. Producción, compliance y alertas
+            en un vistazo.
+          </p>
+          <ActivePlantBadge />
+        </div>
       </div>
 
       {/* Fila de KPIs */}

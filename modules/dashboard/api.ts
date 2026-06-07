@@ -52,6 +52,7 @@ const MONTH_LABELS = [
  */
 export async function getProductionSeries(
   months = 6,
+  establishmentId?: string | null,
 ): Promise<ProductionMonthPoint[]> {
   const supabase = createClient();
 
@@ -59,13 +60,15 @@ export async function getProductionSeries(
   const now = new Date();
   const from = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("productions")
     .select("production_date, quantity_kg")
     .is("deleted_at", null)
     .eq("status", "completed")
     .gte("production_date", from.toISOString().slice(0, 10))
     .order("production_date", { ascending: true });
+  if (establishmentId) query = query.eq("establishment_id", establishmentId);
+  const { data, error } = await query;
   if (error) throw error;
 
   // Buckets de los últimos `months` meses, en orden cronológico.
@@ -112,33 +115,46 @@ function monthBounds(offset = 0): { from: string; to: string } {
   return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
 }
 
-export async function getMonthKpis(): Promise<MonthKpis> {
+export async function getMonthKpis(
+  establishmentId?: string | null,
+): Promise<MonthKpis> {
   const supabase = createClient();
   const thisMonth = monthBounds(0);
   const lastMonth = monthBounds(-1);
 
+  // Filtro de planta activa sobre las operativas con establishment_id (las
+  // analyses son tenant-wide, no se filtran).
+  let prodThisQ = supabase
+    .from("productions")
+    .select("quantity_kg")
+    .is("deleted_at", null)
+    .eq("status", "completed")
+    .gte("production_date", thisMonth.from)
+    .lt("production_date", thisMonth.to);
+  let prodLastQ = supabase
+    .from("productions")
+    .select("quantity_kg")
+    .is("deleted_at", null)
+    .eq("status", "completed")
+    .gte("production_date", lastMonth.from)
+    .lt("production_date", lastMonth.to);
+  let dispatchThisQ = supabase
+    .from("dispatches")
+    .select("id")
+    .is("deleted_at", null)
+    .neq("status", "voided")
+    .gte("dispatch_date", thisMonth.from)
+    .lt("dispatch_date", thisMonth.to);
+  if (establishmentId) {
+    prodThisQ = prodThisQ.eq("establishment_id", establishmentId);
+    prodLastQ = prodLastQ.eq("establishment_id", establishmentId);
+    dispatchThisQ = dispatchThisQ.eq("establishment_id", establishmentId);
+  }
+
   const [prodThis, prodLast, dispatchThis, analysisThis] = await Promise.all([
-    supabase
-      .from("productions")
-      .select("quantity_kg")
-      .is("deleted_at", null)
-      .eq("status", "completed")
-      .gte("production_date", thisMonth.from)
-      .lt("production_date", thisMonth.to),
-    supabase
-      .from("productions")
-      .select("quantity_kg")
-      .is("deleted_at", null)
-      .eq("status", "completed")
-      .gte("production_date", lastMonth.from)
-      .lt("production_date", lastMonth.to),
-    supabase
-      .from("dispatches")
-      .select("id")
-      .is("deleted_at", null)
-      .neq("status", "voided")
-      .gte("dispatch_date", thisMonth.from)
-      .lt("dispatch_date", thisMonth.to),
+    prodThisQ,
+    prodLastQ,
+    dispatchThisQ,
     supabase
       .from("analyses")
       .select("conformity")
@@ -649,8 +665,10 @@ export type StockAlerts = {
 /** Días para "vence pronto" en el dashboard (docs/06: lotes ≤14 días). */
 export const DASHBOARD_EXPIRING_DAYS = 14;
 
-export async function getStockAlerts(): Promise<StockAlerts> {
-  const entries = await listAvailableEntries();
+export async function getStockAlerts(
+  establishmentId?: string | null,
+): Promise<StockAlerts> {
+  const entries = await listAvailableEntries({ establishmentId });
 
   // Agregado por ingrediente (mismo criterio que inventario/page.tsx).
   const map = new Map<string, StockAlert>();
@@ -721,35 +739,41 @@ export type RecentActivity = {
   dispatches: RecentDispatch[];
 };
 
-export async function getRecentActivity(): Promise<RecentActivity> {
+export async function getRecentActivity(
+  establishmentId?: string | null,
+): Promise<RecentActivity> {
   const supabase = createClient();
 
-  const [prodRes, dispatchRes] = await Promise.all([
-    supabase
-      .from("productions")
-      .select(
-        `id, code, production_date, quantity_kg,
-         recipe:recipes(title),
-         trace:public_traces(slug)`,
-      )
-      .is("deleted_at", null)
-      .eq("status", "completed")
-      .order("production_date", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(5),
-    supabase
-      .from("dispatches")
-      .select(
-        `id, dispatch_date,
-         customer:customers(name),
-         items:dispatch_items(quantity_kg)`,
-      )
-      .is("deleted_at", null)
-      .neq("status", "voided")
-      .order("dispatch_date", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(5),
-  ]);
+  let prodQ = supabase
+    .from("productions")
+    .select(
+      `id, code, production_date, quantity_kg,
+       recipe:recipes(title),
+       trace:public_traces(slug)`,
+    )
+    .is("deleted_at", null)
+    .eq("status", "completed")
+    .order("production_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(5);
+  let dispatchQ = supabase
+    .from("dispatches")
+    .select(
+      `id, dispatch_date,
+       customer:customers(name),
+       items:dispatch_items(quantity_kg)`,
+    )
+    .is("deleted_at", null)
+    .neq("status", "voided")
+    .order("dispatch_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(5);
+  if (establishmentId) {
+    prodQ = prodQ.eq("establishment_id", establishmentId);
+    dispatchQ = dispatchQ.eq("establishment_id", establishmentId);
+  }
+
+  const [prodRes, dispatchRes] = await Promise.all([prodQ, dispatchQ]);
 
   if (prodRes.error) throw prodRes.error;
   if (dispatchRes.error) throw dispatchRes.error;
