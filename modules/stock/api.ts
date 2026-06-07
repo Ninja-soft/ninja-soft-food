@@ -29,6 +29,7 @@ export type StockEntry = {
 export type Supplier = {
   id: string;
   name: string;
+  tax_id: string | null;
   rne_number: string | null;
   rne_expiry: string | null;
 };
@@ -117,7 +118,7 @@ export async function listSuppliers(): Promise<Supplier[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("suppliers")
-    .select("id, name, rne_number, rne_expiry")
+    .select("id, name, tax_id, rne_number, rne_expiry")
     .is("deleted_at", null)
     .order("name");
   if (error) throw error;
@@ -130,7 +131,7 @@ export async function createSupplier(input: SupplierInput): Promise<Supplier> {
   const { data, error } = await supabase
     .from("suppliers")
     .insert({ ...input, tenant_id })
-    .select("id, name, rne_number, rne_expiry")
+    .select("id, name, tax_id, rne_number, rne_expiry")
     .single();
   if (error) throw error;
   return data as Supplier;

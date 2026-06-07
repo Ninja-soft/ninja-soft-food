@@ -20,11 +20,22 @@ export type StockEntryInput = z.infer<typeof stockEntrySchema>;
 
 export const supplierSchema = z.object({
   name: z.string().min(1, "Ingresá un nombre").max(120),
+  // Identificador fiscal genérico (CUIT/RFC/CNPJ/...). Etiqueta por país vía
+  // OperatingProfile.taxIdLabel. La columna `cuit` legacy quedó congelada (0013).
+  tax_id: z
+    .string()
+    .max(40)
+    .transform((v) => v.trim() || null)
+    .nullable()
+    .optional(),
+  // RNE/registro: AR-only legacy. El permiso fino se gestiona con PermitsSection
+  // (regulatory_permits). Opcional para no romper el alta completa.
   rne_number: z
     .string()
     .max(40)
     .transform((v) => v.trim() || null)
-    .nullable(),
+    .nullable()
+    .optional(),
 });
 export type SupplierInput = z.infer<typeof supplierSchema>;
 

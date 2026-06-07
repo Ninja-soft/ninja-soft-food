@@ -50,13 +50,15 @@ export function StockEntryFormModal({
   const createSupplierMut = useCreateSupplier();
   const findByBarcodeMut = useFindIngredientByBarcode();
 
-  // El número del proveedor es RNE en Argentina; para otros países lo mostramos
-  // como "Registro" genérico (el registro fino vive en regulatory_permits).
-  const isAr = (profile?.country ?? "AR").toUpperCase() === "AR";
+  // Identificador fiscal del proveedor con etiqueta por país (CUIT/RFC/CNPJ/...).
+  // Los permisos finos (RNE/registro) se gestionan en la gestión completa de
+  // proveedores con PermitsSection — acá el alta rápida es nombre + tax_id.
+  const taxIdLabel = profile?.taxIdLabel ?? "CUIT";
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [newSupplierName, setNewSupplierName] = useState("");
+  const [newSupplierTaxId, setNewSupplierTaxId] = useState("");
   const [showNewSupplier, setShowNewSupplier] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -98,6 +100,7 @@ export function StockEntryFormModal({
     setInvoiceFile(null);
     setShowNewSupplier(false);
     setNewSupplierName("");
+    setNewSupplierTaxId("");
     reset({
       ingredient_id: undefined as unknown as string,
       quantity: undefined as unknown as number,
@@ -128,11 +131,12 @@ export function StockEntryFormModal({
     try {
       const created = await createSupplierMut.mutateAsync({
         name,
-        rne_number: null,
+        tax_id: newSupplierTaxId.trim() || null,
       });
       setValue("supplier_id", created.id);
       setShowNewSupplier(false);
       setNewSupplierName("");
+      setNewSupplierTaxId("");
       toast({ title: "Proveedor creado", variant: "success" });
     } catch (e) {
       toast({
@@ -337,21 +341,33 @@ export function StockEntryFormModal({
             Proveedor
           </label>
           {showNewSupplier ? (
-            <div className="flex gap-2">
+            <div className="space-y-2">
               <input
                 value={newSupplierName}
                 onChange={(e) => setNewSupplierName(e.target.value)}
                 placeholder="Nombre del proveedor"
                 className="h-11 w-full rounded-lg border border-input bg-background px-4 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
-              <Button
-                type="button"
-                variant="secondary"
-                loading={createSupplierMut.isPending}
-                onClick={handleCreateSupplier}
-              >
-                Crear
-              </Button>
+              <div className="flex gap-2">
+                <input
+                  value={newSupplierTaxId}
+                  onChange={(e) => setNewSupplierTaxId(e.target.value)}
+                  placeholder={`${taxIdLabel} (opcional)`}
+                  className="h-11 w-full rounded-lg border border-input bg-background px-4 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  loading={createSupplierMut.isPending}
+                  onClick={handleCreateSupplier}
+                >
+                  Crear
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Cargá los permisos y habilitaciones desde la gestión de
+                proveedores.
+              </p>
             </div>
           ) : (
             <div className="flex gap-2">
@@ -366,9 +382,7 @@ export function StockEntryFormModal({
                 {(suppliers ?? []).map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
-                    {s.rne_number
-                      ? ` · ${isAr ? "RNE" : "Registro"} ${s.rne_number}`
-                      : ` · sin ${isAr ? "RNE" : "registro"}`}
+                    {s.tax_id ? ` · ${taxIdLabel} ${s.tax_id}` : ""}
                   </option>
                 ))}
               </select>

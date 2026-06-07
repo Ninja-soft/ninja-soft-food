@@ -23,11 +23,20 @@ export async function signUp(input: SignupInput) {
   if (signUpError) throw new Error(translateAuthError(signUpError.message));
 }
 
-/** Reintento de creación de tenant (onboarding post-signup fallido). */
-export async function createTenant(businessName: string, industry: string) {
+/**
+ * Reintento de creación de tenant (onboarding post-signup fallido).
+ * `country` (ISO-2) es opcional: si se manda, la Edge Function lo inserta en
+ * tenants.country y el trigger 0013 crea el operating profile correcto de una;
+ * sin country = comportamiento legacy (el tenant nace AR por default).
+ */
+export async function createTenant(
+  businessName: string,
+  industry: string,
+  country?: string,
+) {
   const supabase = createClient();
   const { error } = await supabase.functions.invoke("create_tenant", {
-    body: { businessName, industry },
+    body: { businessName, industry, ...(country ? { country } : {}) },
   });
   if (error) throw new Error("No pudimos crear la empresa. Reintentá.");
   await supabase.auth.refreshSession();

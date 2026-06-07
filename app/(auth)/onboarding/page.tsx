@@ -74,9 +74,11 @@ export default function OnboardingPage() {
   async function onSubmit(values: OnboardingInput) {
     setServerError(null);
     try {
-      await createTenant(values.businessName, values.industry);
-      // El tenant nace AR por default (trigger 0013 solo cubre INSERT): fijamos
-      // el país elegido + identificador fiscal y recreamos el operating profile.
+      // El país se conoce en este punto: lo pasamos a create_tenant para que el
+      // trigger 0013 cree el operating profile correcto de una (sin paso AR→país).
+      await createTenant(values.businessName, values.industry, values.country);
+      // Refinamos el operating profile con los defaults completos del país
+      // (unidades, rotulado, traceability) y guardamos el identificador fiscal.
       await setTenantCountry(values.country, values.taxId ?? null);
       // Starter pack de planillas por rubro (BPM/POES) best-effort.
       void seedStarterTemplates(values.industry).catch((err) =>

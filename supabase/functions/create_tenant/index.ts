@@ -25,6 +25,7 @@ function json(body: unknown, status = 200): Response {
 type Payload = {
   businessName?: string;
   industry?: string;
+  country?: string;
 };
 
 const INDUSTRIES = new Set([
@@ -35,6 +36,16 @@ const INDUSTRIES = new Set([
   "catering",
   "otro",
 ]);
+
+// País ISO-3166 alpha-2. Validamos forma (dos letras) y normalizamos a mayúsculas;
+// sin country en el body = comportamiento legacy (el tenant nace AR por default).
+// El trigger 0013 (create_operating_profile_after_tenant) lee tenants.country en
+// el INSERT, así que mandar el país acá crea el operating profile correcto de una.
+function normalizeCountry(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const code = raw.trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(code) ? code : null;
+}
 
 function slugify(name: string): string {
   return (
@@ -90,6 +101,8 @@ Deno.serve(async (req) => {
   const industry = INDUSTRIES.has(payload.industry ?? "")
     ? payload.industry!
     : "otro";
+  // Compat: sin country (o inválido) → null → el default 'AR' de la columna aplica.
+  const country = normalizeCountry(payload.country);
 
   // Slug unico
   const base = slugify(businessName);
@@ -108,6 +121,8 @@ Deno.serve(async (req) => {
       industry,
       status: "trial",
       trial_ends_at: trialEndsAt,
+      // Solo seteamos country si vino válido; null deja actuar al default 'AR'.
+      ...(country ? { country } : {}),
     })
     .select("id")
     .single();
