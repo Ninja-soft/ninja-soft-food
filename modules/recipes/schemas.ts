@@ -114,12 +114,21 @@ export const recipeSchema = z
       .nullable(),
     front_labels: z.array(z.string()),
     regulatory_labels: regulatoryLabelsSchema.nullable(),
+    // Nutrición por 100 g/ml. Los 5 campos base existían desde Fase 1; los 5
+    // ampliados (saturated_fats, trans_fats, sugars, fiber, salt) se agregan
+    // ADITIVAMENTE para el cálculo de sellos frontales (Fase 7). jsonb: sin
+    // migración. Todos opcionales/nullable → recetas viejas siguen validando.
     nutrition: z.object({
       calories: z.number().nonnegative().nullable(),
       proteins: z.number().nonnegative().nullable(),
       fats: z.number().nonnegative().nullable(),
       carbs: z.number().nonnegative().nullable(),
       sodium: z.number().nonnegative().nullable(),
+      saturated_fats: z.number().nonnegative().nullable().optional(),
+      trans_fats: z.number().nonnegative().nullable().optional(),
+      sugars: z.number().nonnegative().nullable().optional(),
+      fiber: z.number().nonnegative().nullable().optional(),
+      salt: z.number().nonnegative().nullable().optional(),
     }),
   })
   .refine((v) => !v.rnpa_exempt || v.rnpa_exempt_reason, {

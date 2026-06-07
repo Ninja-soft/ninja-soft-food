@@ -48,6 +48,12 @@ export type Recipe = {
     fats?: number | null;
     carbs?: number | null;
     sodium?: number | null;
+    // Ampliados (Fase 7) para cálculo de sellos frontales. jsonb, sin migración.
+    saturated_fats?: number | null;
+    trans_fats?: number | null;
+    sugars?: number | null;
+    fiber?: number | null;
+    salt?: number | null;
   };
   group: { name: string } | null;
   recipe_ingredients: RecipeIngredientRow[];
@@ -185,6 +191,28 @@ export async function updateRecipe(
       ingredients.map((ri) => ({ ...ri, recipe_id: id })),
     );
     if (riError) throw riError;
+  }
+}
+
+/**
+ * Audita best-effort un cambio de rotulado/nutrición de receta (Fase 7). Llama
+ * al route server (service_role: audit_logs no es INSERT-able por authenticated).
+ * NUNCA lanza: la receta ya se guardó, el audit no debe romper el flujo.
+ */
+export async function auditRecipeLabeling(input: {
+  recipeId: string;
+  before: { nutrition: unknown; regulatory_labels: unknown };
+  after: { nutrition: unknown; regulatory_labels: unknown };
+  aiGenerated?: boolean;
+}): Promise<void> {
+  try {
+    await fetch("/api/recipes/audit", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    // best-effort
   }
 }
 

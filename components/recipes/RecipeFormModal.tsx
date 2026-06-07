@@ -1,16 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ImagePlus, Plus, Trash2 } from "lucide-react";
+import { ImagePlus, Plus, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
 import { useIngredients } from "@/modules/ingredients/hooks";
-import { uploadRecipeImage, type Recipe } from "@/modules/recipes/api";
+import {
+  auditRecipeLabeling,
+  uploadRecipeImage,
+  type Recipe,
+} from "@/modules/recipes/api";
+import { generateNutrition } from "@/modules/recipes/ai";
+import {
+  computeSeals,
+  missingFieldsForSystem,
+  type NutritionPer100,
+} from "@/lib/globalization/labelThresholds";
 import {
   useCreateRecipe,
   useRecipeGroups,
@@ -88,6 +99,26 @@ export function RecipeFormModal({
   const [uploading, setUploading] = useState(false);
   const [formula, setFormula] = useState<FormulaRow[]>([]);
   const [formulaError, setFormulaError] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiProposed, setAiProposed] = useState(false);
+  const [sealsMsg, setSealsMsg] = useState<string | null>(null);
+
+  // ¿El tenant tiene IA habilitada? Gobierna el botón "Generar con IA".
+  // enabled=false ante cualquier ausencia (el endpoint nunca lanza al render).
+  const { data: aiStatus } = useQuery({
+    queryKey: ["ai-status"],
+    queryFn: async (): Promise<{ enabled: boolean }> => {
+      try {
+        const res = await fetch("/api/ai/status");
+        if (!res.ok) return { enabled: false };
+        return (await res.json()) as { enabled: boolean };
+      } catch {
+        return { enabled: false };
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const aiEnabled = aiStatus?.enabled === true;
 
   const {
     register,
@@ -120,6 +151,11 @@ export function RecipeFormModal({
         fats: null,
         carbs: null,
         sodium: null,
+        saturated_fats: null,
+        trans_fats: null,
+        sugars: null,
+        fiber: null,
+        salt: null,
       },
     },
   });
@@ -166,8 +202,14 @@ export function RecipeFormModal({
         fats: recipe?.nutrition?.fats ?? null,
         carbs: recipe?.nutrition?.carbs ?? null,
         sodium: recipe?.nutrition?.sodium ?? null,
+        saturated_fats: recipe?.nutrition?.saturated_fats ?? null,
+        trans_fats: recipe?.nutrition?.trans_fats ?? null,
+        sugars: recipe?.nutrition?.sugars ?? null,
+        fiber: recipe?.nutrition?.fiber ?? null,
+        salt: recipe?.nutrition?.salt ?? null,
       },
     });
+    setAiProposed(false);
   }, [open, recipe, reset, labelSystem?.id]);
 
   const ingredientById = useMemo(() => {
@@ -193,6 +235,101 @@ export function RecipeFormModal({
     setFormula((rows) =>
       rows.map((r) => (r.key === key ? { ...r, ...patch } : r)),
     );
+  }
+
+  // Snapshot de nutrición actual del form para computeSeals (campos por 100 g/ml).
+  const currentNutrition = watch("nutrition");
+
+  // ── Generar tabla nutricional con IA ───────────────────────────────────────
+  // La IA propone; vuelca en el form (editable). Requiere receta guardada (el
+  // endpoint lee la fórmula por id) y IA habilitada para el tenant.
+  async function handleGenerateAI() {
+    if (!recipe) {
+      toast({
+        title: "Guardá la receta primero",
+        description: "La IA estima la tabla a partir de la fórmula guardada.",
+        variant: "error",
+      });
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const result = await generateNutrition(recipe.id);
+      if (!result.ok) {
+        toast({
+          title: result.upgrade ? "Función de IA" : "No se pudo generar",
+          description: result.error,
+          variant: "error",
+        });
+        return;
+      }
+      const p = result.proposal;
+      // Vuelca solo los campos que la IA devolvió, dejando editar el resto.
+      const apply = (k: keyof NutritionPer100) => {
+        const v = p[k];
+        if (typeof v === "number" && Number.isFinite(v)) {
+          setValue(`nutrition.${k}` as const, v, { shouldDirty: true });
+        }
+      };
+      (
+        [
+          "calories",
+          "proteins",
+          "fats",
+          "carbs",
+          "sodium",
+          "saturated_fats",
+          "trans_fats",
+          "sugars",
+          "fiber",
+        ] as const
+      ).forEach(apply);
+      setAiProposed(true);
+      toast({
+        title: "Tabla propuesta por IA",
+        description: "Revisá los valores antes de guardar.",
+        variant: "success",
+      });
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  // ── Calcular sellos (determinístico, sin IA) ───────────────────────────────
+  // Corre computeSeals con la nutrición cargada y preselecciona los sellos en el
+  // selector (editable). Si falta nutrición, mensaje claro de qué falta.
+  function handleComputeSeals() {
+    if (!labelSystem || labelSystem.kind === "none") return;
+    const nutrition: NutritionPer100 = currentNutrition ?? {};
+    const missing = missingFieldsForSystem(labelSystem.id, nutrition);
+    if (missing.length > 0) {
+      setSealsMsg(
+        `Faltan datos para calcular los sellos: ${missing.join(", ")}.`,
+      );
+      return;
+    }
+    setSealsMsg(null);
+    const result = computeSeals(
+      labelSystem.id,
+      nutrition,
+      undefined,
+      watch("product_type"),
+    );
+    const values =
+      result.kind === "grade"
+        ? result.grade
+          ? [result.grade]
+          : []
+        : result.values;
+    setValue("regulatory_labels", { system: labelSystem.id, values });
+    toast({
+      title: "Sellos calculados",
+      description:
+        values.length > 0
+          ? "Revisá y ajustá si corresponde antes de guardar."
+          : "Según la nutrición cargada, el producto no requiere sellos.",
+      variant: "success",
+    });
   }
 
   const onSubmit = handleSubmit(async (values) => {
@@ -231,6 +368,20 @@ export function RecipeFormModal({
           id: recipe.id,
           input: { ...values, image_url },
           ingredients: cleanRows,
+        });
+        // Auditoría best-effort del rotulado/nutrición (regla dura 4). Marca si
+        // la nutrición fue propuesta por IA en esta edición.
+        void auditRecipeLabeling({
+          recipeId: recipe.id,
+          before: {
+            nutrition: recipe.nutrition ?? null,
+            regulatory_labels: recipe.regulatory_labels ?? null,
+          },
+          after: {
+            nutrition: values.nutrition,
+            regulatory_labels: values.regulatory_labels,
+          },
+          aiGenerated: aiProposed,
         });
         toast({ title: "Receta actualizada", variant: "success" });
       } else {
@@ -602,6 +753,25 @@ export function RecipeFormModal({
                   : "Marcá las advertencias que aplican al producto. Aparecen en el rótulo y en la traza pública."}
               </p>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleComputeSeals}
+              >
+                <Wand2 size={14} />
+                Calcular sellos
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Cálculo determinístico según {labelSystem.legalRef}. Editable.
+              </span>
+            </div>
+            {sealsMsg && (
+              <p className="rounded-ninjaSm border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-500">
+                {sealsMsg}
+              </p>
+            )}
             <RegulatoryLabelSelector
               system={labelSystem}
               values={regulatoryLabels?.values ?? []}
@@ -617,7 +787,35 @@ export function RecipeFormModal({
 
         {/* Nutrición */}
         <div className="space-y-3">
-          <SectionTitle>Información nutricional (por 100 g/ml)</SectionTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <SectionTitle>Información nutricional (por 100 g/ml)</SectionTitle>
+            {aiEnabled ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleGenerateAI}
+                loading={aiLoading}
+              >
+                <Sparkles size={14} />
+                Generar con IA
+              </Button>
+            ) : (
+              <span
+                title="Disponible con el add-on IA"
+                className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-ninjaMd border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground"
+              >
+                <Sparkles size={14} />
+                Generar con IA
+              </span>
+            )}
+          </div>
+          {aiProposed && (
+            <p className="inline-flex items-center gap-1.5 rounded-ninjaFull bg-primary/10 px-3 py-1 text-[11px] font-medium text-primary">
+              <Sparkles size={12} />
+              Propuesto por IA · revisá antes de guardar
+            </p>
+          )}
           <div className="grid grid-cols-5 gap-2">
             {(
               [
@@ -625,7 +823,12 @@ export function RecipeFormModal({
                 ["proteins", "Proteínas"],
                 ["fats", "Grasas"],
                 ["carbs", "Hidratos"],
-                ["sodium", "Sodio"],
+                ["sodium", "Sodio (mg)"],
+                ["saturated_fats", "Grasas sat."],
+                ["trans_fats", "Grasas trans"],
+                ["sugars", "Azúcares"],
+                ["fiber", "Fibra"],
+                ["salt", "Sal"],
               ] as const
             ).map(([key, label]) => (
               <Input
@@ -640,6 +843,10 @@ export function RecipeFormModal({
               />
             ))}
           </div>
+          <p className="text-xs text-muted-foreground">
+            Las grasas saturadas/trans y los azúcares se usan para calcular los
+            sellos frontales. Cargalos para un cálculo preciso.
+          </p>
         </div>
 
         <div className="flex justify-end gap-2 border-t border-border pt-4">

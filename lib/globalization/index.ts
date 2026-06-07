@@ -5,4 +5,5 @@
 
 export * from "./countries";
 export * from "./labelSystems";
+export * from "./labelThresholds";
 export * from "./permitTypes";
