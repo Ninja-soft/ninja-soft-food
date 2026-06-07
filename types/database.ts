@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -891,35 +891,6 @@ export type Database = {
           },
         ]
       }
-      measure_units: {
-        Row: {
-          abbr: string
-          id: string
-          name: string
-          tenant_id: string | null
-        }
-        Insert: {
-          abbr: string
-          id?: string
-          name: string
-          tenant_id?: string | null
-        }
-        Update: {
-          abbr?: string
-          id?: string
-          name?: string
-          tenant_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "measure_units_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       manual_payments: {
         Row: {
           amount: number
@@ -989,6 +960,35 @@ export type Database = {
           },
           {
             foreignKeyName: "manual_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      measure_units: {
+        Row: {
+          abbr: string
+          id: string
+          name: string
+          tenant_id: string | null
+        }
+        Insert: {
+          abbr: string
+          id?: string
+          name: string
+          tenant_id?: string | null
+        }
+        Update: {
+          abbr?: string
+          id?: string
+          name?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "measure_units_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2301,6 +2301,38 @@ export type Database = {
         }
         Relationships: []
       }
+      system_email_templates: {
+        Row: {
+          html: string
+          key: string
+          subject: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          html: string
+          key: string
+          subject: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          html?: string
+          key?: string
+          subject?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_email_templates_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_emails: {
         Row: {
           created_at: string
@@ -2341,38 +2373,6 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      system_email_templates: {
-        Row: {
-          html: string
-          key: string
-          subject: string
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          html: string
-          key: string
-          subject: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          html?: string
-          key?: string
-          subject?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "system_email_templates_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -2878,6 +2878,10 @@ export type Database = {
         Returns: string
       }
       current_tenant_id: { Args: never; Returns: string }
+      default_compliance_frameworks: {
+        Args: { country_code: string }
+        Returns: string[]
+      }
       is_internal: { Args: never; Returns: boolean }
       submit_form: {
         Args: {
