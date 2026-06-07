@@ -28,7 +28,7 @@ Recall forward/backward con acta PDF · reportes + KPIs de costos · builder de 
 
 ---
 
-## Fase 4 — Motor de compliance internacional 🌎 (CRÍTICO)
+## Fase 4 — Motor de compliance internacional 🌎 ✅ (ejecutada 2026-06-06/07, migraciones 0013+0021)
 
 **Objetivo:** que un tenant de México, Chile, Brasil, España o USA opere SIN ver conceptos argentinos. Hoy el producto es Argentina-first con disfraz (audit Gap 1). Esta fase va primero porque toca schema: todo lo que se construya encima la hereda.
 
@@ -43,7 +43,7 @@ Recall forward/backward con acta PDF · reportes + KPIs de costos · builder de 
 
 **Dependencias:** ninguna. **Criterio de salida:** test de integración "tenant MX" — se registra eligiendo México, no ve RNE/RNPA/octógonos/ABR en ninguna pantalla ni PDF, ve NOM-051 y COFEPRIS, paga en MXN; mismo test para CL. Tests RLS verdes sin regresión.
 
-## Fase 5 — Consola interna SaaS 🛠️ (CRÍTICO comercial)
+## Fase 5 — Consola interna SaaS 🛠️ ✅ (ejecutada 2026-06-06/07, migraciones 0014/0015; pendiente: campañas batch, facturación ARCA)
 
 **Objetivo:** operar el negocio desde `/internal` sin tocar SQL, a la altura del panel del POS y más. Hoy es un visor (audit Gap 2).
 
@@ -55,7 +55,7 @@ Recall forward/backward con acta PDF · reportes + KPIs de costos · builder de 
 
 **Dependencias:** Fase 4 para precios multi-moneda (parcial — se puede arrancar en paralelo). **Criterio de salida:** dar de alta un cliente por transferencia, regalarle acceso vitalicio a otro, cambiarle el plan a un tercero y mandar una campaña de email — todo desde la UI, todo auditado.
 
-## Fase 6 — UX de planta y Excel-first real 🏭
+## Fase 6 — UX de planta y Excel-first real 🏭 ✅ (ejecutada 2026-06-06/07, migraciones 0016-0018; pendiente: pase estético transversal)
 
 **Objetivo:** los diferenciadores que hacen que el operario y el bromatólogo lo elijan (audit Gaps 4-8).
 
@@ -68,7 +68,7 @@ Recall forward/backward con acta PDF · reportes + KPIs de costos · builder de 
 
 **Dependencias:** Fase 4 (labels en PDFs de receta). **Criterio de salida:** demo de 10 minutos: escanear un barcode para ingresar stock, importar clientes desde Excel, producir con foto, abrir el grafo de trazabilidad y exportarlo, imprimir planilla con colores del cliente.
 
-## Fase 7 — IA: rotulado y nutrición asistidos 🤖
+## Fase 7 — IA: rotulado y nutrición asistidos 🤖 ✅ (ejecutada 2026-06-07, migraciones 0019/0022 + add-on autocontratable; pendiente: formato IA en informes)
 
 **Objetivo:** lo que ningún competidor regional tiene — compliance de rótulo generado por IA, por país.
 
