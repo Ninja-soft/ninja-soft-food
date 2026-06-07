@@ -118,7 +118,7 @@ export async function POST() {
       // CLAVE: external_reference con prefijo addon → el webhook lo separa del
       // preapproval principal (cuyo external_reference es el tenantId pelado).
       externalReference: buildAddonExternalReference(AI_ADDON_KEY, tenantId),
-      reason: "Ninja Food — Add-on Asistente IA",
+      reason: "Ninja Food • Add-on Asistente IA",
       backUrl: `${appUrl}/configuracion?addon=pending`,
       notificationUrl: `${appUrl}/api/webhooks/mp`,
     });
