@@ -585,17 +585,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "form_submissions_establishment_id_fkey"
-            columns: ["establishment_id"]
-            isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "form_submissions_corrects_submission_id_fkey"
             columns: ["corrects_submission_id"]
             isOneToOne: false
             referencedRelation: "form_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
             referencedColumns: ["id"]
           },
           {
@@ -3000,29 +3000,52 @@ export type Database = {
         }
         Returns: number
       }
-      complete_production: {
-        Args: {
-          p_establishment_id?: string
-          p_inputs: Json
-          p_manager_member_id?: string
-          p_notes?: string
-          p_product_lot_number?: string
-          p_production_date: string
-          p_quantity_kg: number
-          p_recipe_id: string
-        }
-        Returns: Json
-      }
-      create_dispatch: {
-        Args: {
-          p_customer_id: string
-          p_dispatch_date: string
-          p_establishment_id?: string
-          p_items: Json
-          p_vehicle_id?: string
-        }
-        Returns: Json
-      }
+      complete_production:
+        | {
+            Args: {
+              p_inputs: Json
+              p_manager_member_id?: string
+              p_notes?: string
+              p_product_lot_number?: string
+              p_production_date: string
+              p_quantity_kg: number
+              p_recipe_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_establishment_id?: string
+              p_inputs: Json
+              p_manager_member_id?: string
+              p_notes?: string
+              p_product_lot_number?: string
+              p_production_date: string
+              p_quantity_kg: number
+              p_recipe_id: string
+            }
+            Returns: Json
+          }
+      create_dispatch:
+        | {
+            Args: {
+              p_customer_id: string
+              p_dispatch_date: string
+              p_items: Json
+              p_vehicle_id?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_customer_id: string
+              p_dispatch_date: string
+              p_establishment_id?: string
+              p_items: Json
+              p_vehicle_id?: string
+            }
+            Returns: Json
+          }
       create_stock_entry: {
         Args: {
           p_establishment_id?: string
