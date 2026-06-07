@@ -1,3 +1,5 @@
+import type { LabelSystemId } from "./labelSystems";
+
 export type CountryCode =
   | "AR"
   | "AU"
@@ -47,8 +49,17 @@ export type CountryProfile = {
   foodAuthorities: string[];
   complianceFrameworks: string[];
   traceabilityFields: string[];
+  // labelSystem: sistema de rotulado frontal del país (ver labelSystems.ts).
+  // null para países sin sistema de advertencias modelado todavía.
+  labelSystem: LabelSystemId | null;
 };
 
+/**
+ * @deprecated Fallback Argentina-first. La eliminación del fallback a AR es
+ * tarea de otra fase del wiring de internacionalización (Gap 1). No se borra
+ * porque tiene consumidores activos (getCountryProfile, getDefaultOperatingProfile).
+ * No usar como default implícito en código nuevo.
+ */
 export const DEFAULT_COUNTRY_CODE: CountryCode = "AR";
 
 export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
@@ -70,8 +81,9 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     billingProviders: ["mercadopago", "stripe", "paypal", "manual"],
     labelLanguages: ["es"],
     foodAuthorities: ["ANMAT", "SENASA", "ARCA"],
-    complianceFrameworks: ["CAA", "RNE", "RNPA", "Ley 27.642", "BPM", "POES"],
+    complianceFrameworks: ["CAA", "RNE", "RNPA", "BPM", "POES"],
     traceabilityFields: ["lote", "vencimiento", "RNE", "RNPA", "elaborador"],
+    labelSystem: "ar_octogonos",
   },
   UY: {
     code: "UY",
@@ -93,6 +105,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["MSP", "MGAP"],
     complianceFrameworks: ["BPM", "HACCP", "registro bromatologico"],
     traceabilityFields: ["lote", "vencimiento", "registro", "origen"],
+    labelSystem: null,
   },
   CL: {
     code: "CL",
@@ -112,13 +125,14 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     billingProviders: ["mercadopago", "stripe", "paypal", "manual"],
     labelLanguages: ["es"],
     foodAuthorities: ["SEREMI de Salud", "SAG"],
-    complianceFrameworks: ["RSA", "HACCP", "BPM", "Ley de etiquetado"],
+    complianceFrameworks: ["RSA", "Ley 20.606", "HACCP"],
     traceabilityFields: [
       "lote",
       "vencimiento",
       "resolucion sanitaria",
       "origen",
     ],
+    labelSystem: "cl_sellos",
   },
   BR: {
     code: "BR",
@@ -138,8 +152,9 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     billingProviders: ["mercadopago", "stripe", "paypal", "manual"],
     labelLanguages: ["pt"],
     foodAuthorities: ["ANVISA", "MAPA"],
-    complianceFrameworks: ["BPF", "HACCP", "rotulagem ANVISA"],
+    complianceFrameworks: ["ANVISA", "SIF", "HACCP"],
     traceabilityFields: ["lote", "validade", "registro", "fabricante"],
+    labelSystem: "br_anvisa",
   },
   MX: {
     code: "MX",
@@ -159,8 +174,9 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     billingProviders: ["mercadopago", "stripe", "paypal", "manual"],
     labelLanguages: ["es"],
     foodAuthorities: ["COFEPRIS", "SENASICA"],
-    complianceFrameworks: ["NOM", "HACCP", "BPM"],
+    complianceFrameworks: ["NOM-051", "COFEPRIS", "HACCP"],
     traceabilityFields: ["lote", "caducidad", "registro", "fabricante"],
+    labelSystem: "mx_nom051",
   },
   CO: {
     code: "CO",
@@ -187,6 +203,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
       "registro sanitario",
       "fabricante",
     ],
+    labelSystem: null,
   },
   PE: {
     code: "PE",
@@ -208,6 +225,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["DIGESA", "SENASA"],
     complianceFrameworks: ["BPM", "HACCP", "rotulado DIGESA"],
     traceabilityFields: ["lote", "vencimiento", "registro sanitario", "origen"],
+    labelSystem: null,
   },
   US: {
     code: "US",
@@ -227,13 +245,9 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     billingProviders: ["stripe", "paypal", "manual"],
     labelLanguages: ["en", "es"],
     foodAuthorities: ["FDA", "USDA"],
-    complianceFrameworks: [
-      "FSMA",
-      "HACCP",
-      "GMP",
-      "FDA Food Traceability Rule",
-    ],
+    complianceFrameworks: ["FDA", "FSMA", "HACCP"],
     traceabilityFields: ["lot", "expiration", "facility", "TLC", "CTE", "KDE"],
+    labelSystem: "us_fda",
   },
   CA: {
     code: "CA",
@@ -255,6 +269,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["CFIA", "Health Canada"],
     complianceFrameworks: ["SFCR", "HACCP", "PCP"],
     traceabilityFields: ["lot", "expiry", "establishment", "origin"],
+    labelSystem: null,
   },
   ES: {
     code: "ES",
@@ -274,8 +289,9 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     billingProviders: ["stripe", "paypal", "manual"],
     labelLanguages: ["es"],
     foodAuthorities: ["AESAN", "AICA"],
-    complianceFrameworks: ["EU 178/2002", "HACCP", "APPCC", "IFS", "BRCGS"],
+    complianceFrameworks: ["RGSEAA", "Reg UE 1169/2011", "APPCC"],
     traceabilityFields: ["lote", "caducidad", "registro sanitario", "origen"],
+    labelSystem: "eu_nutriscore",
   },
   PT: {
     code: "PT",
@@ -297,6 +313,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["ASAE", "DGAV"],
     complianceFrameworks: ["EU 178/2002", "HACCP", "IFS", "BRCGS"],
     traceabilityFields: ["lote", "validade", "registo", "origem"],
+    labelSystem: "eu_nutriscore",
   },
   IT: {
     code: "IT",
@@ -318,6 +335,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["Ministero della Salute", "NAS"],
     complianceFrameworks: ["EU 178/2002", "HACCP", "IFS", "BRCGS"],
     traceabilityFields: ["lotto", "scadenza", "stabilimento", "origine"],
+    labelSystem: null,
   },
   FR: {
     code: "FR",
@@ -339,6 +357,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["DGAL", "ANSES"],
     complianceFrameworks: ["EU 178/2002", "HACCP", "IFS", "BRCGS"],
     traceabilityFields: ["lot", "DLC/DDM", "etablissement", "origine"],
+    labelSystem: "eu_nutriscore",
   },
   DE: {
     code: "DE",
@@ -360,6 +379,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["BVL", "BfR"],
     complianceFrameworks: ["EU 178/2002", "HACCP", "IFS", "BRCGS"],
     traceabilityFields: ["charge", "mhd", "betrieb", "herkunft"],
+    labelSystem: "eu_nutriscore",
   },
   GB: {
     code: "GB",
@@ -381,6 +401,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["FSA", "Food Standards Scotland"],
     complianceFrameworks: ["UK Food Law", "HACCP", "SALSA", "BRCGS"],
     traceabilityFields: ["lot", "use by", "establishment", "origin"],
+    labelSystem: null,
   },
   AU: {
     code: "AU",
@@ -402,6 +423,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["FSANZ", "DAFF"],
     complianceFrameworks: ["Food Standards Code", "HACCP", "SQF"],
     traceabilityFields: ["lot", "best before", "facility", "origin"],
+    labelSystem: null,
   },
   NZ: {
     code: "NZ",
@@ -423,6 +445,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["MPI"],
     complianceFrameworks: ["Food Act", "HACCP", "RMP"],
     traceabilityFields: ["lot", "best before", "facility", "origin"],
+    labelSystem: null,
   },
   ZA: {
     code: "ZA",
@@ -444,6 +467,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["DALRRD", "SAHPRA"],
     complianceFrameworks: ["Foodstuffs Act", "HACCP", "FSSC 22000"],
     traceabilityFields: ["lot", "best before", "facility", "origin"],
+    labelSystem: null,
   },
   JP: {
     code: "JP",
@@ -465,6 +489,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["MHLW", "CAA Japan"],
     complianceFrameworks: ["Food Sanitation Act", "HACCP"],
     traceabilityFields: ["lot", "expiry", "facility", "origin"],
+    labelSystem: null,
   },
   KR: {
     code: "KR",
@@ -486,6 +511,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["MFDS"],
     complianceFrameworks: ["Food Sanitation Act", "HACCP"],
     traceabilityFields: ["lot", "expiry", "facility", "origin"],
+    labelSystem: null,
   },
   CN: {
     code: "CN",
@@ -507,6 +533,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["SAMR", "GACC"],
     complianceFrameworks: ["Food Safety Law", "GB standards", "HACCP"],
     traceabilityFields: ["lot", "expiry", "manufacturer", "origin"],
+    labelSystem: null,
   },
   IN: {
     code: "IN",
@@ -528,6 +555,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["FSSAI"],
     complianceFrameworks: ["FSS Act", "HACCP", "FSSAI licensing"],
     traceabilityFields: ["lot", "best before", "license", "origin"],
+    labelSystem: null,
   },
   SG: {
     code: "SG",
@@ -549,6 +577,7 @@ export const COUNTRY_PROFILES: Record<CountryCode, CountryProfile> = {
     foodAuthorities: ["SFA"],
     complianceFrameworks: ["Food Regulations", "HACCP", "SS 590"],
     traceabilityFields: ["lot", "expiry", "license", "origin"],
+    labelSystem: null,
   },
 };
 

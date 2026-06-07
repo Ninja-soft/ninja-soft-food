@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { getCountryProfile } from "@/lib/globalization/countries";
 import { getTenantId } from "@/lib/utils/tenant";
 
 // Datos de origen para planillas PDF y resúmenes Excel. Toda lectura respeta el
@@ -13,6 +14,10 @@ export type TenantBranding = {
   logoUrl: string | null;
   cuit: string | null;
   address: string | null;
+  /** Locale del tenant (operating profile) para formatear fechas/números en PDFs/Excel. */
+  locale: string;
+  /** Moneda del tenant (operating profile), ISO 4217. */
+  currency: string;
 };
 
 export async function getTenantBranding(): Promise<TenantBranding> {
@@ -21,7 +26,7 @@ export async function getTenantBranding(): Promise<TenantBranding> {
   const { data, error } = await supabase
     .from("tenants")
     .select(
-      "name, cuit, branding:tenant_branding(legal_name, logo_url, cuit, address)",
+      "name, cuit, country, branding:tenant_branding(legal_name, logo_url, cuit, address)",
     )
     .eq("id", tenantId)
     .single();
@@ -34,12 +39,26 @@ export async function getTenantBranding(): Promise<TenantBranding> {
     cuit: string | null;
     address: string | null;
   } | null;
+
+  // Locale/currency salen del operating profile del tenant; si no está cargado,
+  // caemos al perfil de país (lib/globalization). NUNCA hardcodear es-AR.
+  const { data: opProfile } = await supabase
+    .from("tenant_operating_profiles")
+    .select("locale, currency")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  const countryFallback = getCountryProfile(
+    (data as { country?: string | null }).country,
+  );
+
   return {
     name: data.name,
     legalName: branding?.legal_name ?? null,
     logoUrl: branding?.logo_url ?? null,
     cuit: branding?.cuit ?? data.cuit ?? null,
     address: branding?.address ?? null,
+    locale: opProfile?.locale ?? countryFallback.locale,
+    currency: opProfile?.currency ?? countryFallback.currency,
   };
 }
 

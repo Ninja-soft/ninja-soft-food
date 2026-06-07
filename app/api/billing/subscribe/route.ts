@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getBillingProvider } from "@/lib/billing";
+import { getBillingProvider, resolvePlanPrice } from "@/lib/billing";
+import { getCountryProfile } from "@/lib/globalization/countries";
 import type { Database } from "@/types/database";
 
 // =============================================================================
@@ -54,23 +55,47 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
+  // Moneda del tenant: la resuelve el operating profile (perfil global). Si el
+  // perfil no está cargado, caemos al perfil de país del tenant (lib/globalization).
+  // El provider de billing NO lee DB: la moneda viaja como parámetro ya resuelto.
+  const { data: opProfile } = await supabase
+    .from("tenant_operating_profiles")
+    .select("currency")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  let tenantCurrency = opProfile?.currency ?? "";
+  if (!tenantCurrency) {
+    const { data: tenantRow } = await supabase
+      .from("tenants")
+      .select("country")
+      .eq("id", tenantId)
+      .maybeSingle();
+    tenantCurrency = getCountryProfile(tenantRow?.country).currency;
+  }
+
   // Plan + precio. Enterprise es "a medida": no se cobra self-service.
   const { data: plan } = await supabase
     .from("plans")
-    .select("id, key, name, monthly_price_ars, yearly_price_ars")
+    .select(
+      "id, key, name, monthly_price_ars, yearly_price_ars, monthly_price_usd",
+    )
     .eq("key", planKey)
     .eq("is_active", true)
     .maybeSingle();
   if (!plan) {
     return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
   }
-  const amount = cycle === "yearly" ? plan.yearly_price_ars : plan.monthly_price_ars;
-  if (!amount || amount <= 0) {
+
+  // Resolución pura: moneda + monto según la moneda del tenant (ARS → precio
+  // ARS, otra → precio USD como fallback documentado hasta Fase 5).
+  const resolved = resolvePlanPrice(plan, cycle, tenantCurrency);
+  if (!resolved) {
     return NextResponse.json(
       { error: "plan_not_self_service" },
       { status: 400 },
     );
   }
+  const { amount, currency } = resolved;
 
   const payerEmail = user.email;
   if (!payerEmail) {
@@ -87,6 +112,7 @@ export async function POST(req: Request) {
       planKey: plan.key,
       planName: plan.name,
       amount,
+      currency,
       cycle,
       payerEmail,
       backUrl: `${appUrl}/configuracion?billing=return`,
@@ -125,6 +151,7 @@ export async function POST(req: Request) {
       plan: plan.key,
       cycle,
       amount,
+      currency,
     },
   });
 

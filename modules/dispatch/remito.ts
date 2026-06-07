@@ -1,5 +1,4 @@
-import { format, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
+import { parseISO } from "date-fns";
 import {
   createPlanillaDoc,
   downloadPdf,
@@ -18,20 +17,35 @@ import type { DispatchDetail } from "./api";
 // estética de marca Ninja Food. Toda la generación vive acá, nunca en componentes.
 // Español rioplatense.
 
-function fmtDate(value: string | null | undefined): string {
-  if (!value) return "-";
-  try {
-    return format(parseISO(value), "dd/MM/yyyy", { locale: es });
-  } catch {
-    return "-";
-  }
-}
+// Formatters por locale del tenant (operating profile, branding.locale). NUNCA
+// hardcodear es-AR: el remito de un tenant de México se imprime con es-MX.
+type Formatters = {
+  fmtDate: (value: string | null | undefined) => string;
+  fmtNum: (value: number | null | undefined, maxFrac?: number) => string;
+};
 
-function fmtNum(value: number | null | undefined, maxFrac = 3): string {
-  if (value === null || value === undefined) return "-";
-  return new Intl.NumberFormat("es-AR", {
-    maximumFractionDigits: maxFrac,
-  }).format(value);
+function makeFormatters(locale: string): Formatters {
+  const dateFmt = new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  return {
+    fmtDate(value) {
+      if (!value) return "-";
+      try {
+        return dateFmt.format(parseISO(value));
+      } catch {
+        return "-";
+      }
+    },
+    fmtNum(value, maxFrac = 3) {
+      if (value === null || value === undefined) return "-";
+      return new Intl.NumberFormat(locale, {
+        maximumFractionDigits: maxFrac,
+      }).format(value);
+    },
+  };
 }
 
 function tenantToMeta(
@@ -93,6 +107,7 @@ export async function generateRemito(
   dispatch: DispatchDetail,
   branding: TenantBranding
 ): Promise<void> {
+  const { fmtDate, fmtNum } = makeFormatters(branding.locale);
   const meta = tenantToMeta(
     branding,
     "Remito de despacho",

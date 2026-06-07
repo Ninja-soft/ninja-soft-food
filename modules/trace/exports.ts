@@ -1,5 +1,4 @@
-import { format, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
+import { parseISO } from "date-fns";
 import {
   createPlanillaDoc,
   downloadPdf,
@@ -51,22 +50,39 @@ export type RecallExportData = {
   totalDispatchedKg: number;
 };
 
-// ── Helpers de formato es-AR ──────────────────────────────────────────────────
+// ── Helpers de formato por locale del tenant ─────────────────────────────────
+// El locale viaja como parámetro desde el caller (operating profile del tenant);
+// NUNCA se hardcodea es-AR. Default es-AR solo como red de seguridad histórica
+// (los callers de la app siempre pasan el locale real).
+const DEFAULT_LOCALE = "es-AR";
 
-function fmtDate(value: string | null | undefined): string {
-  if (!value) return "-";
-  try {
-    return format(parseISO(value), "dd/MM/yyyy", { locale: es });
-  } catch {
-    return "-";
-  }
-}
+type Formatters = {
+  fmtDate: (value: string | null | undefined) => string;
+  fmtNum: (value: number | null | undefined, maxFrac?: number) => string;
+};
 
-function fmtNum(value: number | null | undefined, maxFrac = 3): string {
-  if (value === null || value === undefined) return "-";
-  return new Intl.NumberFormat("es-AR", {
-    maximumFractionDigits: maxFrac,
-  }).format(value);
+function makeFormatters(locale: string = DEFAULT_LOCALE): Formatters {
+  const dateFmt = new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  return {
+    fmtDate(value) {
+      if (!value) return "-";
+      try {
+        return dateFmt.format(parseISO(value));
+      } catch {
+        return "-";
+      }
+    },
+    fmtNum(value, maxFrac = 3) {
+      if (value === null || value === undefined) return "-";
+      return new Intl.NumberFormat(locale, {
+        maximumFractionDigits: maxFrac,
+      }).format(value);
+    },
+  };
 }
 
 function dispatchFlag(d: TraceDispatch): string {
@@ -84,7 +100,11 @@ function contactLine(c: AffectedCustomer): string {
 
 // ── Aplanado desde forward / backward al modelo de export ─────────────────────
 
-export function forwardToExport(trace: ForwardTrace): RecallExportData {
+export function forwardToExport(
+  trace: ForwardTrace,
+  locale?: string,
+): RecallExportData {
+  const { fmtDate, fmtNum } = makeFormatters(locale);
   const chain: ChainRow[] = [];
   for (const p of trace.productions) {
     if (p.dispatches.length === 0) {
@@ -142,7 +162,11 @@ export function forwardToExport(trace: ForwardTrace): RecallExportData {
   };
 }
 
-export function backwardToExport(trace: BackwardTrace): RecallExportData {
+export function backwardToExport(
+  trace: BackwardTrace,
+  locale?: string,
+): RecallExportData {
+  const { fmtDate, fmtNum } = makeFormatters(locale);
   const chain: ChainRow[] = trace.dispatches.map((d) => ({
     origin: trace.production.recipeTitle,
     originLot: trace.production.productLotNumber ?? "-",
@@ -186,7 +210,11 @@ export function backwardToExport(trace: BackwardTrace): RecallExportData {
 
 // ── Export Excel (clientes afectados + detalle de cadena) ──────────────────────
 
-export async function exportRecallExcel(data: RecallExportData): Promise<void> {
+export async function exportRecallExcel(
+  data: RecallExportData,
+  locale?: string,
+): Promise<void> {
+  const { fmtNum } = makeFormatters(locale);
   const subtitle = `Lote ${data.affectedLot} (${data.affectedType}) · ${data.affectedLabel} · ${fmtNum(
     data.totalDispatchedKg,
   )} kg despachados`;
@@ -273,6 +301,7 @@ export function generateRecallPdf(
   data: RecallExportData,
   branding: TenantBranding,
 ): void {
+  const { fmtDate, fmtNum } = makeFormatters(branding.locale);
   const meta: PlanillaMeta = {
     title: "Acta de recall / retiro de mercado",
     tenantName: branding.legalName || branding.name,

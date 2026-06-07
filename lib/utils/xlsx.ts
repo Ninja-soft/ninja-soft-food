@@ -3,7 +3,10 @@ import ExcelJS from "exceljs";
 // Excel-first (CLAUDE.md §9): helper genérico de export con exceljs.
 // Estética del design system: header oscuro verde marca + texto blanco bold,
 // bordes sutiles, freeze del header, autofilter, zebra striping suave y fila de
-// título opcional con merge. Formato es-AR (fechas dd/mm/yyyy, decimales coma).
+// título opcional con merge. Los numFmt son códigos de formato de Excel: el
+// separador de miles/decimal lo resuelve Excel según el locale de quien abre el
+// archivo (no se hardcodea un locale acá). Los strings ya formateados por locale
+// del tenant los producen los generators con Intl antes de llegar acá.
 // Port de la convención del POS (lib/utils/xlsx.ts) adaptado a Ninja Food.
 
 export type XlsxColumnFormat =
@@ -41,7 +44,7 @@ const BORDER = "FFD8E2D6";
 function numFmtFor(format?: XlsxColumnFormat): string | undefined {
   switch (format) {
     case "currency":
-      // es-AR: separador de miles "." y decimal ","
+      // Excel resuelve el separador de miles/decimal según el locale del lector.
       return '#.##0,00 "$"';
     case "number":
       return "#.##0,###";

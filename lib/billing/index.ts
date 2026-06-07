@@ -10,6 +10,8 @@ import type { BillingProvider, ProviderKey } from "./types";
 // =============================================================================
 
 export * from "./types";
+export { resolvePlanPrice } from "./pricing";
+export type { PlanPrices, ResolvedPrice } from "./pricing";
 export { mapPreapprovalStatus, verifyMpSignature } from "./mercadopago";
 
 const PROVIDERS: Partial<Record<ProviderKey, BillingProvider>> = {

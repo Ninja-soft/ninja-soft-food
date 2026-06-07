@@ -89,6 +89,12 @@ describe.skipIf(!RLS_ENABLED)("RLS multi-tenant isolation (cloud)", () => {
     // Cleanup best-effort con service role (bypassa RLS). Borra filas rlstest-.
     if (!admin) return;
     const cleanupOrder = [
+      "manual_payments",
+      "internal_notes",
+      "subscription_invoices",
+      "subscription_addons",
+      "tenant_flags",
+      "regulatory_permits",
       "api_keys",
       "outbound_webhooks",
       "dispatch_items",
@@ -1200,6 +1206,549 @@ describe.skipIf(!RLS_ENABLED)("RLS multi-tenant isolation (cloud)", () => {
         });
         expect(error).toBeNull();
         expect(gone).toBeNull();
+      },
+      TEST_TIMEOUT
+    );
+  });
+
+  // ── 5d. compliance_engine: regulatory_permits (migración 0013) ──────────────
+  //
+  // Tabla genérica de permisos regulatorios. Mientras 0013 NO esté en cloud
+  // (pendiente para `supabase db push`), cada caso se SKIPEA al detectar que la
+  // tabla no existe (no se marca verde). Patrón form_builder / public_api.
+  describe("compliance_engine (regulatory_permits, migración 0013)", () => {
+    let permitAId: string | null = null;
+
+    /** true si el error indica que 0013 todavía no está aplicada en cloud. */
+    function isMissingComplianceEngine(err: {
+      code?: string;
+      message?: string;
+    } | null): boolean {
+      if (!err) return false;
+      return (
+        err.code === "PGRST205" || // tabla no en el schema cache
+        err.code === "42P01" || // undefined_table
+        /regulatory_permits|schema cache|does not exist|not found/i.test(
+          err.message ?? ""
+        )
+      );
+    }
+
+    test(
+      "A crea un permit; A lo lee; B no lo ve; staff sí (internal_read)",
+      async (ctx) => {
+        const { data, error } = await tenantA.client
+          .from("regulatory_permits")
+          .insert({
+            tenant_id: tenantA.tenantId,
+            entity_type: "tenant",
+            entity_id: tenantA.tenantId,
+            permit_type: "rne",
+            permit_number: `${RUN_PREFIX}-RNE-001`,
+            expires_at: "2027-01-01",
+          })
+          .select("id")
+          .single();
+
+        if (isMissingComplianceEngine(error)) {
+          console.warn(
+            "regulatory_permits no está en cloud (migración 0013 pendiente): " +
+              error!.message
+          );
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+        permitAId = data!.id;
+
+        // A lo lee.
+        const { data: aSee } = await tenantA.client
+          .from("regulatory_permits")
+          .select("id")
+          .eq("id", permitAId!);
+        expect(aSee).toHaveLength(1);
+
+        // B no lo ve.
+        const { data: bSee } = await tenantB.client
+          .from("regulatory_permits")
+          .select("id")
+          .eq("id", permitAId!);
+        expect(bSee ?? []).toEqual([]);
+
+        // staff sí (internal_read).
+        const { data: staffSee } = await staffClient
+          .from("regulatory_permits")
+          .select("id, tenant_id")
+          .eq("id", permitAId!);
+        expect(staffSee).toHaveLength(1);
+        expect(staffSee![0].tenant_id).toBe(tenantA.tenantId);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "B NO puede actualizar ni borrar el permit de A",
+      async (ctx) => {
+        if (!permitAId) {
+          ctx.skip();
+          return;
+        }
+        const { data: upd, error: updErr } = await tenantB.client
+          .from("regulatory_permits")
+          .update({ permit_number: `${RUN_PREFIX}-hacked` })
+          .eq("id", permitAId!)
+          .select("id");
+        expect(updErr ? true : (upd ?? []).length === 0).toBe(true);
+
+        const { data: del, error: delErr } = await tenantB.client
+          .from("regulatory_permits")
+          .delete()
+          .eq("id", permitAId!)
+          .select("id");
+        expect(delErr ? true : (del ?? []).length === 0).toBe(true);
+
+        // El permit de A quedó intacto.
+        const { data: still } = await tenantA.client
+          .from("regulatory_permits")
+          .select("id, permit_number")
+          .eq("id", permitAId!)
+          .single();
+        expect(still?.id).toBe(permitAId);
+        expect(still?.permit_number).toBe(`${RUN_PREFIX}-RNE-001`);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "staff NO puede actualizar el permit de A (internal_read es solo SELECT)",
+      async (ctx) => {
+        if (!permitAId) {
+          ctx.skip();
+          return;
+        }
+        const { data, error } = await staffClient
+          .from("regulatory_permits")
+          .update({ permit_number: `${RUN_PREFIX}-staff-hack` })
+          .eq("id", permitAId!)
+          .select("id");
+        expect(error ? true : (data ?? []).length === 0).toBe(true);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "anon NO lee regulatory_permits (sin policy)",
+      async (ctx) => {
+        if (!permitAId) {
+          ctx.skip();
+          return;
+        }
+        const { data, error } = await anonClient()
+          .from("regulatory_permits")
+          .select("id")
+          .eq("id", permitAId!);
+        expect(error).toBeNull();
+        expect(data ?? []).toEqual([]);
+      },
+      TEST_TIMEOUT
+    );
+  });
+
+  // ── 5e. saas_console: consola interna SaaS (migración 0014) ─────────────────
+  //
+  // Tablas de cobro/cortesía, add-ons, flags por tenant, notas internas,
+  // facturas y settings de plataforma. Mientras 0014 NO esté en cloud
+  // (pendiente para `supabase db push`), cada caso se SKIPEA al detectar que la
+  // tabla no existe (no se marca verde). Patrón compliance_engine.
+  //
+  // RLS esperada:
+  //   - manual_payments / internal_notes / internal_settings: SOLO staff lee,
+  //     el tenant NO las ve (ni siquiera las propias).
+  //   - subscription_addons / tenant_flags / subscription_invoices: el tenant
+  //     ve las propias, A no ve las de B, staff lee, writes service_role.
+  //   - anon no lee nada.
+  describe("saas_console (consola interna, migración 0014)", () => {
+    let addonAId: string | null = null;
+    let flagAId: string | null = null;
+    let invoiceAId: string | null = null;
+
+    /** true si el error indica que 0014 todavía no está aplicada en cloud. */
+    function isMissingSaasConsole(err: {
+      code?: string;
+      message?: string;
+    } | null): boolean {
+      if (!err) return false;
+      return (
+        err.code === "PGRST205" || // tabla no en el schema cache
+        err.code === "42P01" || // undefined_table
+        /manual_payments|subscription_addons|tenant_flags|internal_notes|subscription_invoices|internal_settings|plan_addons|schema cache|does not exist|not found/i.test(
+          err.message ?? ""
+        )
+      );
+    }
+
+    // — Tablas SOLO staff: el tenant NO las ve, ni las propias —
+
+    test(
+      "manual_payments: invisible para el tenant; solo staff lee (service_role escribe)",
+      async (ctx) => {
+        const { data, error } = await admin
+          .from("manual_payments")
+          .insert({
+            tenant_id: tenantA.tenantId,
+            amount: 50000,
+            currency: "ARS",
+            method: "transfer",
+            paid_at: "2026-06-01",
+            period_months: 1,
+            reference: `${RUN_PREFIX}-transfer`,
+          })
+          .select("id")
+          .single();
+
+        if (isMissingSaasConsole(error)) {
+          console.warn(
+            "manual_payments no está en cloud (migración 0014 pendiente): " +
+              error!.message
+          );
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+        const paymentId = data!.id;
+
+        // El propio tenant A NO la ve (tabla solo-staff).
+        const { data: aSee } = await tenantA.client
+          .from("manual_payments")
+          .select("id")
+          .eq("id", paymentId);
+        expect(aSee ?? []).toEqual([]);
+
+        // B tampoco.
+        const { data: bSee } = await tenantB.client
+          .from("manual_payments")
+          .select("id")
+          .eq("id", paymentId);
+        expect(bSee ?? []).toEqual([]);
+
+        // staff sí (internal_read).
+        const { data: staffSee } = await staffClient
+          .from("manual_payments")
+          .select("id, tenant_id")
+          .eq("id", paymentId);
+        expect(staffSee).toHaveLength(1);
+        expect(staffSee![0].tenant_id).toBe(tenantA.tenantId);
+
+        // El tenant NO puede insertar (sin policy de write para authenticated).
+        const { error: insErr } = await tenantA.client
+          .from("manual_payments")
+          .insert({
+            tenant_id: tenantA.tenantId,
+            amount: 1,
+            method: "cash",
+            paid_at: "2026-06-02",
+          });
+        expect(insErr).not.toBeNull();
+
+        await admin.from("manual_payments").delete().eq("id", paymentId);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "internal_notes: invisible para el tenant; solo staff lee",
+      async (ctx) => {
+        const { data, error } = await admin
+          .from("internal_notes")
+          .insert({
+            tenant_id: tenantA.tenantId,
+            author_id: staff.userId,
+            body: `${RUN_PREFIX} nota interna`,
+          })
+          .select("id")
+          .single();
+
+        if (isMissingSaasConsole(error)) {
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+        const noteId = data!.id;
+
+        // A (dueño del tenant) NO la ve.
+        const { data: aSee } = await tenantA.client
+          .from("internal_notes")
+          .select("id")
+          .eq("id", noteId);
+        expect(aSee ?? []).toEqual([]);
+
+        // staff sí.
+        const { data: staffSee } = await staffClient
+          .from("internal_notes")
+          .select("id, tenant_id")
+          .eq("id", noteId);
+        expect(staffSee).toHaveLength(1);
+        expect(staffSee![0].tenant_id).toBe(tenantA.tenantId);
+
+        await admin.from("internal_notes").delete().eq("id", noteId);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "internal_settings: invisible para el tenant; solo staff lee",
+      async (ctx) => {
+        const settingKey = `${RUN_PREFIX}-setting`;
+        const { error } = await admin
+          .from("internal_settings")
+          .insert({ key: settingKey, value: { enabled: true } });
+
+        if (isMissingSaasConsole(error)) {
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+
+        // El tenant NO ve settings de plataforma.
+        const { data: aSee } = await tenantA.client
+          .from("internal_settings")
+          .select("key")
+          .eq("key", settingKey);
+        expect(aSee ?? []).toEqual([]);
+
+        // staff sí.
+        const { data: staffSee } = await staffClient
+          .from("internal_settings")
+          .select("key")
+          .eq("key", settingKey);
+        expect(staffSee).toHaveLength(1);
+
+        await admin.from("internal_settings").delete().eq("key", settingKey);
+      },
+      TEST_TIMEOUT
+    );
+
+    // — Tablas que el tenant ve: A ve las propias, no las de B; staff lee —
+
+    test(
+      "subscription_addons: A ve el suyo; B no; staff sí; writes service_role",
+      async (ctx) => {
+        const { data, error } = await admin
+          .from("subscription_addons")
+          .insert({
+            tenant_id: tenantA.tenantId,
+            addon_key: "ai",
+            status: "active",
+            source: "granted",
+          })
+          .select("id")
+          .single();
+
+        if (isMissingSaasConsole(error)) {
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+        addonAId = data!.id;
+
+        // A ve su add-on (necesita saber si tiene IA).
+        const { data: aSee } = await tenantA.client
+          .from("subscription_addons")
+          .select("id, addon_key")
+          .eq("id", addonAId!);
+        expect(aSee).toHaveLength(1);
+        expect(aSee![0].addon_key).toBe("ai");
+
+        // B no lo ve.
+        const { data: bSee } = await tenantB.client
+          .from("subscription_addons")
+          .select("id")
+          .eq("id", addonAId!);
+        expect(bSee ?? []).toEqual([]);
+
+        // staff sí.
+        const { data: staffSee } = await staffClient
+          .from("subscription_addons")
+          .select("id, tenant_id")
+          .eq("id", addonAId!);
+        expect(staffSee).toHaveLength(1);
+        expect(staffSee![0].tenant_id).toBe(tenantA.tenantId);
+
+        // El tenant NO puede escribir (sin policy write para authenticated).
+        const { error: insErr } = await tenantA.client
+          .from("subscription_addons")
+          .insert({ tenant_id: tenantA.tenantId, addon_key: "ai" });
+        expect(insErr).not.toBeNull();
+
+        const { data: upd, error: updErr } = await tenantA.client
+          .from("subscription_addons")
+          .update({ status: "cancelled" })
+          .eq("id", addonAId!)
+          .select("id");
+        expect(updErr ? true : (upd ?? []).length === 0).toBe(true);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "tenant_flags: A ve el suyo; B no; staff sí; writes service_role",
+      async (ctx) => {
+        const { data, error } = await admin
+          .from("tenant_flags")
+          .insert({
+            tenant_id: tenantA.tenantId,
+            flag: "ai_enabled",
+            enabled: true,
+            set_by: staff.userId,
+          })
+          .select("id")
+          .single();
+
+        if (isMissingSaasConsole(error)) {
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+        flagAId = data!.id;
+
+        // A ve su flag.
+        const { data: aSee } = await tenantA.client
+          .from("tenant_flags")
+          .select("id, flag, enabled")
+          .eq("id", flagAId!);
+        expect(aSee).toHaveLength(1);
+        expect(aSee![0].flag).toBe("ai_enabled");
+
+        // B no.
+        const { data: bSee } = await tenantB.client
+          .from("tenant_flags")
+          .select("id")
+          .eq("id", flagAId!);
+        expect(bSee ?? []).toEqual([]);
+
+        // staff sí.
+        const { data: staffSee } = await staffClient
+          .from("tenant_flags")
+          .select("id, tenant_id")
+          .eq("id", flagAId!);
+        expect(staffSee).toHaveLength(1);
+
+        // A no puede pisar su propio flag (writes solo service_role).
+        const { data: upd, error: updErr } = await tenantA.client
+          .from("tenant_flags")
+          .update({ enabled: false })
+          .eq("id", flagAId!)
+          .select("id");
+        expect(updErr ? true : (upd ?? []).length === 0).toBe(true);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "subscription_invoices: A ve la suya; B no; staff sí; writes service_role",
+      async (ctx) => {
+        const { data, error } = await admin
+          .from("subscription_invoices")
+          .insert({
+            tenant_id: tenantA.tenantId,
+            number: `${RUN_PREFIX}-INV-0001`,
+            amount: 69000,
+            currency: "ARS",
+            status: "issued",
+            issued_at: "2026-06-01",
+          })
+          .select("id")
+          .single();
+
+        if (isMissingSaasConsole(error)) {
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+        invoiceAId = data!.id;
+
+        // A ve su factura.
+        const { data: aSee } = await tenantA.client
+          .from("subscription_invoices")
+          .select("id, number")
+          .eq("id", invoiceAId!);
+        expect(aSee).toHaveLength(1);
+
+        // B no.
+        const { data: bSee } = await tenantB.client
+          .from("subscription_invoices")
+          .select("id")
+          .eq("id", invoiceAId!);
+        expect(bSee ?? []).toEqual([]);
+
+        // staff sí.
+        const { data: staffSee } = await staffClient
+          .from("subscription_invoices")
+          .select("id, tenant_id")
+          .eq("id", invoiceAId!);
+        expect(staffSee).toHaveLength(1);
+        expect(staffSee![0].tenant_id).toBe(tenantA.tenantId);
+
+        // A no puede emitir/borrar facturas (writes solo service_role).
+        const { error: insErr } = await tenantA.client
+          .from("subscription_invoices")
+          .insert({
+            tenant_id: tenantA.tenantId,
+            number: `${RUN_PREFIX}-INV-FAKE`,
+            amount: 1,
+            currency: "ARS",
+            issued_at: "2026-06-02",
+          });
+        expect(insErr).not.toBeNull();
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "plan_addons: catálogo legible por authenticated; anon no",
+      async (ctx) => {
+        const { data: aSee, error } = await tenantA.client
+          .from("plan_addons")
+          .select("key")
+          .eq("key", "ai");
+
+        if (isMissingSaasConsole(error)) {
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+        expect((aSee ?? []).length).toBeGreaterThan(0);
+
+        // anon no lo lee (no es traza pública).
+        const { data: anonSee } = await anonClient()
+          .from("plan_addons")
+          .select("key")
+          .eq("key", "ai");
+        expect(anonSee ?? []).toEqual([]);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "anon NO lee ninguna tabla de la consola interna",
+      async (ctx) => {
+        if (!addonAId && !flagAId && !invoiceAId) {
+          ctx.skip();
+          return;
+        }
+        const anon = anonClient();
+        for (const table of [
+          "manual_payments",
+          "subscription_addons",
+          "tenant_flags",
+          "internal_notes",
+          "subscription_invoices",
+          "internal_settings",
+        ]) {
+          const { data, error } = await anon.from(table).select("*").limit(1);
+          expect(error, `${table} error`).toBeNull();
+          expect(data ?? [], `${table} leak`).toEqual([]);
+        }
       },
       TEST_TIMEOUT
     );

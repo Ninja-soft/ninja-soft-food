@@ -190,6 +190,59 @@ actualiza con throttle de 60s (una escritura por minuto por key, no por request)
 (`revoked_at`) devuelve null. El secreto en claro se genera y muestra una vez en el handler de
 creación (app-side): allí se calcula sha256(secret)→key_hash y se deriva key_prefix.
 
+### Compliance engine (migración 0013)
+
+```
+regulatory_permits    tenant_id, entity_type ('tenant'|'establishment'|'supplier'|'vehicle'|
+                      'recipe'), entity_id, permit_type (catálogo en lib/globalization),
+                      permit_number, issued_at, expires_at, attachment_url, notes + estándar.
+                      Absorbe RNE/RNPA/RUCA/UTA/URA y permisos de cualquier país. Unique parcial
+                      (tenant, entity_type, entity_id, permit_type) entre los no borrados.
+recipes.regulatory_labels        jsonb {"system":"ar_octogonos|mx_nom051|...","values":[...]}.
+tenant_branding.regulatory_seals jsonb [{"type":"abr","enabled":true}]. tenants/suppliers.tax_id.
+```
+
+RLS: `tenant_isolation` + `internal_read`. Columnas viejas (rne_*, rnpa_*, uta_*, ura_*,
+front_labels, sello_abr_enabled, cuit) quedan deprecated hasta drop futuro.
+
+### Consola interna SaaS (migración 0014)
+
+Base de datos de la consola de operación SaaS (Fase 5) + modelo IA add-on (Fase 7). Cubre los
+gaps 2 y 3 de la auditoría.
+
+```
+subscriptions         + billing_mode ('automatic'|'manual'|'comp'), + is_lifetime bool.
+                      (current_period_end ya existía en 0001 — no se duplicó.)
+manual_payments       tenant_id, subscription_id, amount, currency, method ('transfer'|'cash'|
+                      'other'), reference, receipt_url, paid_at, period_months, notes, created_by
+                      (staff) + estándar. SOLO staff lee; tenant NO la ve; writes service_role.
+plan_addons           key PK ('ai' primero), name, description, monthly_price_ars/usd, is_active +
+                      timestamps. Catálogo de lectura pública authenticated (como plans).
+subscription_addons   tenant_id, subscription_id, addon_key→plan_addons, status ('active'|
+                      'cancelled'), source ('purchase'|'included'|'granted'),
+                      provider_subscription_id + estándar. Unique parcial (tenant, addon_key)
+                      activo. El tenant ve los suyos (saber si tiene IA); writes service_role.
+tenant_flags          tenant_id, flag (string libre, ej 'ai_enabled'), enabled, note, set_by +
+                      timestamps, unique(tenant, flag). Independiente del catálogo feature_flags
+                      de 0001. Tenant lee los suyos; writes service_role.
+internal_notes        tenant_id, author_id, body + estándar. CRM del staff: SOLO staff lee;
+                      tenant sin acceso; writes service_role.
+subscription_invoices tenant_id, subscription_id, number, amount, currency, status ('draft'|
+                      'issued'|'paid'|'voided'), issued_at, due_date, pdf_url, external_ref
+                      (CAE/CFDI futuro), notes, created_by + estándar, unique(tenant, number).
+                      El tenant ve las suyas; writes service_role.
+internal_settings     key PK, value jsonb, updated_by, updated_at. Config global de plataforma.
+                      Keys sensibles (API keys de IA, Fase 7) cifradas por la app server-side,
+                      nunca texto plano. SOLO staff lee; writes service_role.
+```
+
+RLS: tablas que el tenant ve (`subscription_addons`, `tenant_flags`, `subscription_invoices`) →
+policy `tenant_read` (solo SELECT, NO `for all`) + `internal_read`; writes nunca por authenticated
+→ service_role desde los route handlers de `/internal`. Tablas solo-staff (`manual_payments`,
+`internal_notes`, `internal_settings`) → solo `internal_read`. `plan_addons` → lectura pública
+authenticated. La tabla se llama `tenant_flags` (no `tenant_feature_flags`) para no chocar con la
+tabla homónima de 0001 ligada al catálogo `feature_flags`.
+
 ---
 
 ## 3. RLS — estrategia

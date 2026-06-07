@@ -17,7 +17,7 @@ describe("scaffolding smoke", () => {
     expect(getCountryProfile("BR").taxIdLabel).toBe("CNPJ");
     expect(getCountryProfile("missing").code).toBe("AR");
     expect(getDefaultOperatingProfile("ES").compliance_frameworks).toContain(
-      "EU 178/2002"
+      "RGSEAA"
     );
   });
 

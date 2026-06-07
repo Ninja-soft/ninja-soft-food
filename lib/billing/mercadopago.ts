@@ -121,6 +121,15 @@ export const mercadopago: BillingProvider = {
       throw new Error("invalid_plan_price");
     }
 
+    // currency_id viaja como parámetro (resuelto por el caller desde el operating
+    // profile del tenant). NO se lee DB acá: este provider es fetch puro.
+    // NOTA: Mercado Pago solo opera la moneda LOCAL del país de la cuenta MP
+    // (una cuenta MP de Argentina cobra en ARS, una de México en MXN, etc.).
+    // Validar que `input.currency` sea compatible con la cuenta MP es
+    // responsabilidad del caller; acá solo lo reenviamos tal cual.
+    const currencyId = input.currency.trim().toUpperCase();
+    if (!currencyId) throw new Error("missing_currency");
+
     const res = await fetch(`${MP_API}/preapproval`, {
       method: "POST",
       headers: authHeaders(),
@@ -132,7 +141,7 @@ export const mercadopago: BillingProvider = {
           frequency: yearly ? 12 : 1,
           frequency_type: "months",
           transaction_amount: amount,
-          currency_id: "ARS",
+          currency_id: currencyId,
         },
         back_url: input.backUrl || undefined,
         notification_url: input.notificationUrl,

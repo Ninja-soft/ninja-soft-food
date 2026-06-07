@@ -249,6 +249,7 @@ Deno.serve(async (req: Request) => {
     const key = String(b.template_key ?? "").trim();
     if (!key) return json({ error: "missing_template_or_html" }, 400);
 
+    // 1) Override por tenant (mas especifico).
     if (tenantId) {
       const { data: tpl } = await admin
         .from("email_templates")
@@ -261,6 +262,20 @@ Deno.serve(async (req: Request) => {
         bodyTpl = String(tpl.html ?? "");
       }
     }
+    // 2) Override GLOBAL de plataforma (system_email_templates, editable desde
+    //    /internal). Se consulta solo si no hubo override por tenant.
+    if (!bodyTpl) {
+      const { data: gtpl } = await admin
+        .from("system_email_templates")
+        .select("subject, html")
+        .eq("key", key)
+        .maybeSingle();
+      if (gtpl && gtpl.html) {
+        subjectTpl = String(gtpl.subject ?? "");
+        bodyTpl = String(gtpl.html ?? "");
+      }
+    }
+    // 3) Default del catalogo en codigo (fallback).
     if (!bodyTpl) {
       const def = DEFAULT_TEMPLATES[key];
       if (!def) return json({ error: "unknown_template", detail: key }, 400);

@@ -25,8 +25,15 @@ export interface CreateSubscriptionInput {
   planKey: string;
   /** Nombre comercial del plan, para el "reason" de la pasarela. */
   planName: string;
-  /** Monto a cobrar por período, en la moneda del ciclo (ARS en MP). */
+  /** Monto a cobrar por período, en la moneda indicada en `currency`. */
   amount: number;
+  /**
+   * Código de moneda ISO 4217 (ARS, MXN, CLP, ...). Lo resuelve el caller desde
+   * el operating profile del tenant (lib/globalization). El provider NO lee DB:
+   * recibe la moneda ya resuelta. Validar que la pasarela soporte la moneda en
+   * el país de la cuenta es responsabilidad del caller (ver nota en el provider).
+   */
+  currency: string;
   cycle: BillingCycle;
   /** Email del pagador (owner del tenant). */
   payerEmail: string;

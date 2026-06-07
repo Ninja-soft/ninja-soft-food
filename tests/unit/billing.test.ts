@@ -12,6 +12,7 @@ import {
   hasFeature,
   type PlanLimits,
 } from "@/lib/billing/limits";
+import { resolvePlanPrice } from "@/lib/billing/pricing";
 
 const SECRET = "test_webhook_secret_123";
 
@@ -254,5 +255,87 @@ describe("parsePlanLimits — jsonb tipado", () => {
     expect(limitFor(limits, "users")).toBeNull();
     expect(hasFeature(limits, "api_access")).toBe(true);
     expect(hasFeature(limits, "white_label")).toBe(false);
+  });
+});
+
+describe("resolvePlanPrice — moneda + monto del preapproval", () => {
+  const prices = {
+    monthly_price_ars: 30000,
+    yearly_price_ars: 300000,
+    monthly_price_usd: 30,
+  };
+
+  it("ARS mensual → precio ARS mensual", () => {
+    expect(resolvePlanPrice(prices, "monthly", "ARS")).toEqual({
+      currency: "ARS",
+      amount: 30000,
+    });
+  });
+
+  it("ARS anual → precio ARS anual", () => {
+    expect(resolvePlanPrice(prices, "yearly", "ARS")).toEqual({
+      currency: "ARS",
+      amount: 300000,
+    });
+  });
+
+  it("MXN (no-ARS) cae a USD como fallback documentado", () => {
+    // MP cobra en la moneda local de la cuenta; el caller valida soporte. Acá
+    // verificamos solo la regla de resolución de precio: no-ARS → USD.
+    expect(resolvePlanPrice(prices, "monthly", "MXN")).toEqual({
+      currency: "USD",
+      amount: 30,
+    });
+  });
+
+  it("no-ARS anual compone USD mensual × 12 (no hay yearly_usd)", () => {
+    expect(resolvePlanPrice(prices, "yearly", "MXN")).toEqual({
+      currency: "USD",
+      amount: 360,
+    });
+  });
+
+  it("normaliza la moneda case-insensitive", () => {
+    expect(resolvePlanPrice(prices, "monthly", "ars")?.currency).toBe("ARS");
+  });
+
+  it("devuelve null si el plan no tiene precio cobrable en la moneda", () => {
+    // Enterprise "a medida": sin precio ARS.
+    const noArs = { ...prices, monthly_price_ars: null, yearly_price_ars: null };
+    expect(resolvePlanPrice(noArs, "monthly", "ARS")).toBeNull();
+    // Tenant no-ARS de un plan sin precio USD cargado.
+    const noUsd = { ...prices, monthly_price_usd: null };
+    expect(resolvePlanPrice(noUsd, "monthly", "MXN")).toBeNull();
+  });
+});
+
+describe("formatters por locale — es-MX vs es-AR", () => {
+  // Verifica que el mismo número/fecha se formatea distinto según el locale del
+  // tenant (operating profile). es-AR y es-MX difieren en separadores.
+  it("número: es-AR usa coma decimal, es-MX usa punto decimal", () => {
+    const value = 1234.5;
+    const ar = new Intl.NumberFormat("es-AR", {
+      maximumFractionDigits: 3,
+    }).format(value);
+    const mx = new Intl.NumberFormat("es-MX", {
+      maximumFractionDigits: 3,
+    }).format(value);
+    expect(ar).toBe("1.234,5");
+    expect(mx).toBe("1,234.5");
+    expect(ar).not.toBe(mx);
+  });
+
+  it("fecha: es-AR y es-MX usan dd/mm/yyyy pero son locales distintos", () => {
+    const d = new Date(Date.UTC(2026, 0, 5));
+    const opts: Intl.DateTimeFormatOptions = {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "UTC",
+    };
+    const ar = new Intl.DateTimeFormat("es-AR", opts).format(d);
+    const mx = new Intl.DateTimeFormat("es-MX", opts).format(d);
+    expect(ar).toBe("05/01/2026");
+    expect(mx).toBe("05/01/2026");
   });
 });

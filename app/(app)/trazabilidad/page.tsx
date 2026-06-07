@@ -215,6 +215,7 @@ function ForwardView({
   onError: () => void;
 }) {
   const { data, isLoading, isError } = useForwardTrace(stockEntryId);
+  const { data: branding } = useTenantBranding();
 
   if (isLoading) return <SpinnerBlock />;
   if (isError || !data) {
@@ -222,11 +223,11 @@ function ForwardView({
     return <ErrorState />;
   }
 
-  const exportData = forwardToExport(data);
+  const exportData = forwardToExport(data, branding?.locale);
 
   return (
     <div className="space-y-6">
-      <ExportBar data={exportData} />
+      <ExportBar data={exportData} locale={branding?.locale} />
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.2fr]">
         {/* Origen */}
         <ChainColumn icon={<Boxes size={16} />} title="Origen · Materia prima">
@@ -327,6 +328,7 @@ function BackwardView({
   onError: () => void;
 }) {
   const { data, isLoading, isError } = useBackwardTrace(productionId);
+  const { data: branding } = useTenantBranding();
 
   if (isLoading) return <SpinnerBlock />;
   if (isError || !data) {
@@ -334,11 +336,11 @@ function BackwardView({
     return <ErrorState />;
   }
 
-  const exportData = backwardToExport(data);
+  const exportData = backwardToExport(data, branding?.locale);
 
   return (
     <div className="space-y-6">
-      <ExportBar data={exportData} />
+      <ExportBar data={exportData} locale={branding?.locale} />
       <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr_1.2fr]">
         {/* Insumos (backward) */}
         <ChainColumn
@@ -599,7 +601,13 @@ function AffectedPanel({
   );
 }
 
-function ExportBar({ data }: { data: RecallExportData }) {
+function ExportBar({
+  data,
+  locale,
+}: {
+  data: RecallExportData;
+  locale?: string;
+}) {
   const { toast } = useToast();
   const { data: branding } = useTenantBranding();
   const [busy, setBusy] = useState(false);
@@ -607,7 +615,7 @@ function ExportBar({ data }: { data: RecallExportData }) {
   async function handleExcel() {
     setBusy(true);
     try {
-      await exportRecallExcel(data);
+      await exportRecallExcel(data, locale);
     } catch {
       toast({ variant: "error", title: "No se pudo exportar el Excel" });
     } finally {

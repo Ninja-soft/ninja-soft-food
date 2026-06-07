@@ -1,6 +1,5 @@
 import QRCode from "qrcode";
 import { format, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
 import {
   createPlanillaDoc,
   downloadPdf,
@@ -24,22 +23,38 @@ import type {
 // `JS/planilla_produccion.js` como referencia de CONTENIDO, con estética Ninja
 // Food). Toda la generación vive acá, nunca en componentes.
 
-// ── Helpers de formato es-AR ─────────────────────────────────────────────────
+// ── Helpers de formato por locale del tenant ─────────────────────────────────
+// El locale sale del operating profile del tenant (branding.locale); NUNCA se
+// hardcodea es-AR. Cada generador crea sus formatters con makeFormatters(locale)
+// y los thread-ea a los renderers.
 
-function fmtDate(value: string | null | undefined): string {
-  if (!value) return "-";
-  try {
-    return format(parseISO(value), "dd/MM/yyyy", { locale: es });
-  } catch {
-    return "-";
-  }
-}
+type Formatters = {
+  fmtDate: (value: string | null | undefined) => string;
+  fmtNum: (value: number | null | undefined, maxFrac?: number) => string;
+};
 
-function fmtNum(value: number | null | undefined, maxFrac = 3): string {
-  if (value === null || value === undefined) return "-";
-  return new Intl.NumberFormat("es-AR", {
-    maximumFractionDigits: maxFrac,
-  }).format(value);
+function makeFormatters(locale: string): Formatters {
+  const dateFmt = new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  return {
+    fmtDate(value) {
+      if (!value) return "-";
+      try {
+        return dateFmt.format(parseISO(value));
+      } catch {
+        return "-";
+      }
+    },
+    fmtNum(value, maxFrac = 3) {
+      if (value === null || value === undefined) return "-";
+      return new Intl.NumberFormat(locale, {
+        maximumFractionDigits: maxFrac,
+      }).format(value);
+    },
+  };
 }
 
 function tenantToMeta(
@@ -102,6 +117,7 @@ function renderProductionPlanilla(
   meta: PlanillaMeta,
   prod: ProductionDetail,
   qr: string | null,
+  { fmtDate, fmtNum }: Formatters,
 ): void {
   let y = startY;
 
@@ -191,9 +207,10 @@ export async function generateProductionPlanilla(
     `Código ${prod.code}`,
   );
   meta.logoUrl = await loadLogoDataUrl(branding.logoUrl);
+  const fmt = makeFormatters(branding.locale);
   const { doc, startY } = createPlanillaDoc(meta);
   const qr = prod.trace_slug ? await qrDataUrl(prod.trace_slug) : null;
-  renderProductionPlanilla(doc, startY, meta, prod, qr);
+  renderProductionPlanilla(doc, startY, meta, prod, qr, fmt);
   finalizePdf(doc);
   downloadPdf(doc, `planilla-${prod.code}`);
 }
@@ -205,6 +222,7 @@ export async function generateBulkProductionPlanillas(
   branding: TenantBranding,
 ): Promise<void> {
   if (productions.length === 0) return;
+  const fmt = makeFormatters(branding.locale);
   const logoDataUrl = await loadLogoDataUrl(branding.logoUrl);
   const baseMeta = tenantToMeta(branding, "Planilla de producción");
   baseMeta.logoUrl = logoDataUrl;
@@ -225,7 +243,7 @@ export async function generateBulkProductionPlanillas(
       drawHeader(doc, meta);
     }
     const qr = prod.trace_slug ? await qrDataUrl(prod.trace_slug) : null;
-    renderProductionPlanilla(doc, pageStartY, meta, prod, qr);
+    renderProductionPlanilla(doc, pageStartY, meta, prod, qr, fmt);
   }
 
   finalizePdf(doc);
@@ -239,6 +257,7 @@ export function generateWeeklyProductionPlanilla(
   range: { from: string; to: string },
   branding: TenantBranding,
 ): void {
+  const { fmtDate, fmtNum } = makeFormatters(branding.locale);
   const subtitle = `${fmtDate(range.from)} al ${fmtDate(range.to)} · ${rows.length} producciones`;
   const meta = tenantToMeta(branding, "Resumen de producción", subtitle);
   const { doc, startY } = createPlanillaDoc(meta);
@@ -292,6 +311,7 @@ export function generateWeeklyStockPlanilla(
   range: { from: string; to: string },
   branding: TenantBranding,
 ): void {
+  const { fmtDate, fmtNum } = makeFormatters(branding.locale);
   const subtitle = `${fmtDate(range.from)} al ${fmtDate(range.to)} · ${rows.length} ingresos`;
   const meta = tenantToMeta(branding, "Resumen de ingresos de stock", subtitle);
   const { doc, startY } = createPlanillaDoc(meta);
