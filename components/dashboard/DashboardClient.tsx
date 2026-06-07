@@ -16,16 +16,19 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { Accent, Display, Eyebrow, Heading, Money } from "@/components/ui/Typography";
+import { buttonVariants } from "@/components/ui/Button";
 import { BarsChart } from "@/components/charts/BarsChart";
 import { cn } from "@/lib/utils/cn";
 import { formatDate, formatQty } from "@/lib/utils/format";
+import type { PermitEntityType } from "@/modules/permits/schemas";
 import type {
   ComplianceCards,
+  ExpiringPermit,
   MonthKpis,
+  PermitGroup,
   ProductionMonthPoint,
   RecentActivity,
   StockAlerts,
-  VehicleHabilitation,
 } from "@/modules/dashboard/api";
 import {
   useComplianceCards,
@@ -34,7 +37,6 @@ import {
   useRecentActivity,
   useStockAlerts,
 } from "@/modules/dashboard/hooks";
-import { useOperatingProfile } from "@/modules/tenant-profile/hooks";
 
 export function DashboardClient({ tenantName }: { tenantName: string }) {
   const kpis = useMonthKpis();
@@ -42,11 +44,9 @@ export function DashboardClient({ tenantName }: { tenantName: string }) {
   const compliance = useComplianceCards();
   const stock = useStockAlerts();
   const activity = useRecentActivity();
-  const { data: profile } = useOperatingProfile();
-  // Títulos sin siglas argentinas hardcodeadas: para tenants no-AR usamos los
-  // términos genéricos del producto (los datos siguen leyendo columnas legacy
-  // hasta migrar la agregación a regulatory_permits).
-  const isAr = (profile?.country ?? "AR").toUpperCase() === "AR";
+  // Las cards de compliance son dinámicas por permit_type real (un MX ve
+  // COFEPRIS, un AR RNPA/UTA/URA); los labels salen del catálogo vía
+  // getPermitLabel, sin depender del país del perfil.
 
   return (
     <div className="space-y-8">
@@ -76,15 +76,9 @@ export function DashboardClient({ tenantName }: { tenantName: string }) {
             loading={compliance.isLoading}
           />
           <AnalysesCard data={compliance.data} loading={compliance.isLoading} />
-          <RnpaCard
+          <PermitGroupsSection
             data={compliance.data}
             loading={compliance.isLoading}
-            title={isAr ? "RNPA por vencer" : "Registro de producto por vencer"}
-          />
-          <TransportCard
-            data={compliance.data}
-            loading={compliance.isLoading}
-            title={isAr ? "Transporte (UTA/URA)" : "Transporte"}
           />
         </div>
         <StockAlertsCard data={stock.data} loading={stock.isLoading} />
@@ -490,7 +484,10 @@ function AnalysesCard({
   );
 }
 
-// ── Compliance: RNPA por vencer ──────────────────────────────────────────────
+// ── Compliance: permisos por vencer (dinámico por tipo) ──────────────────────
+// Una card por permit_type que el tenant realmente tenga (RNPA/UTA/URA en AR,
+// COFEPRIS/SCT en MX…). Los labels salen del catálogo (getPermitLabel en api).
+// Cada permiso linkea a la pantalla donde se gestiona su entidad.
 
 function expiryPill(days: number) {
   if (days < 0)
@@ -503,45 +500,154 @@ function expiryPill(days: number) {
   return { cls: "bg-muted text-muted-foreground", text: `${days}d` };
 }
 
-function RnpaCard({
+// Dónde se gestiona cada entidad (para los links de las cards y el CTA vacío).
+const ENTITY_MANAGE: Record<
+  PermitEntityType,
+  { href: string; label: string }
+> = {
+  recipe: { href: "/recetas", label: "Ver recetas" },
+  vehicle: { href: "/despacho", label: "Ver despacho" },
+  supplier: { href: "/inventario", label: "Ver proveedores" },
+  establishment: { href: "/configuracion", label: "Ver establecimiento" },
+  tenant: { href: "/configuracion", label: "Ver configuración" },
+};
+
+// Ícono por tipo de entidad predominante en el grupo.
+const ENTITY_ICON: Record<PermitEntityType, React.ElementType> = {
+  recipe: UtensilsCrossed,
+  vehicle: Truck,
+  supplier: Package,
+  establishment: ShieldCheck,
+  tenant: ShieldCheck,
+};
+
+function PermitGroupsSection({
   data,
   loading,
-  title,
 }: {
   data: ComplianceCards | undefined;
   loading: boolean;
-  title: string;
 }) {
-  const list = data?.expiringRnpa ?? [];
+  if (loading) {
+    return (
+      <>
+        <Panel>
+          <CardSkeleton />
+        </Panel>
+        <Panel>
+          <CardSkeleton />
+        </Panel>
+      </>
+    );
+  }
+
+  // Sin ningún permiso cargado (ni nuevo ni legacy): empty state con CTA.
+  if (!data || !data.hasAnyPermit) {
+    return (
+      <Panel className="md:col-span-2 flex flex-col items-center justify-center gap-3 py-8 text-center">
+        <span className="grid h-12 w-12 place-items-center rounded-lg bg-primary/10 text-primary">
+          <ShieldCheck size={22} />
+        </span>
+        <div>
+          <p className="text-sm font-semibold">Todavía no cargaste habilitaciones</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Registrá los permisos de tus recetas, vehículos, proveedores y
+            establecimientos para monitorear sus vencimientos acá.
+          </p>
+        </div>
+        <Link
+          href="/recetas"
+          className={cn(buttonVariants({ size: "sm" }))}
+        >
+          Cargá tus habilitaciones
+        </Link>
+      </Panel>
+    );
+  }
+
+  const groups = data.permitGroups;
+
+  // Hay permisos cargados pero ninguno por vencer/vencido: estado "en orden".
+  if (groups.length === 0) {
+    return (
+      <Panel className="md:col-span-2 flex flex-col items-center justify-center gap-2 py-8 text-center">
+        <span className="grid h-11 w-11 place-items-center rounded-lg bg-primary/10 text-primary">
+          <ShieldCheck size={20} />
+        </span>
+        <p className="text-sm font-medium">Habilitaciones al día</p>
+        <p className="text-xs text-muted-foreground">
+          Ningún permiso vence en los próximos 90 días.
+        </p>
+      </Panel>
+    );
+  }
+
+  // Una card por tipo de permiso. Mostramos hasta 2 grupos como cards parejas a
+  // las de informe/análisis; el resto se condensa en una card de resumen.
+  const primary = groups.slice(0, 2);
+  const overflow = groups.slice(2);
+
+  return (
+    <>
+      {primary.map((g) => (
+        <PermitGroupCard key={g.permitType} group={g} />
+      ))}
+      {overflow.length > 0 && <PermitOverflowCard groups={overflow} />}
+    </>
+  );
+}
+
+/** Entidad dominante del grupo (para ícono y link). */
+function dominantEntity(group: PermitGroup): PermitEntityType {
+  return group.items[0]?.entityType ?? "tenant";
+}
+
+function PermitGroupCard({ group }: { group: PermitGroup }) {
+  const entity = dominantEntity(group);
+  const Icon = ENTITY_ICON[entity];
+  const manage = ENTITY_MANAGE[entity];
   return (
     <Panel>
       <PanelHeader
-        icon={UtensilsCrossed}
-        title={title}
-        href="/recetas"
-        hrefLabel="Ver recetas"
+        icon={Icon}
+        title={`${group.label} por vencer`}
+        href={manage.href}
+        hrefLabel={manage.label}
       />
-      {loading ? (
-        <CardSkeleton />
-      ) : list.length === 0 ? (
-        <EmptyHint>Ningún registro vence en los próximos 90 días.</EmptyHint>
-      ) : (
-        <ul className="space-y-2">
-          {list.slice(0, 4).map((r) => {
-            const pill = expiryPill(r.days);
-            return (
-              <li
-                key={r.id}
-                className="flex items-center justify-between gap-2 text-sm"
-              >
-                <span className="min-w-0 truncate">
-                  {r.commercial_name || r.title}
-                  {r.rnpa_number && (
-                    <Money className="ml-1.5 text-xs text-muted-foreground">
-                      {r.rnpa_number}
-                    </Money>
-                  )}
+      <ul className="space-y-2">
+        {group.items.slice(0, 4).map((it) => (
+          <PermitRowItem key={it.key} item={it} />
+        ))}
+        {group.items.length > 4 && (
+          <li className="pt-1 text-xs text-muted-foreground">
+            +{group.items.length - 4} más
+          </li>
+        )}
+      </ul>
+    </Panel>
+  );
+}
+
+function PermitOverflowCard({ groups }: { groups: PermitGroup[] }) {
+  return (
+    <Panel className="md:col-span-2">
+      <PanelHeader icon={ShieldCheck} title="Otras habilitaciones por vencer" />
+      <ul className="space-y-2">
+        {groups.map((g) => {
+          const worst = g.items[0];
+          const pill = worst ? expiryPill(worst.days) : null;
+          return (
+            <li
+              key={g.permitType}
+              className="flex items-center justify-between gap-2 text-sm"
+            >
+              <span className="min-w-0 truncate">
+                <span className="font-medium">{g.label}</span>
+                <span className="ml-1.5 text-xs text-muted-foreground">
+                  {g.items.length} {g.items.length === 1 ? "permiso" : "permisos"}
                 </span>
+              </span>
+              {pill && (
                 <span
                   className={cn(
                     "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
@@ -550,83 +656,36 @@ function RnpaCard({
                 >
                   {pill.text}
                 </span>
-              </li>
-            );
-          })}
-          {list.length > 4 && (
-            <li className="pt-1 text-xs text-muted-foreground">
-              +{list.length - 4} más
+              )}
             </li>
-          )}
-        </ul>
-      )}
+          );
+        })}
+      </ul>
     </Panel>
   );
 }
 
-// ── Compliance: transporte UTA/URA ───────────────────────────────────────────
-
-const VEHICLE_STATUS_META: Record<
-  VehicleHabilitation["status"],
-  { label: string; cls: string }
-> = {
-  expired: { label: "Vencido", cls: "bg-destructive/15 text-destructive" },
-  soon: { label: "Por vencer", cls: "bg-accent/15 text-accent" },
-  missing: { label: "Sin datos", cls: "bg-muted text-muted-foreground" },
-  ok: { label: "Vigente", cls: "bg-primary/15 text-primary" },
-};
-
-function TransportCard({
-  data,
-  loading,
-  title,
-}: {
-  data: ComplianceCards | undefined;
-  loading: boolean;
-  title: string;
-}) {
-  const vehicles = data?.vehicles ?? [];
+function PermitRowItem({ item }: { item: ExpiringPermit }) {
+  const pill = expiryPill(item.days);
   return (
-    <Panel>
-      <PanelHeader
-        icon={Truck}
-        title={title}
-        href="/despacho"
-        hrefLabel="Ver despacho"
-      />
-      {loading ? (
-        <CardSkeleton />
-      ) : vehicles.length === 0 ? (
-        <EmptyHint>Todavía no registraste vehículos.</EmptyHint>
-      ) : (
-        <ul className="space-y-2">
-          {vehicles.slice(0, 4).map((v) => {
-            const meta = VEHICLE_STATUS_META[v.status];
-            return (
-              <li
-                key={v.id}
-                className="flex items-center justify-between gap-2 text-sm"
-              >
-                <Money className="font-medium">{v.plate}</Money>
-                <span
-                  className={cn(
-                    "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
-                    meta.cls,
-                  )}
-                >
-                  {meta.label}
-                </span>
-              </li>
-            );
-          })}
-          {vehicles.length > 4 && (
-            <li className="pt-1 text-xs text-muted-foreground">
-              +{vehicles.length - 4} más
-            </li>
-          )}
-        </ul>
-      )}
-    </Panel>
+    <li className="flex items-center justify-between gap-2 text-sm">
+      <span className="min-w-0 truncate">
+        {item.entityLabel}
+        {item.permitNumber && (
+          <Money className="ml-1.5 text-xs text-muted-foreground">
+            {item.permitNumber}
+          </Money>
+        )}
+      </span>
+      <span
+        className={cn(
+          "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+          pill.cls,
+        )}
+      >
+        {pill.text}
+      </span>
+    </li>
   );
 }
 
