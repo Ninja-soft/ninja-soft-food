@@ -5,9 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Bell,
   Building2,
   ChevronDown,
   CreditCard,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -15,10 +17,11 @@ import {
   Moon,
   ScrollText,
   Settings,
-  Shield,
+  ShieldCheck,
   Store,
   Sun,
   Tag,
+  UserCog,
   Users,
   X,
 } from "lucide-react";
@@ -27,6 +30,12 @@ import { cn } from "@/lib/utils/cn";
 import { DARK_THEMES, useTheme } from "@/lib/theme/ThemeProvider";
 import { Isotype } from "@/components/brand/Logo";
 import { Avatar } from "@/components/ui/Avatar";
+import { MembershipProfileModal } from "@/components/account/MembershipProfileModal";
+import { ChangePasswordModal } from "@/components/ui/ChangePasswordModal";
+import {
+  BlockingNotificationBanner,
+  NotificationBell,
+} from "@/components/notifications/NotificationBell";
 import {
   Dropdown,
   DropdownContent,
@@ -41,19 +50,20 @@ import {
 // "Interno" en verde marca para que nunca se confunda con la app del cliente.
 
 // Orden calcado del POS (app/internal/InternalShell): Inicio · Negocios ·
-// Usuarios · Staff · Pagos · Emails · Auditoría. Los items propios de Food
-// (Planes, Configuración) se intercalan donde corresponden por dominio sin
-// romper la secuencia del POS.
+// Usuarios · Staff · Emails · Pagos · Notificaciones · Auditoría. Los items
+// propios de Food (Planes, Configuración) se intercalan donde corresponden por
+// dominio sin romper la secuencia del POS.
 const NAV = [
   { href: "/internal", label: "Inicio", icon: LayoutDashboard },
   { href: "/internal/tenants", label: "Negocios", icon: Building2 },
   { href: "/internal/usuarios", label: "Usuarios", icon: Users },
-  { href: "/internal/staff", label: "Staff", icon: Shield },
+  { href: "/internal/staff", label: "Staff", icon: ShieldCheck },
+  { href: "/internal/emails", label: "Emails", icon: Mail },
   { href: "/internal/pagos", label: "Pagos", icon: CreditCard },
   { href: "/internal/planes", label: "Planes", icon: Tag },
-  { href: "/internal/emails", label: "Emails", icon: Mail },
-  { href: "/internal/audit", label: "Auditoría", icon: ScrollText },
+  { href: "/internal/notificaciones", label: "Notificaciones", icon: Bell },
   { href: "/internal/configuracion", label: "Configuración", icon: Settings },
+  { href: "/internal/audit", label: "Auditoría", icon: ScrollText },
 ];
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -77,6 +87,8 @@ export function InternalShell({
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const [drawer, setDrawer] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
   const isDark = DARK_THEMES.includes(theme);
   const displayName = name || email;
 
@@ -192,6 +204,12 @@ export function InternalShell({
           </DropdownTrigger>
           <DropdownContent align="start" className="w-[232px]">
             <DropdownLabel>{email}</DropdownLabel>
+            <DropdownItem onSelect={() => setProfileOpen(true)}>
+              <UserCog size={15} /> Mi perfil
+            </DropdownItem>
+            <DropdownItem onSelect={() => setPwOpen(true)}>
+              <KeyRound size={15} /> Cambiar contraseña
+            </DropdownItem>
             <DropdownItem
               onSelect={(e) => {
                 e.preventDefault();
@@ -236,7 +254,7 @@ export function InternalShell({
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-background/70 px-4 backdrop-blur-xl lg:hidden">
           <button onClick={() => setDrawer(true)} aria-label="Abrir menú">
             <Menu size={20} />
@@ -245,12 +263,25 @@ export function InternalShell({
           <span className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
             Interno
           </span>
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
         </header>
 
+        {/* Campana flotante arriba a la derecha (solo desktop), sobre el
+            contenido. z-40 < z-50 de los modales: nunca tapa overlays. */}
+        <div className="fixed right-4 top-4 z-40 hidden lg:block">
+          <NotificationBell floating />
+        </div>
+
         <main className="app-bg min-h-0 flex-1 overflow-y-auto">
+          <BlockingNotificationBanner />
           <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">{children}</div>
         </main>
       </div>
+
+      <MembershipProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
+      <ChangePasswordModal open={pwOpen} onOpenChange={setPwOpen} />
     </div>
   );
 }

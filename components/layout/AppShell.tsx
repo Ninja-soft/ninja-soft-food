@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ClipboardList,
   FileText,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -32,6 +33,11 @@ import { DARK_THEMES, useTheme } from "@/lib/theme/ThemeProvider";
 import { Isotype, WordmarkFood } from "@/components/brand/Logo";
 import { Avatar } from "@/components/ui/Avatar";
 import { MembershipProfileModal } from "@/components/account/MembershipProfileModal";
+import { ChangePasswordModal } from "@/components/ui/ChangePasswordModal";
+import {
+  BlockingNotificationBanner,
+  NotificationBell,
+} from "@/components/notifications/NotificationBell";
 import { EstablishmentSwitcher } from "@/components/establishments/EstablishmentSwitcher";
 import { useActiveEstablishment } from "@/modules/establishments/hooks";
 import {
@@ -126,6 +132,7 @@ function UserMenu({
   role,
   tenantName,
   onEditProfile,
+  onChangePassword,
   onSignOut,
 }: {
   name: string;
@@ -133,6 +140,7 @@ function UserMenu({
   role: string | null;
   tenantName: string;
   onEditProfile: () => void;
+  onChangePassword: () => void;
   onSignOut: () => void;
 }) {
   const { theme, toggleTheme } = useTheme();
@@ -194,6 +202,9 @@ function UserMenu({
         <DropdownItem onSelect={onEditProfile}>
           <UserCog size={15} /> Editar mi perfil
         </DropdownItem>
+        <DropdownItem onSelect={onChangePassword}>
+          <KeyRound size={15} /> Cambiar contraseña
+        </DropdownItem>
         <DropdownItem
           onSelect={(e) => {
             e.preventDefault();
@@ -227,6 +238,7 @@ export function AppShell({
   const router = useRouter();
   const [drawer, setDrawer] = useState(false);
   const [pfOpen, setPfOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
   const [open, setOpen] = useState<Record<string, boolean>>({
     Operación: true,
     Catálogo: true,
@@ -357,6 +369,7 @@ export function AppShell({
           role={shell?.role ?? null}
           tenantName={tenantName}
           onEditProfile={() => setPfOpen(true)}
+          onChangePassword={() => setPwOpen(true)}
           onSignOut={signOut}
         />
       </div>
@@ -388,7 +401,7 @@ export function AppShell({
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col">
         <header
           className={cn(
             "sticky top-0 z-40 h-14 items-center gap-3 border-b border-border bg-background/70 px-4 backdrop-blur-xl",
@@ -406,17 +419,26 @@ export function AppShell({
           </button>
           <Isotype className="h-6 lg:hidden" />
           {/* Selector de planta activa (solo si el tenant tiene >1 planta) */}
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
             <EstablishmentSwitcher />
+            <NotificationBell />
           </div>
         </header>
 
+        {/* Campana flotante arriba a la derecha (solo desktop), sobre el
+            contenido. z-40 < z-50 de los modales: nunca tapa overlays. */}
+        <div className="fixed right-4 top-4 z-40 hidden lg:block">
+          <NotificationBell floating />
+        </div>
+
         <main className="app-bg slim-scrollbar min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+          <BlockingNotificationBanner />
           {children}
         </main>
       </div>
 
       <MembershipProfileModal open={pfOpen} onOpenChange={setPfOpen} />
+      <ChangePasswordModal open={pwOpen} onOpenChange={setPwOpen} />
     </div>
   );
 }

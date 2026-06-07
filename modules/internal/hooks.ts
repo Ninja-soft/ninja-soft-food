@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { internalApi } from "./api";
+import { internalApi, type SendNotificationInput } from "./api";
 
 // Hooks TanStack Query del panel staff — patrón POS (modules/internal/hooks.ts).
 // Solo cubren las tablas legibles por el cliente (policies internal_read):
@@ -124,5 +124,24 @@ export function useUpdateAddon() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["internal", "addons"] });
     },
+  });
+}
+
+// ── Composer de notificaciones (paridad POS H13b) ────────────────────────────
+
+export function useSentNotifications() {
+  return useQuery({
+    queryKey: ["internal", "notifications"],
+    queryFn: () => internalApi.listSentNotifications(),
+  });
+}
+
+export function useSendNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SendNotificationInput) =>
+      internalApi.sendNotification(input),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["internal", "notifications"] }),
   });
 }
