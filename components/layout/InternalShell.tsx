@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -39,15 +40,19 @@ import {
 // marca/acento de Ninja Food. Sidebar propia (NO el AppShell del tenant) y badge
 // "Interno" en verde marca para que nunca se confunda con la app del cliente.
 
+// Orden calcado del POS (app/internal/InternalShell): Inicio · Negocios ·
+// Usuarios · Staff · Pagos · Emails · Auditoría. Los items propios de Food
+// (Planes, Configuración) se intercalan donde corresponden por dominio sin
+// romper la secuencia del POS.
 const NAV = [
   { href: "/internal", label: "Inicio", icon: LayoutDashboard },
   { href: "/internal/tenants", label: "Negocios", icon: Building2 },
   { href: "/internal/usuarios", label: "Usuarios", icon: Users },
-  { href: "/internal/planes", label: "Planes", icon: Tag },
+  { href: "/internal/staff", label: "Staff", icon: Shield },
   { href: "/internal/pagos", label: "Pagos", icon: CreditCard },
+  { href: "/internal/planes", label: "Planes", icon: Tag },
   { href: "/internal/emails", label: "Emails", icon: Mail },
   { href: "/internal/audit", label: "Auditoría", icon: ScrollText },
-  { href: "/internal/staff", label: "Staff", icon: Shield },
   { href: "/internal/configuracion", label: "Configuración", icon: Settings },
 ];
 
@@ -74,6 +79,29 @@ export function InternalShell({
   const [drawer, setDrawer] = useState(false);
   const isDark = DARK_THEMES.includes(theme);
   const displayName = name || email;
+
+  // Foto del staff para el avatar del menú (paridad con el InternalShell del
+  // POS). En Food la foto vive en la membresía activa (tenant_users.avatar);
+  // el staff puede no tener membresía, por eso es best-effort (cae a iniciales).
+  const { data: me, isLoading: meLoading } = useQuery({
+    queryKey: ["internal-shell-profile"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return null;
+      const { data: mem } = await supabase
+        .from("tenant_users")
+        .select("avatar")
+        .eq("user_id", user.id)
+        .not("avatar", "is", null)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      return { avatar_url: (mem?.avatar as string | null) ?? null };
+    },
+  });
 
   async function signOut() {
     await createClient().auth.signOut();
@@ -140,7 +168,12 @@ export function InternalShell({
         <Dropdown>
           <DropdownTrigger asChild>
             <button className="flex w-full items-center gap-2.5 rounded-lg border border-border bg-card p-2 text-left transition hover:bg-muted">
-              <Avatar name={displayName} size={32} />
+              <Avatar
+                name={displayName}
+                avatar={me?.avatar_url}
+                size={32}
+                loading={meLoading}
+              />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-foreground">
                   {displayName}
