@@ -125,7 +125,7 @@ export default function TrazabilidadPage() {
                     <button
                       type="button"
                       onClick={() => setSelected(r)}
-                      className="hover:bg-secondary/50 flex w-full items-center gap-3 px-4 py-3 text-left transition"
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-secondary/50"
                     >
                       <TypeBadge type={r.type} />
                       <div className="min-w-0 flex-1">
@@ -244,7 +244,7 @@ function TypeBadge({ type }: { type: "MP" | "PT" }) {
 function EmptyState() {
   return (
     <div className="glass-card flex flex-col items-center gap-3 py-16 text-center">
-      <span className="bg-primary/15 grid h-16 w-16 place-items-center rounded-lg text-primary">
+      <span className="grid h-16 w-16 place-items-center rounded-lg bg-primary/15 text-primary">
         <PackageSearch size={30} />
       </span>
       <div>
@@ -346,7 +346,7 @@ function ForwardTable({ data }: { data: ForwardTrace }) {
               />
             </dl>
             {data.origin.noTraceability && (
-              <p className="text-amber-500/90 flex items-center gap-1.5 text-xs">
+              <p className="flex items-center gap-1.5 text-xs text-amber-500/90">
                 <AlertTriangle size={13} /> Sin trazabilidad de origen
               </p>
             )}
@@ -362,7 +362,7 @@ function ForwardTable({ data }: { data: ForwardTrace }) {
               <article key={p.productionId} className="glass-card space-y-2 p-4">
                 <div className="flex items-center justify-between gap-2">
                   <Money className="text-xs font-semibold">{p.code}</Money>
-                  <span className="bg-primary/10 rounded-full px-2 py-0.5 text-xs font-medium text-primary">
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                     {formatQty(p.consumedQty)} {p.consumedUnit}
                   </span>
                 </div>
@@ -474,12 +474,12 @@ function BackwardTable({ data }: { data: BackwardTrace }) {
                   <p className="truncate text-sm font-medium">
                     {i.ingredientName}
                   </p>
-                  <span className="bg-amber-500/10 text-amber-500 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium">
+                  <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-500">
                     {formatQty(i.takenQty)} {i.unit}
                   </span>
                 </div>
                 {i.noOriginTrace ? (
-                  <p className="text-amber-500/90 flex items-center gap-1.5 text-xs">
+                  <p className="flex items-center gap-1.5 text-xs text-amber-500/90">
                     <AlertTriangle size={13} /> Sin trazabilidad de origen
                   </p>
                 ) : (
@@ -565,7 +565,7 @@ function ChainColumn({
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <span className="bg-secondary/60 grid h-7 w-7 place-items-center rounded-lg text-primary">
+        <span className="grid h-7 w-7 place-items-center rounded-lg bg-secondary/60 text-primary">
           {icon}
         </span>
         {title}
@@ -606,14 +606,14 @@ function DispatchCard({
     <article
       className={cn(
         "glass-card space-y-1.5 p-4",
-        flagged && "ring-destructive/30 ring-1",
+        flagged && "ring-1 ring-destructive/30",
       )}
     >
       <div className="flex items-center justify-between gap-2">
         <p className="truncate text-sm font-medium">
           {d.customer?.name ?? "(cliente sin datos)"}
         </p>
-        <span className="bg-primary/10 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium text-primary">
+        <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
           {formatQty(d.quantityKg)} kg
         </span>
       </div>
@@ -644,7 +644,7 @@ function AffectedPanel({
     <section className="rounded-lg border border-destructive/30 bg-destructive/5 p-5 backdrop-blur-xl">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="bg-destructive/15 grid h-9 w-9 place-items-center rounded-lg text-destructive">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-destructive/15 text-destructive">
             <Users size={18} />
           </span>
           <div>
@@ -671,8 +671,8 @@ function AffectedPanel({
       ) : (
         <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-card/60">
           <table className="w-full min-w-[680px] text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <thead className="bg-muted/60 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
+              <tr className="border-b border-border">
                 <th className="px-4 py-3 font-medium">Cliente</th>
                 <th className="px-4 py-3 font-medium">Contacto</th>
                 <th className="px-4 py-3 text-right font-medium">Despachos</th>

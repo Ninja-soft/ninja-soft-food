@@ -119,7 +119,7 @@ export default function InformesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar en el contenido…"
-            className="focus:ring-primary/20 h-11 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2"
+            className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
         <DateRangePicker value={range} onChange={setRange} />
@@ -151,7 +151,7 @@ export default function InformesPage() {
         </div>
       ) : rows.length === 0 ? (
         <div className="glass-card flex flex-col items-center gap-3 py-14 text-center">
-          <span className="bg-primary/15 grid h-14 w-14 place-items-center rounded-lg text-primary">
+          <span className="grid h-14 w-14 place-items-center rounded-lg bg-primary/15 text-primary">
             <FileText size={26} />
           </span>
           <div>
@@ -174,8 +174,8 @@ export default function InformesPage() {
       ) : (
         <div className="glass-card overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <thead className="bg-muted/60 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
+              <tr className="border-b border-border">
                 <th className="px-4 py-3 font-medium">Fecha</th>
                 <th className="px-4 py-3 font-medium">Informe</th>
                 <th className="px-4 py-3 font-medium">Autor</th>
@@ -190,7 +190,7 @@ export default function InformesPage() {
                   <tr
                     key={r.id}
                     onClick={() => setDetail(r)}
-                    className="hover:bg-secondary/40 cursor-pointer transition"
+                    className="cursor-pointer transition hover:bg-secondary/40"
                   >
                     <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                       {formatDate(r.report_date)}

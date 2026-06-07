@@ -452,8 +452,8 @@ function CostSection({
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                <tr className="border-b border-border">
                   <th className="px-3 py-2.5 font-medium">Receta</th>
                   <th className="px-3 py-2.5 text-right font-medium">Kg</th>
                   <th className="px-3 py-2.5 text-right font-medium">

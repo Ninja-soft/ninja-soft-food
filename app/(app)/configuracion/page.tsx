@@ -166,8 +166,8 @@ export default function ConfiguracionPage() {
                           className={cn(
                             "rounded-lg border p-2 text-left transition",
                             active
-                              ? "ring-primary/30 border-primary ring-2"
-                              : "hover:border-primary/40 border-border"
+                              ? "border-primary ring-2 ring-primary/30"
+                              : "border-border hover:border-primary/40"
                           )}
                         >
                           <div
@@ -251,8 +251,8 @@ export default function ConfiguracionPage() {
                           className={cn(
                             "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition",
                             active
-                              ? "ring-primary/30 border-primary ring-2"
-                              : "hover:border-primary/40 border-border"
+                              ? "border-primary ring-2 ring-primary/30"
+                              : "border-border hover:border-primary/40"
                           )}
                         >
                           <span
@@ -282,8 +282,8 @@ export default function ConfiguracionPage() {
                           className={cn(
                             "rounded-lg border p-2 transition",
                             active
-                              ? "ring-primary/30 border-primary ring-2"
-                              : "hover:border-primary/40 border-border"
+                              ? "border-primary ring-2 ring-primary/30"
+                              : "border-border hover:border-primary/40"
                           )}
                         >
                           <div

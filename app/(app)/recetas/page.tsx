@@ -387,7 +387,7 @@ export default function RecetasPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar receta…"
-            className="h-10 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
       </div>

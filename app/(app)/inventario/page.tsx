@@ -237,7 +237,7 @@ export default function InventarioPage() {
             placeholder={
               tab === "stock" ? "Buscar ingrediente…" : "Buscar por lote…"
             }
-            className="h-10 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
       </div>
@@ -251,8 +251,8 @@ export default function InventarioPage() {
         ) : (
           <div className="glass-card overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-muted/60 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                <tr className="border-b border-border">
                   <th className="px-4 py-3 font-medium">Ingrediente</th>
                   <th className="px-4 py-3 text-right font-medium">
                     Disponible
@@ -294,8 +294,8 @@ export default function InventarioPage() {
       ) : (
         <div className="glass-card overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <thead className="bg-muted/60 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
+              <tr className="border-b border-border">
                 <th className="px-4 py-3 font-medium">Fecha</th>
                 <th className="px-4 py-3 font-medium">Ingrediente</th>
                 <th className="px-4 py-3 font-medium">Lote</th>

@@ -158,8 +158,8 @@ export default function ProduccionPage() {
       ) : (
         <div className="glass-card overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <thead className="bg-muted/60 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
+              <tr className="border-b border-border">
                 <th className="px-4 py-3 font-medium">Código</th>
                 <th className="px-4 py-3 font-medium">Producto</th>
                 <th className="px-4 py-3 font-medium">Fecha</th>

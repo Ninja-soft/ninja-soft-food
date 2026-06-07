@@ -800,7 +800,10 @@ function RecentActivitySection({
 }) {
   return (
     <div>
-      <Heading as="h2" className="mb-4 text-lg">
+      <Heading as="h2" className="mb-4 flex items-center gap-2 text-lg">
+        <span className="grid h-7 w-7 place-items-center rounded-md bg-primary/15 text-primary">
+          <CalendarClock size={15} />
+        </span>
         Actividad reciente
       </Heading>
       <div className="grid gap-6 md:grid-cols-2">

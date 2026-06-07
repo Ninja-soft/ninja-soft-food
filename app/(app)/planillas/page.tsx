@@ -81,8 +81,8 @@ export default function PlanillasPage() {
               className={cn(
                 "group flex flex-col gap-2 rounded-lg border p-4 text-left transition",
                 active
-                  ? "bg-primary/10 ring-primary/30 border-primary shadow-foodGlow ring-1"
-                  : "hover:border-primary/40 border-border bg-card"
+                  ? "border-primary bg-primary/10 shadow-foodGlow ring-1 ring-primary/30"
+                  : "border-border bg-card hover:border-primary/40"
               )}
             >
               <span
