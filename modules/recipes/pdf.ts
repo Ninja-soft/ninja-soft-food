@@ -7,9 +7,12 @@ import {
   drawTable,
   finalizePdf,
   PAGE,
+  pdfBlob,
+  pdfFilename,
   type PlanillaMeta,
 } from "@/lib/utils/pdf";
 import type { TenantBranding } from "@/modules/planillas/api";
+import type { PdfBlobResult } from "@/modules/planillas/generators";
 import { PACKAGING_DELAYS } from "./schemas";
 import type { Recipe } from "./api";
 
@@ -291,7 +294,18 @@ function tenantToMeta(branding: TenantBranding, subtitle?: string): PlanillaMeta
 export async function generateRecipePdf(
   recipe: Recipe,
   branding: TenantBranding,
-): Promise<void> {
+  mode?: "download",
+): Promise<void>;
+export async function generateRecipePdf(
+  recipe: Recipe,
+  branding: TenantBranding,
+  mode: "blob",
+): Promise<PdfBlobResult>;
+export async function generateRecipePdf(
+  recipe: Recipe,
+  branding: TenantBranding,
+  mode?: "download" | "blob",
+): Promise<void | PdfBlobResult> {
   const { fmtDate, fmtNum } = makeRecipeFormatters(branding.locale);
   const meta = tenantToMeta(branding, recipe.commercial_name || recipe.title);
   meta.logoUrl = await loadLogoDataUrl(branding.logoUrl);
@@ -431,7 +445,11 @@ export async function generateRecipePdf(
   }
 
   finalizePdf(doc);
-  downloadPdf(doc, `receta-${slugify(recipe.title)}`);
+  const filename = `receta-${slugify(recipe.title)}`;
+  if (mode === "blob") {
+    return { blob: pdfBlob(doc), filename: pdfFilename(filename) };
+  }
+  downloadPdf(doc, filename);
 }
 
 /** Slug simple para el nombre del archivo (sin acentos/espacios). */

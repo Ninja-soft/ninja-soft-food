@@ -206,3 +206,23 @@ export async function exportSheetsToExcel(
   for (const sheet of sheets) renderSheet(wb, sheet);
   await downloadWorkbook(wb, filename);
 }
+
+const XLSX_MIME =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+/** Serializa un workbook ya construido a Blob (para adjuntar en un email). */
+export async function workbookBlob(wb: ExcelJS.Workbook): Promise<Blob> {
+  const buffer = await wb.xlsx.writeBuffer();
+  return new Blob([buffer], { type: XLSX_MIME });
+}
+
+/** Construye varias hojas y las devuelve como un único Blob XLSX. */
+export async function buildSheetsBlob(
+  sheets: ExportToExcelOptions[],
+): Promise<Blob> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Ninja Food";
+  wb.created = new Date();
+  for (const sheet of sheets) renderSheet(wb, sheet);
+  return workbookBlob(wb);
+}

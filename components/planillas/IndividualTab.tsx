@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { SpinnerBlock } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import { Money } from "@/components/ui/Typography";
+import {
+  SendEmailButton,
+  SendEmailModal,
+} from "@/components/emails/SendEmailModal";
 import { cn } from "@/lib/utils/cn";
 import { formatDate, formatQty } from "@/lib/utils/format";
 import { useProductions } from "@/modules/production/hooks";
@@ -18,6 +22,7 @@ export function IndividualTab({ branding }: { branding: TenantBranding | undefin
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   const { data: productions, isLoading } = useProductions(search);
 
@@ -60,15 +65,40 @@ export function IndividualTab({ branding }: { branding: TenantBranding | undefin
             className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
-        <Button
-          onClick={handleGenerate}
-          loading={generating}
-          disabled={!selectedId || !branding}
-        >
-          <FileText size={16} />
-          Generar PDF
-        </Button>
+        <div className="flex gap-2">
+          <SendEmailButton
+            onClick={() => setEmailOpen(true)}
+            disabled={!selectedId || !branding}
+          />
+          <Button
+            onClick={handleGenerate}
+            loading={generating}
+            disabled={!selectedId || !branding}
+          >
+            <FileText size={16} />
+            Generar PDF
+          </Button>
+        </div>
       </div>
+
+      {selected && branding && (
+        <SendEmailModal
+          open={emailOpen}
+          onOpenChange={setEmailOpen}
+          title="Enviar planilla por email"
+          documentLabel={`Planilla de producción ${selected.code}`}
+          defaultSubject={`Planilla de producción ${selected.code}`}
+          getAttachments={async () => {
+            const detail = await getProductionDetail(selected.id);
+            const { blob, filename } = await generateProductionPlanilla(
+              detail,
+              branding,
+              "blob",
+            );
+            return [{ blob, filename }];
+          }}
+        />
+      )}
 
       {isLoading ? (
         <SpinnerBlock />

@@ -1,6 +1,10 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { buildSendEmailPayload, type BuildPayloadArgs } from "./templates";
+import {
+  buildSendEmailPayload,
+  type BuildPayloadArgs,
+  type SendEmailAttachment,
+} from "./templates";
 
 // =============================================================================
 // lib/emails/enqueue — helper server-only para disparar un email del sistema.
@@ -28,6 +32,12 @@ export interface SendSystemEmailArgs {
   subject?: string | null;
   /** Override directo de html (si no se usa template). */
   html?: string | null;
+  /** Adjuntos base64 (planillas, remitos, etc.). Limite ~5MB en la Edge Function. */
+  attachments?: SendEmailAttachment[] | null;
+  /** Reply-To (identidad de remitente del tenant). */
+  replyTo?: string | null;
+  /** Nombre del remitente (display name del From). */
+  fromName?: string | null;
 }
 
 export interface SendSystemEmailResult {
@@ -56,6 +66,9 @@ export async function sendSystemEmail(
     subject: args.subject ?? null,
     html: args.html ?? null,
     variables: args.variables,
+    attachments: args.attachments ?? null,
+    replyTo: args.replyTo ?? null,
+    fromName: args.fromName ?? null,
   } satisfies BuildPayloadArgs);
 
   try {

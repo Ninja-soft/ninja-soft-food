@@ -12,6 +12,12 @@
 //   - Auth: la funcion la invoca el backend con service_role (sin sesion de
 //     usuario) desde lib/emails/enqueue. No exige is_internal como el POS porque
 //     los disparadores son del sistema (informes, billing, alertas).
+//   - ADJUNTOS (opcional, retrocompatible): body.attachments =
+//     [{ filename, content (base64), contentType }] con limite total ~5MB.
+//     Usado por los envios "manuales" del tenant (planillas, remitos, recetas,
+//     recall, informes) desde /api/emails/send. Tambien acepta body.reply_to
+//     y body.from_name para la identidad de remitente del tenant. Los
+//     disparadores del sistema NO envian ninguno de estos campos.
 //
 // Deploy (lo hace Lucas, NO esta sesion): supabase functions deploy send_email
 // Secrets necesarios (supabase secrets set): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
@@ -32,6 +38,29 @@ const json = (b: unknown, s = 200) =>
     headers: { ...cors, "Content-Type": "application/json" },
   });
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Limite total de adjuntos (suma de bytes decodificados). Conservador para no
+// chocar contra limites de SMTP del proveedor (~10MB con overhead base64).
+const MAX_ATTACHMENTS_BYTES = 5 * 1024 * 1024; // 5 MB
+
+interface InboundAttachment {
+  filename?: string;
+  /** Contenido en base64 (sin el prefijo data: ...; lo aceptamos igual). */
+  content?: string;
+  contentType?: string;
+}
+
+/** Quita el prefijo `data:<mime>;base64,` si viene incluido. */
+function stripDataUrl(b64: string): string {
+  const comma = b64.indexOf(",");
+  return b64.startsWith("data:") && comma >= 0 ? b64.slice(comma + 1) : b64;
+}
+
+/** Bytes aproximados de un payload base64 (sin decodificarlo entero). */
+function base64Bytes(b64: string): number {
+  const clean = b64.replace(/=+$/, "");
+  return Math.floor((clean.length * 3) / 4);
+}
 
 // -----------------------------------------------------------------------------
 // Catalogo de defaults globales (espejo de lib/emails/templates.ts). Se usa
@@ -211,6 +240,12 @@ interface Body {
   subject?: string | null;
   html?: string | null;
   variables?: Record<string, unknown> | null;
+  /** Adjuntos opcionales en base64. Suma maxima MAX_ATTACHMENTS_BYTES. */
+  attachments?: InboundAttachment[] | null;
+  /** Reply-To opcional (identidad del remitente del tenant). */
+  reply_to?: string | null;
+  /** Override del nombre del remitente (display name del From). */
+  from_name?: string | null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -232,6 +267,36 @@ Deno.serve(async (req: Request) => {
   if (!EMAIL_RE.test(to)) return json({ error: "invalid_to" }, 400);
   const tenantId = b.tenant_id ?? null;
   const vars: Record<string, unknown> = { ...(b.variables ?? {}) };
+  const replyTo =
+    typeof b.reply_to === "string" && EMAIL_RE.test(b.reply_to.trim())
+      ? b.reply_to.trim().toLowerCase()
+      : null;
+  const fromNameOverride =
+    typeof b.from_name === "string" && b.from_name.trim()
+      ? b.from_name.trim().slice(0, 120)
+      : null;
+
+  // Adjuntos (base64). Validamos el peso total ANTES de armar el envio: un
+  // payload gigante no debe entrar al pipeline ni quedar logueado a medias.
+  const rawAttachments = Array.isArray(b.attachments) ? b.attachments : [];
+  const attachments: { filename: string; content: string; contentType: string }[] = [];
+  let attachmentsBytes = 0;
+  for (const a of rawAttachments) {
+    if (!a || typeof a.content !== "string" || !a.content) continue;
+    const content = stripDataUrl(a.content);
+    attachmentsBytes += base64Bytes(content);
+    attachments.push({
+      filename: (a.filename || "adjunto").toString().slice(0, 200),
+      content,
+      contentType: (a.contentType || "application/octet-stream").toString(),
+    });
+  }
+  if (attachmentsBytes > MAX_ATTACHMENTS_BYTES) {
+    return json(
+      { error: "attachments_too_large", detail: `Maximo ${MAX_ATTACHMENTS_BYTES} bytes.` },
+      413,
+    );
+  }
 
   // 1) Resolver subject + cuerpo. Prioridad:
   //    a) subject+html directos en el body (ad-hoc).
@@ -345,13 +410,28 @@ Deno.serve(async (req: Request) => {
     },
   });
   try {
-    await client.send({
-      from: `${cfg.from_name || "Ninja Food"} <${cfg.from_email}>`,
+    // denomailer: SendConfig. `replyTo` y `attachments` son opcionales; solo se
+    // agregan si vienen, para no alterar el comportamiento de los disparadores
+    // del sistema (welcome, billing, alertas) que nunca los usan.
+    const fromName = fromNameOverride || cfg.from_name || "Ninja Food";
+    const sendConfig: Record<string, unknown> = {
+      from: `${fromName} <${cfg.from_email}>`,
       to,
       subject,
       content: text || "Este mensaje se ve mejor con un cliente que soporte HTML.",
       html,
-    });
+    };
+    if (replyTo) sendConfig.replyTo = replyTo;
+    if (attachments.length > 0) {
+      sendConfig.attachments = attachments.map((a) => ({
+        filename: a.filename,
+        encoding: "base64",
+        content: a.content,
+        contentType: a.contentType,
+      }));
+    }
+    // deno-lint-ignore no-explicit-any
+    await client.send(sendConfig as any);
     await client.close();
   } catch (e) {
     try {

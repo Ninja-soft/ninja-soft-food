@@ -7,6 +7,10 @@ import { Modal } from "@/components/ui/Modal";
 import { SpinnerBlock } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import { Money } from "@/components/ui/Typography";
+import {
+  SendEmailButton,
+  SendEmailModal,
+} from "@/components/emails/SendEmailModal";
 import { cn } from "@/lib/utils/cn";
 import { daysUntil, formatDate, formatQty } from "@/lib/utils/format";
 import { useDispatchDetail } from "@/modules/dispatch/hooks";
@@ -31,6 +35,7 @@ export function DispatchDetailDrawer({
   const { data: detail, isLoading } = useDispatchDetail(dispatchId);
   const { data: profile } = useOperatingProfile();
   const [downloading, setDownloading] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   // UTA/URA son siglas argentinas; fuera de AR el número se rotula genérico.
   const isAr = (profile?.country ?? "AR").toUpperCase() === "AR";
@@ -171,15 +176,39 @@ export function DispatchDetailDrawer({
             </table>
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-border pt-4">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
             <Button variant="secondary" onClick={onClose}>
               Cerrar
             </Button>
+            <SendEmailButton
+              onClick={() => setEmailOpen(true)}
+              label="Enviar al cliente"
+            />
             <Button onClick={handleRemito} loading={downloading}>
               <FileText size={16} />
               Remito PDF
             </Button>
           </div>
+
+          <SendEmailModal
+            open={emailOpen}
+            onOpenChange={setEmailOpen}
+            title="Enviar remito por email"
+            documentLabel={`Remito de despacho ${formatDate(detail.dispatch_date)}`}
+            defaultSubject={`Remito de despacho ${formatDate(detail.dispatch_date)}`}
+            suggestedRecipients={
+              detail.customer?.email ? [detail.customer.email] : []
+            }
+            getAttachments={async () => {
+              const branding = await getTenantBranding();
+              const { blob, filename } = await generateRemito(
+                detail,
+                branding,
+                "blob",
+              );
+              return [{ blob, filename }];
+            }}
+          />
         </div>
       )}
     </Modal>

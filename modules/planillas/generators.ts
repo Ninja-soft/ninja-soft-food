@@ -10,10 +10,19 @@ import {
   drawSignatureBlock,
   drawTable,
   finalizePdf,
+  pdfBlob,
+  pdfFilename,
   resolvePalette,
   type PlanillaMeta,
   type PlanillaPalette,
 } from "@/lib/utils/pdf";
+
+// ── Resultado de un generador en modo "blob" (para adjuntar en un email) ──────
+// Todos los generadores ahora construyen el documento y delegan en buildOutput:
+// si `mode === "blob"` devuelven { blob, filename } sin tocar el DOM; si no,
+// descargan como antes (retrocompatible). Asi los botones "Enviar por email"
+// reusan exactamente el mismo PDF que se descarga.
+export type PdfBlobResult = { blob: Blob; filename: string };
 import type {
   ProductionDetail,
   ProductionSummaryRow,
@@ -213,7 +222,18 @@ function renderProductionPlanilla(
 export async function generateProductionPlanilla(
   prod: ProductionDetail,
   branding: TenantBranding,
-): Promise<void> {
+  mode?: "download",
+): Promise<void>;
+export async function generateProductionPlanilla(
+  prod: ProductionDetail,
+  branding: TenantBranding,
+  mode: "blob",
+): Promise<PdfBlobResult>;
+export async function generateProductionPlanilla(
+  prod: ProductionDetail,
+  branding: TenantBranding,
+  mode?: "download" | "blob",
+): Promise<void | PdfBlobResult> {
   const meta = tenantToMeta(
     branding,
     "Planilla de producción",
@@ -225,7 +245,11 @@ export async function generateProductionPlanilla(
   const qr = prod.trace_slug ? await qrDataUrl(prod.trace_slug) : null;
   renderProductionPlanilla(doc, startY, meta, prod, qr, fmt);
   finalizePdf(doc);
-  downloadPdf(doc, `planilla-${prod.code}`);
+  const filename = `planilla-${prod.code}`;
+  if (mode === "blob") {
+    return { blob: pdfBlob(doc), filename: pdfFilename(filename) };
+  }
+  downloadPdf(doc, filename);
 }
 
 // ── Planilla masiva (una producción por página) ──────────────────────────────
@@ -233,8 +257,19 @@ export async function generateProductionPlanilla(
 export async function generateBulkProductionPlanillas(
   productions: ProductionDetail[],
   branding: TenantBranding,
-): Promise<void> {
-  if (productions.length === 0) return;
+  mode?: "download",
+): Promise<void>;
+export async function generateBulkProductionPlanillas(
+  productions: ProductionDetail[],
+  branding: TenantBranding,
+  mode: "blob",
+): Promise<PdfBlobResult | null>;
+export async function generateBulkProductionPlanillas(
+  productions: ProductionDetail[],
+  branding: TenantBranding,
+  mode?: "download" | "blob",
+): Promise<void | PdfBlobResult | null> {
+  if (productions.length === 0) return mode === "blob" ? null : undefined;
   const fmt = makeFormatters(branding.locale);
   const logoDataUrl = await loadLogoDataUrl(branding.logoUrl);
   const baseMeta = tenantToMeta(branding, "Planilla de producción");
@@ -260,7 +295,11 @@ export async function generateBulkProductionPlanillas(
   }
 
   finalizePdf(doc);
-  downloadPdf(doc, `planillas-produccion-${format(new Date(), "yyyyMMdd")}`);
+  const filename = `planillas-produccion-${format(new Date(), "yyyyMMdd")}`;
+  if (mode === "blob") {
+    return { blob: pdfBlob(doc), filename: pdfFilename(filename) };
+  }
+  downloadPdf(doc, filename);
 }
 
 // ── Planilla semanal / resumen tabular ───────────────────────────────────────
@@ -269,7 +308,20 @@ export function generateWeeklyProductionPlanilla(
   rows: ProductionSummaryRow[],
   range: { from: string; to: string },
   branding: TenantBranding,
-): void {
+  mode?: "download",
+): void;
+export function generateWeeklyProductionPlanilla(
+  rows: ProductionSummaryRow[],
+  range: { from: string; to: string },
+  branding: TenantBranding,
+  mode: "blob",
+): PdfBlobResult;
+export function generateWeeklyProductionPlanilla(
+  rows: ProductionSummaryRow[],
+  range: { from: string; to: string },
+  branding: TenantBranding,
+  mode?: "download" | "blob",
+): void | PdfBlobResult {
   const { fmtDate, fmtNum } = makeFormatters(branding.locale);
   const subtitle = `${fmtDate(range.from)} al ${fmtDate(range.to)} · ${rows.length} producciones`;
   const meta = tenantToMeta(branding, "Resumen de producción", subtitle);
@@ -315,17 +367,31 @@ export function generateWeeklyProductionPlanilla(
   );
 
   finalizePdf(doc);
-  downloadPdf(
-    doc,
-    `resumen-produccion-${range.from}_${range.to}`,
-  );
+  const filename = `resumen-produccion-${range.from}_${range.to}`;
+  if (mode === "blob") {
+    return { blob: pdfBlob(doc), filename: pdfFilename(filename) };
+  }
+  downloadPdf(doc, filename);
 }
 
 export function generateWeeklyStockPlanilla(
   rows: StockSummaryRow[],
   range: { from: string; to: string },
   branding: TenantBranding,
-): void {
+  mode?: "download",
+): void;
+export function generateWeeklyStockPlanilla(
+  rows: StockSummaryRow[],
+  range: { from: string; to: string },
+  branding: TenantBranding,
+  mode: "blob",
+): PdfBlobResult;
+export function generateWeeklyStockPlanilla(
+  rows: StockSummaryRow[],
+  range: { from: string; to: string },
+  branding: TenantBranding,
+  mode?: "download" | "blob",
+): void | PdfBlobResult {
   const { fmtDate, fmtNum } = makeFormatters(branding.locale);
   const subtitle = `${fmtDate(range.from)} al ${fmtDate(range.to)} · ${rows.length} ingresos`;
   const meta = tenantToMeta(branding, "Resumen de ingresos de stock", subtitle);
@@ -358,5 +424,9 @@ export function generateWeeklyStockPlanilla(
   });
 
   finalizePdf(doc);
-  downloadPdf(doc, `resumen-ingresos-${range.from}_${range.to}`);
+  const filename = `resumen-ingresos-${range.from}_${range.to}`;
+  if (mode === "blob") {
+    return { blob: pdfBlob(doc), filename: pdfFilename(filename) };
+  }
+  downloadPdf(doc, filename);
 }

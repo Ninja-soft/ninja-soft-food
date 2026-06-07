@@ -8,9 +8,12 @@ import {
   drawTable,
   finalizePdf,
   PAGE,
+  pdfBlob,
+  pdfFilename,
   type PlanillaMeta,
 } from "@/lib/utils/pdf";
 import type { TenantBranding } from "@/modules/planillas/api";
+import type { PdfBlobResult } from "@/modules/planillas/generators";
 import type { DispatchDetail } from "./api";
 
 // Remito de despacho (PDF imprimible). Reusa los helpers de lib/utils/pdf con la
@@ -105,8 +108,19 @@ function drawDispatchSignatures(
 /** Genera y descarga el remito PDF de un despacho. */
 export async function generateRemito(
   dispatch: DispatchDetail,
-  branding: TenantBranding
-): Promise<void> {
+  branding: TenantBranding,
+  mode?: "download"
+): Promise<void>;
+export async function generateRemito(
+  dispatch: DispatchDetail,
+  branding: TenantBranding,
+  mode: "blob"
+): Promise<PdfBlobResult>;
+export async function generateRemito(
+  dispatch: DispatchDetail,
+  branding: TenantBranding,
+  mode?: "download" | "blob"
+): Promise<void | PdfBlobResult> {
   const { fmtDate, fmtNum } = makeFormatters(branding.locale);
   const meta = tenantToMeta(
     branding,
@@ -204,8 +218,9 @@ export async function generateRemito(
   drawDispatchSignatures(doc, y + 8);
 
   finalizePdf(doc);
-  downloadPdf(
-    doc,
-    `remito-${dispatch.customer?.name?.replace(/\s+/g, "-").toLowerCase() ?? "despacho"}-${dispatch.dispatch_date}`
-  );
+  const filename = `remito-${dispatch.customer?.name?.replace(/\s+/g, "-").toLowerCase() ?? "despacho"}-${dispatch.dispatch_date}`;
+  if (mode === "blob") {
+    return { blob: pdfBlob(doc), filename: pdfFilename(filename) };
+  }
+  downloadPdf(doc, filename);
 }

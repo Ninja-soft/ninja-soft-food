@@ -5,6 +5,7 @@ import {
   Download,
   FileText,
   FolderPlus,
+  Mail,
   MoreVertical,
   Pencil,
   Plus,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { SendEmailModal } from "@/components/emails/SendEmailModal";
 import {
   Dropdown,
   DropdownContent,
@@ -146,6 +148,7 @@ export default function RecetasPage() {
   const { data: recipes, isLoading } = useRecipes(search, groupId);
   const { data: branding } = useTenantBranding();
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
+  const [emailRecipe, setEmailRecipe] = useState<Recipe | null>(null);
 
   const [recipeModal, setRecipeModal] = useState<{
     open: boolean;
@@ -501,6 +504,13 @@ export default function RecetasPage() {
                       <FileText size={14} />
                       {pdfBusy === r.id ? "Generando PDF…" : "Descargar PDF"}
                     </DropdownItem>
+                    <DropdownItem
+                      disabled={!branding}
+                      onSelect={() => setEmailRecipe(r)}
+                    >
+                      <Mail size={14} />
+                      Enviar por email
+                    </DropdownItem>
                     <DropdownSeparator />
                     <DropdownItem
                       className="text-destructive"
@@ -518,6 +528,23 @@ export default function RecetasPage() {
       )}
 
       {/* Modales */}
+      {emailRecipe && branding && (
+        <SendEmailModal
+          open={!!emailRecipe}
+          onOpenChange={(o) => !o && setEmailRecipe(null)}
+          title="Enviar ficha técnica por email"
+          documentLabel={`Ficha técnica · ${emailRecipe.commercial_name || emailRecipe.title}`}
+          defaultSubject={`Ficha técnica · ${emailRecipe.commercial_name || emailRecipe.title}`}
+          getAttachments={async () => {
+            const { blob, filename } = await generateRecipePdf(
+              emailRecipe,
+              branding,
+              "blob",
+            );
+            return [{ blob, filename }];
+          }}
+        />
+      )}
       <RecipeFormModal
         open={recipeModal.open}
         onOpenChange={(o) => setRecipeModal((s) => ({ ...s, open: o }))}

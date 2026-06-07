@@ -5,9 +5,15 @@ import { FileText, Pencil, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
+import {
+  SendEmailButton,
+  SendEmailModal,
+  type PreparedAttachment,
+} from "@/components/emails/SendEmailModal";
 import { ImportanceBadge } from "@/components/informes/ImportanceBadge";
 import { formatDate } from "@/lib/utils/format";
 import { sanitizeRichHtml } from "@/lib/utils/sanitizeHtml";
+import { htmlExcerpt } from "@/modules/quality/schemas";
 import {
   getAttachmentUrl,
   type Member,
@@ -29,6 +35,7 @@ export function ReportDetailDrawer({
 }) {
   const { toast } = useToast();
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   async function openAttachment(path: string, id: string) {
     setOpeningId(id);
@@ -135,15 +142,57 @@ export function ReportDetailDrawer({
             )}
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-border pt-4">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
             <Button variant="secondary" onClick={onClose}>
               Cerrar
             </Button>
+            <SendEmailButton
+              onClick={() => setEmailOpen(true)}
+              label="Reenviar por email"
+            />
             <Button onClick={() => onEdit(report)}>
               <Pencil size={16} />
               Editar
             </Button>
           </div>
+
+          <SendEmailModal
+            open={emailOpen}
+            onOpenChange={setEmailOpen}
+            title="Reenviar informe por email"
+            documentLabel={`Informe bromatológico ${formatDate(report.report_date)}`}
+            defaultSubject={`Informe bromatológico ${formatDate(report.report_date)}`}
+            suggestedRecipients={notified
+              .map((m) => m.email ?? "")
+              .filter((e) => e.length > 0)}
+            getAttachments={async () => {
+              // Reenvío del informe: se adjuntan los archivos cargados en el
+              // informe (los descargamos vía signed URL del bucket privado). El
+              // contenido del informe va de extracto en el cuerpo por defecto si
+              // el usuario no escribe un mensaje propio.
+              const out: PreparedAttachment[] = [];
+              for (const att of report.attachments) {
+                try {
+                  const url = await getAttachmentUrl(att.url);
+                  const res = await fetch(url);
+                  if (!res.ok) continue;
+                  out.push({ blob: await res.blob(), filename: att.name });
+                } catch {
+                  // Un adjunto que no se puede descargar no corta el envío.
+                }
+              }
+              if (out.length === 0) {
+                // Sin adjuntos descargables: armamos un .txt con el extracto para
+                // que el envío tenga al menos un documento.
+                const text = htmlExcerpt(report.content_html, 4000) || "Informe sin contenido.";
+                out.push({
+                  blob: new Blob([text], { type: "text/plain" }),
+                  filename: `informe-${report.report_date}.txt`,
+                });
+              }
+              return out;
+            }}
+          />
         </div>
       )}
     </Modal>

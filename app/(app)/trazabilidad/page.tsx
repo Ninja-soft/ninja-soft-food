@@ -16,9 +16,14 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { SpinnerBlock } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import { Eyebrow, Heading, Money } from "@/components/ui/Typography";
+import {
+  SendEmailButton,
+  SendEmailModal,
+} from "@/components/emails/SendEmailModal";
 import TraceGraph from "@/components/trace/TraceGraphDynamic";
 import { cn } from "@/lib/utils/cn";
 import { formatDate, formatQty } from "@/lib/utils/format";
@@ -35,6 +40,7 @@ import {
   exportRecallExcel,
   forwardToExport,
   generateRecallPdf,
+  recallExcelBlob,
   type RecallExportData,
 } from "@/modules/trace/exports";
 import { buildTraceGraph } from "@/modules/trace/graph";
@@ -723,6 +729,13 @@ function ExportBar({
   const { toast } = useToast();
   const { data: branding } = useTenantBranding();
   const [busy, setBusy] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState(false);
+
+  // Clientes afectados con email cargado: a ellos se les puede notificar.
+  const affectedEmails = data.affectedCustomers
+    .map((c) => (c.email ?? "").trim().toLowerCase())
+    .filter((e) => e.length > 0);
 
   async function handleExcel() {
     setBusy(true);
@@ -747,6 +760,19 @@ function ExportBar({
     }
   }
 
+  function openEmail() {
+    if (affectedEmails.length === 0) {
+      toast({
+        variant: "info",
+        title: "Ningún cliente afectado tiene email cargado",
+        description: "Cargá emails en las fichas de clientes para poder notificarlos.",
+      });
+      return;
+    }
+    // Confirmacion fuerte: este envio va a TODOS los clientes afectados.
+    setConfirmEmail(true);
+  }
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <p className="text-sm text-muted-foreground">
@@ -762,11 +788,65 @@ function ExportBar({
           <Download size={16} />
           Exportar Excel
         </Button>
+        <SendEmailButton onClick={openEmail} label="Notificar a afectados" />
         <Button variant="destructive" onClick={handlePdf}>
           <FileText size={16} />
           PDF de recall
         </Button>
       </div>
+
+      {/* Confirmacion fuerte antes de abrir el modal de envio masivo. */}
+      <Modal
+        open={confirmEmail}
+        onOpenChange={setConfirmEmail}
+        title="Notificar el recall a los clientes"
+        description="Vas a enviar un email a TODOS los clientes afectados con email cargado."
+        className="max-w-md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Se enviará el acta de recall (PDF) y la planilla (Excel) a{" "}
+            <span className="font-semibold text-foreground">
+              {affectedEmails.length}
+            </span>{" "}
+            cliente{affectedEmails.length === 1 ? "" : "s"} afectado
+            {affectedEmails.length === 1 ? "" : "s"}. Esta acción es sensible:
+            revisá los destinatarios antes de enviar.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setConfirmEmail(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setConfirmEmail(false);
+                setEmailOpen(true);
+              }}
+            >
+              Continuar
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <SendEmailModal
+        open={emailOpen}
+        onOpenChange={setEmailOpen}
+        title="Notificar recall a los afectados"
+        documentLabel={`Recall lote ${data.affectedLot}`}
+        defaultSubject={`Aviso de retiro de mercado · lote ${data.affectedLot}`}
+        suggestedRecipients={affectedEmails}
+        getAttachments={async () => {
+          const excel = await recallExcelBlob(data, locale);
+          const out = [excel];
+          if (branding) {
+            const pdf = generateRecallPdf(data, branding, "blob");
+            out.unshift(pdf);
+          }
+          return out;
+        }}
+      />
     </div>
   );
 }

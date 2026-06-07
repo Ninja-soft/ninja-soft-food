@@ -310,6 +310,13 @@ function escapeHtml(s: string): string {
 // template del tenant. enqueue.ts usa esta funcion para construir el body.
 // -----------------------------------------------------------------------------
 
+/** Adjunto base64 que viaja a la Edge Function (planillas, remitos, etc.). */
+export interface SendEmailAttachment {
+  filename: string;
+  content: string; // base64
+  contentType: string;
+}
+
 export interface SendEmailPayload {
   to: string;
   tenant_id?: string;
@@ -317,6 +324,9 @@ export interface SendEmailPayload {
   subject?: string;
   html?: string;
   variables?: Record<string, string>;
+  attachments?: SendEmailAttachment[];
+  reply_to?: string;
+  from_name?: string;
 }
 
 export interface BuildPayloadArgs {
@@ -326,6 +336,9 @@ export interface BuildPayloadArgs {
   subject?: string | null;
   html?: string | null;
   variables?: Record<string, string | number | null | undefined>;
+  attachments?: SendEmailAttachment[] | null;
+  replyTo?: string | null;
+  fromName?: string | null;
 }
 
 /**
@@ -348,5 +361,10 @@ export function buildSendEmailPayload(args: BuildPayloadArgs): SendEmailPayload 
     }
     payload.variables = vars;
   }
+  if (args.attachments && args.attachments.length > 0) {
+    payload.attachments = args.attachments;
+  }
+  if (args.replyTo) payload.reply_to = args.replyTo.trim().toLowerCase();
+  if (args.fromName) payload.from_name = args.fromName.trim();
   return payload;
 }

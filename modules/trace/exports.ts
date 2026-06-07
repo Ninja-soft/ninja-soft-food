@@ -9,10 +9,17 @@ import {
   drawTable,
   finalizePdf,
   PAGE,
+  pdfBlob,
+  pdfFilename,
   type PlanillaMeta,
 } from "@/lib/utils/pdf";
-import { exportSheetsToExcel } from "@/lib/utils/xlsx";
+import {
+  buildSheetsBlob,
+  exportSheetsToExcel,
+  type ExportToExcelOptions,
+} from "@/lib/utils/xlsx";
 import type { TenantBranding } from "@/modules/planillas/api";
+import type { PdfBlobResult } from "@/modules/planillas/generators";
 import type {
   AffectedCustomer,
   BackwardTrace,
@@ -210,17 +217,18 @@ export function backwardToExport(
 
 // ── Export Excel (clientes afectados + detalle de cadena) ──────────────────────
 
-export async function exportRecallExcel(
+/** Define las dos pestañas del Excel de recall (puro: reusable para blob). */
+function recallSheets(
   data: RecallExportData,
   locale?: string,
-): Promise<void> {
+): ExportToExcelOptions[] {
   const { fmtNum } = makeFormatters(locale);
   const subtitle = `Lote ${data.affectedLot} (${data.affectedType}) · ${data.affectedLabel} · ${fmtNum(
     data.totalDispatchedKg,
   )} kg despachados`;
 
   // Un único archivo con dos pestañas: clientes afectados (acta) + cadena completa.
-  await exportSheetsToExcel(`recall-${data.affectedLot}`, [
+  return [
     {
       filename: `recall-${data.affectedLot}`,
       sheetName: "Clientes afectados",
@@ -292,7 +300,23 @@ export async function exportRecallExcel(
         flag: r.flag,
       })),
     },
-  ]);
+  ];
+}
+
+export async function exportRecallExcel(
+  data: RecallExportData,
+  locale?: string,
+): Promise<void> {
+  await exportSheetsToExcel(`recall-${data.affectedLot}`, recallSheets(data, locale));
+}
+
+/** Excel de recall como Blob (para adjuntar en un email a los afectados). */
+export async function recallExcelBlob(
+  data: RecallExportData,
+  locale?: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const blob = await buildSheetsBlob(recallSheets(data, locale));
+  return { blob, filename: `recall-${data.affectedLot}.xlsx` };
 }
 
 // ── Acta de recall PDF (cadena + clientes con contacto + firma) ───────────────
@@ -300,7 +324,18 @@ export async function exportRecallExcel(
 export function generateRecallPdf(
   data: RecallExportData,
   branding: TenantBranding,
-): void {
+  mode?: "download",
+): void;
+export function generateRecallPdf(
+  data: RecallExportData,
+  branding: TenantBranding,
+  mode: "blob",
+): PdfBlobResult;
+export function generateRecallPdf(
+  data: RecallExportData,
+  branding: TenantBranding,
+  mode?: "download" | "blob",
+): void | PdfBlobResult {
   const { fmtDate, fmtNum } = makeFormatters(branding.locale);
   const meta: PlanillaMeta = {
     title: "Acta de recall / retiro de mercado",
@@ -406,5 +441,9 @@ export function generateRecallPdf(
   drawSignatureBlock(doc, y + 2, {});
 
   finalizePdf(doc);
-  downloadPdf(doc, `acta-recall-${data.affectedLot}`);
+  const filename = `acta-recall-${data.affectedLot}`;
+  if (mode === "blob") {
+    return { blob: pdfBlob(doc), filename: pdfFilename(filename) };
+  }
+  downloadPdf(doc, filename);
 }

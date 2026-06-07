@@ -393,3 +393,13 @@ export function finalizePdf(doc: jsPDF): jsPDF {
 export function downloadPdf(doc: jsPDF, filename: string): void {
   doc.save(filename.endsWith(".pdf") ? filename : `${filename}.pdf`);
 }
+
+/** Devuelve el PDF ya finalizado como Blob (para adjuntar en un email). */
+export function pdfBlob(doc: jsPDF): Blob {
+  return doc.output("blob");
+}
+
+/** Nombre de archivo con extension .pdf garantizada. */
+export function pdfFilename(filename: string): string {
+  return filename.endsWith(".pdf") ? filename : `${filename}.pdf`;
+}

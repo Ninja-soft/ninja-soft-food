@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { SpinnerBlock } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import { Money } from "@/components/ui/Typography";
+import {
+  SendEmailButton,
+  SendEmailModal,
+} from "@/components/emails/SendEmailModal";
 import { cn } from "@/lib/utils/cn";
 import { formatDate, formatQty } from "@/lib/utils/format";
 import { useProductions } from "@/modules/production/hooks";
@@ -19,6 +23,7 @@ export function BulkTab({ branding }: { branding: TenantBranding | undefined }) 
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [generating, setGenerating] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   const { data: productions, isLoading } = useProductions(search);
   const list = useMemo(() => productions ?? [], [productions]);
@@ -91,6 +96,10 @@ export function BulkTab({ branding }: { branding: TenantBranding | undefined }) 
               {selected.size} seleccionada{selected.size === 1 ? "" : "s"}
             </span>
           )}
+          <SendEmailButton
+            onClick={() => setEmailOpen(true)}
+            disabled={selected.size === 0 || !branding}
+          />
           <Button
             onClick={handleGenerate}
             loading={generating}
@@ -101,6 +110,28 @@ export function BulkTab({ branding }: { branding: TenantBranding | undefined }) 
           </Button>
         </div>
       </div>
+
+      {branding && (
+        <SendEmailModal
+          open={emailOpen}
+          onOpenChange={setEmailOpen}
+          title="Enviar planillas por email"
+          documentLabel={`Planillas de producción (${selected.size})`}
+          defaultSubject={`Planillas de producción (${selected.size})`}
+          getAttachments={async () => {
+            const ids = list.filter((p) => selected.has(p.id)).map((p) => p.id);
+            const details = await Promise.all(
+              ids.map((id) => getProductionDetail(id)),
+            );
+            const result = await generateBulkProductionPlanillas(
+              details,
+              branding,
+              "blob",
+            );
+            return result ? [result] : [];
+          }}
+        />
+      )}
 
       {isLoading ? (
         <SpinnerBlock />

@@ -2429,6 +2429,9 @@ export type Database = {
           accent: string
           address: string | null
           cuit: string | null
+          email_from_name: string | null
+          email_reply_to: string | null
+          email_signature: string | null
           legal_name: string | null
           logo_url: string | null
           pdf_primary_color: string | null
@@ -2444,6 +2447,9 @@ export type Database = {
           accent?: string
           address?: string | null
           cuit?: string | null
+          email_from_name?: string | null
+          email_reply_to?: string | null
+          email_signature?: string | null
           legal_name?: string | null
           logo_url?: string | null
           pdf_primary_color?: string | null
@@ -2459,6 +2465,9 @@ export type Database = {
           accent?: string
           address?: string | null
           cuit?: string | null
+          email_from_name?: string | null
+          email_reply_to?: string | null
+          email_signature?: string | null
           legal_name?: string | null
           logo_url?: string | null
           pdf_primary_color?: string | null

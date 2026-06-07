@@ -11,6 +11,10 @@ import {
 import { Segmented } from "@/components/ui/Segmented";
 import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
+import {
+  SendEmailButton,
+  SendEmailModal,
+} from "@/components/emails/SendEmailModal";
 import { formatDate, formatQty } from "@/lib/utils/format";
 import { exportToExcel } from "@/lib/utils/xlsx";
 import type { TenantBranding } from "@/modules/planillas/api";
@@ -37,6 +41,7 @@ export function WeeklyTab({ branding }: { branding: TenantBranding | undefined }
   const [mode, setMode] = useState<Mode>("produccion");
   const [range, setRange] = useState<DateRange | undefined>();
   const [generating, setGenerating] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   const from = toIso(range?.from);
   const to = toIso(range?.to ?? range?.from);
@@ -204,7 +209,7 @@ export function WeeklyTab({ branding }: { branding: TenantBranding | undefined }
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
               onClick={handleExcel}
@@ -213,6 +218,10 @@ export function WeeklyTab({ branding }: { branding: TenantBranding | undefined }
               <Download size={16} />
               Excel
             </Button>
+            <SendEmailButton
+              onClick={() => setEmailOpen(true)}
+              disabled={active.isLoading || count === 0 || !branding}
+            />
             <Button
               onClick={handlePdf}
               loading={generating}
@@ -223,6 +232,41 @@ export function WeeklyTab({ branding }: { branding: TenantBranding | undefined }
             </Button>
           </div>
         </div>
+      )}
+
+      {valid && from && to && branding && (
+        <SendEmailModal
+          open={emailOpen}
+          onOpenChange={setEmailOpen}
+          title="Enviar resumen por email"
+          documentLabel={
+            mode === "produccion"
+              ? "Resumen de producción"
+              : "Resumen de ingresos de stock"
+          }
+          defaultSubject={`${
+            mode === "produccion"
+              ? "Resumen de producción"
+              : "Resumen de ingresos de stock"
+          } · ${formatDate(from)} al ${formatDate(to)}`}
+          getAttachments={async () => {
+            const result =
+              mode === "produccion"
+                ? generateWeeklyProductionPlanilla(
+                    productions.data ?? [],
+                    { from, to },
+                    branding,
+                    "blob",
+                  )
+                : generateWeeklyStockPlanilla(
+                    stock.data ?? [],
+                    { from, to },
+                    branding,
+                    "blob",
+                  );
+            return [result];
+          }}
+        />
       )}
 
       {/* Tabla de preview */}

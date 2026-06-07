@@ -6,6 +6,11 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { Money } from "@/components/ui/Typography";
+import {
+  SendEmailButton,
+  SendEmailModal,
+  type PreparedAttachment,
+} from "@/components/emails/SendEmailModal";
 import { ConformityBadge } from "@/components/analisis/ConformityBadge";
 import { formatDate } from "@/lib/utils/format";
 import { getAttachmentUrl, type Analysis } from "@/modules/quality/api";
@@ -24,6 +29,7 @@ export function AnalysisDetailDrawer({
 }) {
   const { toast } = useToast();
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   async function openAttachment(path: string, id: string) {
     setOpeningId(id);
@@ -135,15 +141,42 @@ export function AnalysisDetailDrawer({
             )}
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-border pt-4">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
             <Button variant="secondary" onClick={onClose}>
               Cerrar
             </Button>
+            <SendEmailButton
+              onClick={() => setEmailOpen(true)}
+              disabled={analysis.attachments.length === 0}
+            />
             <Button onClick={() => onEdit(analysis)}>
               <Pencil size={16} />
               Editar
             </Button>
           </div>
+
+          <SendEmailModal
+            open={emailOpen}
+            onOpenChange={setEmailOpen}
+            title="Enviar análisis por email"
+            documentLabel={`Análisis ${ANALYSIS_TYPE_LABELS[analysis.type]} ${formatDate(analysis.analysis_date)}`}
+            defaultSubject={`Análisis de laboratorio · ${ANALYSIS_TYPE_LABELS[analysis.type]} ${formatDate(analysis.analysis_date)}`}
+            getAttachments={async () => {
+              // Se adjuntan los resultados cargados (PDF/imagenes del laboratorio).
+              const out: PreparedAttachment[] = [];
+              for (const att of analysis.attachments) {
+                try {
+                  const url = await getAttachmentUrl(att.url);
+                  const res = await fetch(url);
+                  if (!res.ok) continue;
+                  out.push({ blob: await res.blob(), filename: att.name });
+                } catch {
+                  // Un adjunto que no descarga no corta el envío.
+                }
+              }
+              return out;
+            }}
+          />
         </div>
       )}
     </Modal>

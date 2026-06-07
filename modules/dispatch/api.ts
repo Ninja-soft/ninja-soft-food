@@ -86,7 +86,7 @@ const DISPATCH_ITEM_SELECT = `
 
 const DISPATCH_SELECT = `
   id, dispatch_date, status, created_at,
-  customer:customers(name, locality),
+  customer:customers(id, name, address, locality, phone, email),
   vehicle:vehicles(plate, uta_expiry, ura_expiry),
   items:dispatch_items(${DISPATCH_ITEM_SELECT})
 `;
