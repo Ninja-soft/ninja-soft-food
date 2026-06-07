@@ -1,11 +1,16 @@
 "use client";
 
-import { Fragment, useState } from "react";
-import { ChevronDown, ChevronRight, Download } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, Download, X } from "lucide-react";
 import { Eyebrow, Display, Money } from "@/components/ui/Typography";
 import { Button } from "@/components/ui/Button";
 import { SpinnerBlock } from "@/components/ui/Spinner";
+import {
+  DateRangePicker,
+  type DateRange,
+} from "@/components/ui/DateRangePicker";
 import { useInternalAudit, useInternalTenants } from "@/modules/internal/hooks";
+import { useAuditFacets } from "@/modules/internal-ops/hooks";
 import { formatDate } from "@/lib/utils/format";
 import { exportToExcel } from "@/lib/utils/xlsx";
 
@@ -32,14 +37,45 @@ function fmtDateTime(iso: string): string {
 
 export default function InternalAuditPage() {
   const [tenantId, setTenantId] = useState("");
+  const [entityType, setEntityType] = useState("");
+  const [action, setAction] = useState("");
+  const [range, setRange] = useState<DateRange | undefined>(undefined);
   const [openId, setOpenId] = useState<string | null>(null);
   const { data: tenants } = useInternalTenants();
+  const { data: facets } = useAuditFacets();
   const {
-    data: entries,
+    data: allEntries,
     isLoading,
     isError,
     refetch,
   } = useInternalAudit(tenantId || null);
+
+  const entries = useMemo(() => {
+    const from = range?.from ? new Date(range.from).setHours(0, 0, 0, 0) : null;
+    const to = range?.to
+      ? new Date(range.to).setHours(23, 59, 59, 999)
+      : range?.from
+        ? new Date(range.from).setHours(23, 59, 59, 999)
+        : null;
+    return (allEntries ?? []).filter((e) => {
+      if (entityType && e.entityType !== entityType) return false;
+      if (action && e.action !== action) return false;
+      if (from != null || to != null) {
+        const t = new Date(e.createdAt).getTime();
+        if (from != null && t < from) return false;
+        if (to != null && t > to) return false;
+      }
+      return true;
+    });
+  }, [allEntries, entityType, action, range]);
+
+  const hasFilters =
+    Boolean(entityType) || Boolean(action) || Boolean(range?.from);
+  function clearFilters() {
+    setEntityType("");
+    setAction("");
+    setRange(undefined);
+  }
 
   const tenantName = (id: string | null) =>
     id
@@ -93,7 +129,7 @@ export default function InternalAuditPage() {
         </Button>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 flex flex-wrap items-center gap-2">
         <select
           value={tenantId}
           onChange={(e) => setTenantId(e.target.value)}
@@ -106,6 +142,42 @@ export default function InternalAuditPage() {
             </option>
           ))}
         </select>
+        <select
+          value={entityType}
+          onChange={(e) => setEntityType(e.target.value)}
+          className={selectCls}
+        >
+          <option value="">Toda entidad</option>
+          {(facets?.entityTypes ?? []).map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
+        <select
+          value={action}
+          onChange={(e) => setAction(e.target.value)}
+          className={selectCls}
+        >
+          <option value="">Toda acción</option>
+          {(facets?.actions ?? []).map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
+        <DateRangePicker value={range} onChange={setRange} className="h-10" />
+        {hasFilters && (
+          <button
+            onClick={clearFilters}
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-2 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <X size={13} /> Limpiar
+          </button>
+        )}
+        <span className="ml-auto text-xs text-muted-foreground">
+          {entries.length} de {allEntries?.length ?? 0}
+        </span>
       </div>
 
       <div className="mt-6 overflow-x-auto rounded-lg border border-border bg-card shadow-soft backdrop-blur-xl">

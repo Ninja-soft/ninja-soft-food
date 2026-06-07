@@ -3,9 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
+  Activity,
   ArrowLeft,
   CalendarPlus,
+  Copy,
+  ExternalLink,
+  LogIn,
   Package,
+  ShieldAlert,
   Soup,
   Truck,
   Users,
@@ -18,7 +23,20 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { StatusBadge, TENANT_STATUS_LABELS } from "@/components/internal/StatusBadge";
 import { useTenantDetail, useTenantActions } from "@/modules/internal/hooks";
+import {
+  useImpersonate,
+  useTenantHealth,
+  type ImpersonateResult,
+} from "@/modules/internal-ops/hooks";
 import { formatDate, formatMoney } from "@/lib/utils/format";
+
+function fmtDateTime(iso: string | null): string {
+  if (!iso) return "Nunca";
+  return new Date(iso).toLocaleString("es-AR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
 
 const INDUSTRY_LABELS: Record<string, string> = {
   frigorifico: "Frigorífico",
@@ -38,9 +56,38 @@ export default function InternalTenantDetailPage({
 }) {
   const { toast } = useToast();
   const { data, isLoading } = useTenantDetail(params.id);
+  const { data: health } = useTenantHealth(params.id);
   const actions = useTenantActions(params.id);
+  const impersonate = useImpersonate();
   const [extendOpen, setExtendOpen] = useState(false);
   const [statusValue, setStatusValue] = useState("");
+  const [impersonateOpen, setImpersonateOpen] = useState(false);
+  const [impersonateResult, setImpersonateResult] =
+    useState<ImpersonateResult | null>(null);
+
+  function onImpersonate() {
+    impersonate.mutate(params.id, {
+      onSuccess: (res) => {
+        setImpersonateResult(res);
+        setImpersonateOpen(false);
+      },
+      onError: (e) =>
+        toast({
+          title: "No se pudo generar el acceso",
+          description: e instanceof Error ? e.message : undefined,
+          variant: "error",
+        }),
+    });
+  }
+
+  async function copyLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copiado", variant: "success" });
+    } catch {
+      toast({ title: "No se pudo copiar", variant: "error" });
+    }
+  }
 
   function onExtend() {
     actions.extendTrial.mutate(undefined, {
@@ -155,6 +202,52 @@ export default function InternalTenantDetailPage({
         </Card>
       </div>
 
+      {/* ── Salud operativa ── */}
+      <Heading as="h2" className="mt-8 text-lg">
+        Salud
+      </Heading>
+      <Card className="mt-3">
+        <CardContent className="p-5">
+          {health ? (
+            <>
+              <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
+                <Row
+                  label="Dueño"
+                  value={health.ownerEmail ?? "—"}
+                />
+                <Row
+                  label="Último login del dueño"
+                  value={fmtDateTime(health.ownerLastSignInAt)}
+                />
+                <Row label="Usuarios activos" value={String(health.activeUsers)} />
+                <Row
+                  label="Último uso"
+                  value={fmtDateTime(health.lastActivityAt)}
+                />
+              </dl>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <HealthTile
+                  label="Producciones (7d)"
+                  value={health.productions7d}
+                />
+                <HealthTile
+                  label="Producciones (30d)"
+                  value={health.productions30d}
+                />
+                <HealthTile
+                  label="Despachos (30d)"
+                  value={health.dispatches30d}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Activity size={15} /> Sin datos de actividad todavía.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* ── Suscripción ── */}
       <Heading as="h2" className="mt-8 text-lg">
         Suscripción
@@ -252,7 +345,77 @@ export default function InternalTenantDetailPage({
         </CardContent>
       </Card>
 
+      {/* ── Entrar como dueño (impersonation) ── */}
+      <Heading as="h2" className="mt-8 text-lg">
+        Entrar como dueño
+      </Heading>
+      <Card className="mt-3">
+        <CardContent className="p-5">
+          <div className="mb-4 flex items-start gap-2 rounded-ninjaMd border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+            <ShieldAlert size={16} className="mt-0.5 shrink-0" />
+            <span>
+              Acción sensible. Genera un magic link de un solo uso para el dueño
+              del negocio. <strong>Abrilo en una ventana de incógnito</strong>{" "}
+              para no cerrar tu sesión de staff. Queda registrado en auditoría.
+            </span>
+          </div>
+
+          {!impersonateResult ? (
+            <Button
+              variant="secondary"
+              onClick={() => setImpersonateOpen(true)}
+              disabled={impersonate.isPending}
+            >
+              <LogIn size={16} />{" "}
+              {impersonate.isPending ? "Generando…" : "Generar acceso"}
+            </Button>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Link generado para{" "}
+                <span className="font-medium text-foreground">
+                  {impersonateResult.ownerEmail}
+                </span>
+                . Expira en ~1 hora y es de un solo uso.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={impersonateResult.actionLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition hover:bg-primary/20"
+                >
+                  <ExternalLink size={14} /> Abrir en nueva pestaña
+                </a>
+                <button
+                  onClick={() => copyLink(impersonateResult.actionLink)}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                >
+                  <Copy size={14} /> Copiar link
+                </button>
+                <button
+                  onClick={() => setImpersonateResult(null)}
+                  className="text-sm text-muted-foreground transition hover:text-foreground"
+                >
+                  Generar nuevo
+                </button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* ── Confirms ── */}
+      <ConfirmDialog
+        open={impersonateOpen}
+        onOpenChange={setImpersonateOpen}
+        title="Entrar como dueño"
+        description={`Generar un magic link de acceso al negocio ${tenant.name} como su dueño. Abrilo en incógnito. La acción queda registrada en auditoría.`}
+        confirmLabel="Generar acceso"
+        danger
+        loading={impersonate.isPending}
+        onConfirm={onImpersonate}
+      />
       <ConfirmDialog
         open={extendOpen}
         onOpenChange={setExtendOpen}
@@ -306,6 +469,19 @@ function Row({
       <dd className="text-right font-medium text-foreground">
         {valueNode ?? (mono ? <Money>{value}</Money> : value)}
       </dd>
+    </div>
+  );
+}
+
+function HealthTile({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-border bg-muted/40 p-3">
+      <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 font-price text-2xl font-black tabular-nums text-foreground">
+        {value}
+      </p>
     </div>
   );
 }
