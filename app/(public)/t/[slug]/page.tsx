@@ -97,6 +97,18 @@ function abrEnabled(
   return branding.sello_abr_enabled !== false;
 }
 
+// Foto del producto y traza pública (decisión de diseño · regla dura 5):
+// La foto (productions.photo_url) se captura DESPUÉS de completar la producción
+// y NO forma parte del snapshot inmutable public_traces.payload (la RPC 0005
+// está congelada y al momento del snapshot la foto ni existe). Para mostrarla
+// acá habría que (a) snapshotear -> prohibido por regla 5, o (b) leer el
+// registro vivo `productions` -> requiere abrir RLS de productions a anon, lo
+// que ampliaría la superficie pública (regla dura 1). Como public_traces es
+// inmutable (sin policy UPDATE), tampoco se puede inyectar ahí. Por eso la foto
+// es un dato VIVO y COMPLEMENTARIO que vive solo en las vistas internas del
+// tenant (listado de producción + planilla PDF). La traza pública queda intacta:
+// snapshot regulatorio sin alterar y sin nueva superficie anónima.
+
 // Traza pública (destino del QR): snapshot inmutable, sin autenticación.
 export default async function PublicTracePage({
   params,

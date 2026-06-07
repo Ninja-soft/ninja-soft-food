@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Plus, QrCode, Search, Soup } from "lucide-react";
+import { Download, FileText, Plus, QrCode, Search, Soup } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SpinnerBlock } from "@/components/ui/Spinner";
+import { useToast } from "@/components/ui/Toast";
 import { Eyebrow, Heading, Money } from "@/components/ui/Typography";
 import { ProductionFormModal } from "@/components/production/ProductionFormModal";
 import { TraceQrModal } from "@/components/production/TraceQrModal";
@@ -11,6 +12,9 @@ import { cn } from "@/lib/utils/cn";
 import { daysUntil, formatDate, formatQty } from "@/lib/utils/format";
 import { exportToExcel } from "@/lib/utils/xlsx";
 import { useProductions } from "@/modules/production/hooks";
+import { getRecipe } from "@/modules/recipes/api";
+import { generateRecipePdf } from "@/modules/recipes/pdf";
+import { useTenantBranding } from "@/modules/planillas/hooks";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Borrador",
@@ -20,11 +24,39 @@ const STATUS_LABELS: Record<string, string> = {
 
 // Producción: historial + alta que consume lotes (corazón de la trazabilidad).
 export default function ProduccionPage() {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [qr, setQr] = useState<{ slug: string; code: string } | null>(null);
+  const [recipePdfBusy, setRecipePdfBusy] = useState<string | null>(null);
 
   const { data: productions, isLoading } = useProductions(search);
+  const { data: branding } = useTenantBranding();
+
+  // Descarga la ficha técnica (PDF) de la receta usada en la producción.
+  async function handleRecipePdf(productionId: string, recipeId: string) {
+    if (!branding) {
+      toast({
+        title: "No se pudo generar el PDF",
+        description: "Datos del establecimiento no disponibles todavía.",
+        variant: "error",
+      });
+      return;
+    }
+    setRecipePdfBusy(productionId);
+    try {
+      const recipe = await getRecipe(recipeId);
+      await generateRecipePdf(recipe, branding);
+    } catch (e) {
+      toast({
+        title: "No se pudo generar el PDF de la receta",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "error",
+      });
+    } finally {
+      setRecipePdfBusy(null);
+    }
+  }
 
   function handleExport() {
     void exportToExcel({
@@ -135,6 +167,7 @@ export default function ProduccionPage() {
                 <th className="px-4 py-3 font-medium">Lote</th>
                 <th className="px-4 py-3 font-medium">Vence</th>
                 <th className="px-4 py-3 font-medium">Traza</th>
+                <th className="px-4 py-3 font-medium">Receta</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -147,7 +180,19 @@ export default function ProduccionPage() {
                       <Money className="text-xs font-semibold">{p.code}</Money>
                     </td>
                     <td className="px-4 py-3 font-medium">
-                      {p.recipe?.title ?? "-"}
+                      <span className="flex items-center gap-2.5">
+                        {p.photo_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={p.photo_url}
+                            alt=""
+                            className="h-9 w-9 shrink-0 rounded-md object-cover ring-1 ring-border"
+                          />
+                        )}
+                        <span className="truncate">
+                          {p.recipe?.title ?? "-"}
+                        </span>
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {formatDate(p.production_date)}
@@ -182,6 +227,17 @@ export default function ProduccionPage() {
                       ) : (
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        disabled={recipePdfBusy === p.id}
+                        onClick={() => void handleRecipePdf(p.id, p.recipe_id)}
+                        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition hover:bg-secondary/60 hover:text-foreground disabled:opacity-50"
+                      >
+                        <FileText size={14} />
+                        {recipePdfBusy === p.id ? "Generando…" : "PDF"}
+                      </button>
                     </td>
                   </tr>
                 );

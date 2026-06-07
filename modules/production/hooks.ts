@@ -21,10 +21,12 @@ export function useCompleteProduction() {
     mutationFn: ({
       input,
       inputs,
+      photoUrl,
     }: {
       input: ProductionInput;
       inputs: ProductionInputRow[];
-    }) => api.completeProduction(input, inputs),
+      photoUrl?: string | null;
+    }) => api.completeProduction(input, inputs, photoUrl),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["productions"] });
       qc.invalidateQueries({ queryKey: ["stock-available"] });

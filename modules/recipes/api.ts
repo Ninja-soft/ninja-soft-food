@@ -130,6 +130,19 @@ export async function listRecipes(params: {
   return (data ?? []) as unknown as Recipe[];
 }
 
+/** Una receta por id, con su fórmula completa (para la ficha técnica PDF). */
+export async function getRecipe(id: string): Promise<Recipe> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("recipes")
+    .select(RECIPE_SELECT)
+    .eq("id", id)
+    .is("deleted_at", null)
+    .single();
+  if (error) throw error;
+  return data as unknown as Recipe;
+}
+
 export async function createRecipe(
   input: RecipeInput & { image_url?: string | null },
   ingredients: RecipeIngredientInput[],

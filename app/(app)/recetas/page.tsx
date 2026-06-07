@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   Download,
+  FileText,
   FolderPlus,
   MoreVertical,
   Pencil,
@@ -35,7 +36,9 @@ import {
   useRecipeGroups,
   useRecipes,
 } from "@/modules/recipes/hooks";
+import { generateRecipePdf } from "@/modules/recipes/pdf";
 import { type RnpaFilter } from "@/modules/recipes/schemas";
+import { useTenantBranding } from "@/modules/planillas/hooks";
 
 const RNPA_FILTERS: { value: RnpaFilter; label: string }[] = [
   { value: "todos", label: "Todas" },
@@ -84,6 +87,8 @@ export default function RecetasPage() {
 
   const { data: groups } = useRecipeGroups();
   const { data: recipes, isLoading } = useRecipes(search, groupId);
+  const { data: branding } = useTenantBranding();
+  const [pdfBusy, setPdfBusy] = useState<string | null>(null);
 
   const [recipeModal, setRecipeModal] = useState<{
     open: boolean;
@@ -138,6 +143,29 @@ export default function RecetasPage() {
         ingredients: r.recipe_ingredients.length,
       })),
     });
+  }
+
+  async function handleDownloadPdf(r: Recipe) {
+    if (!branding) {
+      toast({
+        title: "No se pudo generar el PDF",
+        description: "Datos del establecimiento no disponibles todavía.",
+        variant: "error",
+      });
+      return;
+    }
+    setPdfBusy(r.id);
+    try {
+      await generateRecipePdf(r, branding);
+    } catch (e) {
+      toast({
+        title: "No se pudo generar el PDF",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "error",
+      });
+    } finally {
+      setPdfBusy(null);
+    }
   }
 
   async function confirmDeleteRecipe() {
@@ -412,6 +440,13 @@ export default function RecetasPage() {
                     >
                       <Pencil size={14} />
                       Editar
+                    </DropdownItem>
+                    <DropdownItem
+                      disabled={pdfBusy === r.id}
+                      onSelect={() => void handleDownloadPdf(r)}
+                    >
+                      <FileText size={14} />
+                      {pdfBusy === r.id ? "Generando PDF…" : "Descargar PDF"}
                     </DropdownItem>
                     <DropdownSeparator />
                     <DropdownItem

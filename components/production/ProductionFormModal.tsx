@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
-import { Infinity as InfinityIcon } from "lucide-react";
+import { ImagePlus, Infinity as InfinityIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +12,8 @@ import { useToast } from "@/components/ui/Toast";
 import { Money } from "@/components/ui/Typography";
 import { cn } from "@/lib/utils/cn";
 import { daysUntil, formatDate, formatQty } from "@/lib/utils/format";
+import { resizeToWebp } from "@/lib/utils/image";
+import { uploadProductionPhoto } from "@/modules/production/api";
 import { useCompleteProduction } from "@/modules/production/hooks";
 import {
   productionSchema,
@@ -52,6 +54,13 @@ export function ProductionFormModal({
     {},
   );
   const [assignError, setAssignError] = useState<string | null>(null);
+
+  // Foto del producto (opcional). No es regulatoria: es un dato vivo y
+  // complementario que se sube al bucket público recipes tras completar.
+  const photoRef = useRef<HTMLInputElement>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const {
     register,
@@ -136,7 +145,24 @@ export function ProductionFormModal({
     });
     setAssignments({});
     setAssignError(null);
+    setPhotoFile(null);
+    setPhotoPreview(null);
   }, [open, reset]);
+
+  function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Imagen muy pesada",
+        description: "Máximo 5 MB",
+        variant: "error",
+      });
+      return;
+    }
+    setPhotoFile(f);
+    setPhotoPreview(URL.createObjectURL(f));
+  }
 
   function setEntryQty(ingredientId: string, entryId: string, qty: number) {
     setAssignments((prev) => ({
@@ -204,7 +230,18 @@ export function ProductionFormModal({
     setAssignError(null);
 
     try {
-      const result = await completeMut.mutateAsync({ input: values, inputs: rows });
+      let photoUrl: string | null = null;
+      if (photoFile) {
+        setUploadingPhoto(true);
+        const webp = await resizeToWebp(photoFile);
+        photoUrl = await uploadProductionPhoto(webp);
+        setUploadingPhoto(false);
+      }
+      const result = await completeMut.mutateAsync({
+        input: values,
+        inputs: rows,
+        photoUrl,
+      });
       toast({
         title: `Producción ${result.code} completada`,
         description: `Lote ${result.product_lot} · vence ${formatDate(result.expiry_date)}`,
@@ -213,6 +250,7 @@ export function ProductionFormModal({
       onOpenChange(false);
       onCompleted(result.trace_slug, result.code);
     } catch (e) {
+      setUploadingPhoto(false);
       toast({
         title: "Error al completar producción",
         description: e instanceof Error ? e.message : undefined,
@@ -230,6 +268,36 @@ export function ProductionFormModal({
       className="max-w-2xl"
     >
       <form onSubmit={onSubmit} className="space-y-5" noValidate>
+        {/* Foto del producto (opcional, no regulatoria) */}
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => photoRef.current?.click()}
+            className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-ninjaMd border border-dashed border-border bg-muted/40 text-muted-foreground transition hover:border-primary hover:text-primary"
+            aria-label="Subir foto del producto"
+          >
+            {photoPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoPreview} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <ImagePlus size={22} />
+            )}
+          </button>
+          <div className="text-xs text-muted-foreground">
+            <p className="font-medium text-foreground">
+              Foto del producto (opcional)
+            </p>
+            <p>JPG, PNG o WebP · hasta 5 MB · se muestra en la traza pública</p>
+          </div>
+          <input
+            ref={photoRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={onPickPhoto}
+          />
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2 sm:col-span-1">
             <label className="mb-2 block text-sm font-medium text-muted-foreground">
@@ -414,7 +482,10 @@ export function ProductionFormModal({
           >
             Cancelar
           </Button>
-          <Button type="submit" loading={completeMut.isPending}>
+          <Button
+            type="submit"
+            loading={uploadingPhoto || completeMut.isPending}
+          >
             Completar producción
           </Button>
         </div>

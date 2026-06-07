@@ -86,6 +86,7 @@ export type ProductionDetail = {
   quantity_kg: number | null;
   product_lot_number: string | null;
   product_expiry_date: string | null;
+  photo_url: string | null;
   notes: string | null;
   recipe: {
     title: string;
@@ -107,7 +108,7 @@ export async function getProductionDetail(
     .from("productions")
     .select(
       `id, code, status, production_date, packaging_date, quantity_kg,
-       product_lot_number, product_expiry_date, notes,
+       product_lot_number, product_expiry_date, photo_url, notes,
        recipe:recipes(title, commercial_name, rnpa_number, rnpa_exempt, category),
        manager:members(full_name, position),
        trace:public_traces(slug),
@@ -148,6 +149,7 @@ export async function getProductionDetail(
     quantity_kg: number | null;
     product_lot_number: string | null;
     product_expiry_date: string | null;
+    photo_url: string | null;
     notes: string | null;
     recipe: ProductionDetail["recipe"];
     manager: ProductionDetail["manager"];
@@ -181,6 +183,7 @@ export async function getProductionDetail(
     quantity_kg: raw.quantity_kg,
     product_lot_number: raw.product_lot_number,
     product_expiry_date: raw.product_expiry_date,
+    photo_url: raw.photo_url,
     notes: raw.notes,
     recipe: raw.recipe,
     manager: raw.manager,

@@ -1361,6 +1361,7 @@ export type Database = {
           manager_member_id: string | null
           notes: string | null
           packaging_date: string | null
+          photo_url: string | null
           product_expiry_date: string | null
           product_lot_number: string | null
           production_date: string
@@ -1382,6 +1383,7 @@ export type Database = {
           manager_member_id?: string | null
           notes?: string | null
           packaging_date?: string | null
+          photo_url?: string | null
           product_expiry_date?: string | null
           product_lot_number?: string | null
           production_date: string
@@ -1403,6 +1405,7 @@ export type Database = {
           manager_member_id?: string | null
           notes?: string | null
           packaging_date?: string | null
+          photo_url?: string | null
           product_expiry_date?: string | null
           product_lot_number?: string | null
           production_date?: string
