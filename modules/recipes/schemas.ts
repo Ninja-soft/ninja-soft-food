@@ -50,6 +50,31 @@ export const regulatoryLabelsSchema = z.object({
 });
 export type RegulatoryLabelsInput = z.infer<typeof regulatoryLabelsSchema>;
 
+/**
+ * Catálogo de alérgenos comunes (set transversal CAA art. 235 séptimo / ANVISA
+ * RDC 26/2015 / FDA FALCPA + sésamo FASTER Act / UE Anexo II 1169/2011). NO se
+ * hardcodea al país (regla dura 11): es el denominador común de los marcos que
+ * el producto soporta; el `value` es el id estable que se persiste en
+ * recipes.allergens y el `label` el texto en español de la UI/rótulo.
+ */
+export const COMMON_ALLERGENS = [
+  { value: "gluten", label: "Gluten" },
+  { value: "leche", label: "Leche" },
+  { value: "huevo", label: "Huevo" },
+  { value: "soja", label: "Soja" },
+  { value: "mani", label: "Maní" },
+  { value: "frutos_secos", label: "Frutos secos" },
+  { value: "pescado", label: "Pescado" },
+  { value: "mariscos", label: "Mariscos" },
+  { value: "sesamo", label: "Sésamo" },
+  { value: "sulfitos", label: "Sulfitos" },
+] as const;
+
+/** Texto legible (es) de un id de alérgeno; cae al id crudo si no está en el catálogo. */
+export function allergenLabel(id: string): string {
+  return COMMON_ALLERGENS.find((a) => a.value === id)?.label ?? id;
+}
+
 export const recipeIngredientSchema = z.object({
   ingredient_id: z.string().uuid({ message: "Elegí un ingrediente" }),
   quantity: z
@@ -114,6 +139,10 @@ export const recipeSchema = z
       .nullable(),
     front_labels: z.array(z.string()),
     regulatory_labels: regulatoryLabelsSchema.nullable(),
+    // Alérgenos declarados (ids de COMMON_ALLERGENS). ADITIVO (Fase 7): se
+    // resaltan en negrita en la lista de ingredientes del rótulo print-ready.
+    // text[] en DB; recetas viejas validan con [] por default.
+    allergens: z.array(z.string()),
     // Nutrición por 100 g/ml. Los 5 campos base existían desde Fase 1; los 5
     // ampliados (saturated_fats, trans_fats, sugars, fiber, salt) se agregan
     // ADITIVAMENTE para el cálculo de sellos frontales (Fase 7). jsonb: sin

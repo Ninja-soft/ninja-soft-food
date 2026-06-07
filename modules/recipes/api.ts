@@ -23,6 +23,15 @@ export type RecipeIngredientRow = {
   ingredient: { name: string; unit: string } | null;
 };
 
+/** Una versión guardada de rótulo print-ready (recipes.label_versions jsonb). */
+export type LabelVersion = {
+  version: number;
+  /** Path en el bucket público `recipes`: <tenant>/labels/<recipeId>/v<N>.pdf */
+  path: string;
+  created_at: string;
+  created_by: string | null;
+};
+
 export type Recipe = {
   id: string;
   title: string;
@@ -42,6 +51,10 @@ export type Recipe = {
   front_labels: string[];
   /** Rotulado frontal resuelto por país: {system, values}. Reemplaza front_labels. */
   regulatory_labels: { system: string; values: string[] } | null;
+  /** Alérgenos declarados (ids de COMMON_ALLERGENS). text[], default []. */
+  allergens: string[] | null;
+  /** Historial append-only de rótulos print-ready guardados (Fase 7). */
+  label_versions: LabelVersion[];
   nutrition: {
     calories?: number | null;
     proteins?: number | null;
@@ -63,7 +76,7 @@ const RECIPE_SELECT = `
   id, title, commercial_name, group_id, category, product_type, description,
   shelf_life_days, aging_days, packaging_delay_type,
   rnpa_number, rnpa_expiry, rnpa_exempt, rnpa_exempt_reason,
-  image_url, front_labels, regulatory_labels, nutrition,
+  image_url, front_labels, regulatory_labels, allergens, label_versions, nutrition,
   group:recipe_groups(name),
   recipe_ingredients(id, ingredient_id, quantity, unit, is_substitute,
     source_ingredient_id,

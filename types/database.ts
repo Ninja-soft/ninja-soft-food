@@ -1633,6 +1633,7 @@ export type Database = {
       recipes: {
         Row: {
           aging_days: number
+          allergens: string[] | null
           bpm_attachment_url: string | null
           category: Database["public"]["Enums"]["food_category"]
           commercial_name: string | null
@@ -1645,6 +1646,7 @@ export type Database = {
           household_measure: string | null
           id: string
           image_url: string | null
+          label_versions: Json
           nutrition: Json
           packaging_delay_type: Database["public"]["Enums"]["packaging_delay"]
           product_type: Database["public"]["Enums"]["product_type"]
@@ -1661,6 +1663,7 @@ export type Database = {
         }
         Insert: {
           aging_days?: number
+          allergens?: string[] | null
           bpm_attachment_url?: string | null
           category?: Database["public"]["Enums"]["food_category"]
           commercial_name?: string | null
@@ -1673,6 +1676,7 @@ export type Database = {
           household_measure?: string | null
           id?: string
           image_url?: string | null
+          label_versions?: Json
           nutrition?: Json
           packaging_delay_type?: Database["public"]["Enums"]["packaging_delay"]
           product_type?: Database["public"]["Enums"]["product_type"]
@@ -1689,6 +1693,7 @@ export type Database = {
         }
         Update: {
           aging_days?: number
+          allergens?: string[] | null
           bpm_attachment_url?: string | null
           category?: Database["public"]["Enums"]["food_category"]
           commercial_name?: string | null
@@ -1701,6 +1706,7 @@ export type Database = {
           household_measure?: string | null
           id?: string
           image_url?: string | null
+          label_versions?: Json
           nutrition?: Json
           packaging_delay_type?: Database["public"]["Enums"]["packaging_delay"]
           product_type?: Database["public"]["Enums"]["product_type"]

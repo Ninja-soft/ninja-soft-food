@@ -310,6 +310,7 @@ describe("recipeSchema.nutrition · ampliación aditiva", () => {
     rnpa_exempt_reason: null,
     front_labels: [] as string[],
     regulatory_labels: null,
+    allergens: [] as string[],
   };
 
   it("acepta una receta vieja con solo los 5 campos base", () => {

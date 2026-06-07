@@ -43,6 +43,8 @@ function recipe(over: Partial<Recipe> = {}): Recipe {
     image_url: null,
     front_labels: [],
     regulatory_labels: null,
+    allergens: null,
+    label_versions: [],
     nutrition: {},
     group: null,
     recipe_ingredients: [],

@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ImagePlus, Plus, Sparkles, Trash2, Wand2 } from "lucide-react";
+import {
+  Download,
+  FileText,
+  ImagePlus,
+  Plus,
+  Sparkles,
+  Trash2,
+  Wand2,
+} from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -14,9 +22,19 @@ import { useIngredients } from "@/modules/ingredients/hooks";
 import {
   auditRecipeLabeling,
   uploadRecipeImage,
+  type LabelVersion,
   type Recipe,
 } from "@/modules/recipes/api";
 import { generateNutrition } from "@/modules/recipes/ai";
+import {
+  generateLabelBlob,
+  generateLabelPdf,
+  LABEL_SIZES,
+  type LabelSize,
+} from "@/modules/recipes/labelPdf";
+import { labelVersionUrl, saveLabelVersion } from "@/modules/recipes/labels";
+import { useTenantBranding } from "@/modules/planillas/hooks";
+import { formatDate } from "@/lib/utils/format";
 import {
   computeSeals,
   missingFieldsForSystem,
@@ -28,6 +46,7 @@ import {
   useUpdateRecipe,
 } from "@/modules/recipes/hooks";
 import {
+  COMMON_ALLERGENS,
   FOOD_CATEGORIES,
   PACKAGING_DELAYS,
   PRODUCT_TYPES,
@@ -85,7 +104,9 @@ export function RecipeFormModal({
   recipe: Recipe | null;
 }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: profile } = useOperatingProfile();
+  const { data: branding } = useTenantBranding();
   const labelSystem = profile?.labelSystem;
   const isAr = (profile?.country ?? "AR").toUpperCase() === "AR";
   const { data: groups } = useRecipeGroups();
@@ -102,6 +123,14 @@ export function RecipeFormModal({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiProposed, setAiProposed] = useState(false);
   const [sealsMsg, setSealsMsg] = useState<string | null>(null);
+
+  // ── Rótulo print-ready ─────────────────────────────────────────────────────
+  const [labelSize, setLabelSize] = useState<LabelSize>("full");
+  const [labelPortion, setLabelPortion] = useState<number>(100);
+  const [labelPreviewUrl, setLabelPreviewUrl] = useState<string | null>(null);
+  const [labelBusy, setLabelBusy] = useState(false);
+  const [labelSaving, setLabelSaving] = useState(false);
+  const [labelVersions, setLabelVersions] = useState<LabelVersion[]>([]);
 
   // ¿El tenant tiene IA habilitada? Gobierna el botón "Generar con IA".
   // enabled=false ante cualquier ausencia (el endpoint nunca lanza al render).
@@ -145,6 +174,7 @@ export function RecipeFormModal({
       rnpa_exempt_reason: null,
       front_labels: [],
       regulatory_labels: null,
+      allergens: [],
       nutrition: {
         calories: null,
         proteins: null,
@@ -163,6 +193,7 @@ export function RecipeFormModal({
   const packagingDelay = watch("packaging_delay_type");
   const rnpaExempt = watch("rnpa_exempt");
   const regulatoryLabels = watch("regulatory_labels");
+  const allergens = watch("allergens");
 
   useEffect(() => {
     if (!open) return;
@@ -196,6 +227,7 @@ export function RecipeFormModal({
       rnpa_exempt_reason: recipe?.rnpa_exempt_reason ?? null,
       front_labels: recipe?.front_labels ?? [],
       regulatory_labels: initialRegulatoryLabels(recipe, labelSystem?.id),
+      allergens: recipe?.allergens ?? [],
       nutrition: {
         calories: recipe?.nutrition?.calories ?? null,
         proteins: recipe?.nutrition?.proteins ?? null,
@@ -210,7 +242,19 @@ export function RecipeFormModal({
       },
     });
     setAiProposed(false);
+    setLabelVersions(recipe?.label_versions ?? []);
+    setLabelPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
   }, [open, recipe, reset, labelSystem?.id]);
+
+  // Libera la object URL del preview al desmontar (evita fugas de memoria).
+  useEffect(() => {
+    return () => {
+      if (labelPreviewUrl) URL.revokeObjectURL(labelPreviewUrl);
+    };
+  }, [labelPreviewUrl]);
 
   const ingredientById = useMemo(() => {
     const map = new Map((ingredients ?? []).map((i) => [i.id, i]));
@@ -330,6 +374,107 @@ export function RecipeFormModal({
           : "Según la nutrición cargada, el producto no requiere sellos.",
       variant: "success",
     });
+  }
+
+  // ── Rótulo print-ready ─────────────────────────────────────────────────────
+  // Mezcla la receta guardada con los valores VIVOS del form, para que el rótulo
+  // refleje ediciones aún sin guardar (nutrición, sellos, alérgenos). El versionado
+  // requiere receta guardada (necesita id y array existente en DB).
+  function labelRecipeSnapshot(): Recipe | null {
+    if (!recipe) return null;
+    const v = watch();
+    return {
+      ...recipe,
+      title: v.title,
+      commercial_name: v.commercial_name ?? null,
+      product_type: v.product_type,
+      rnpa_number: v.rnpa_number ?? null,
+      rnpa_exempt: v.rnpa_exempt,
+      rnpa_exempt_reason: v.rnpa_exempt_reason ?? null,
+      front_labels: v.front_labels ?? [],
+      regulatory_labels: v.regulatory_labels ?? null,
+      allergens: v.allergens ?? [],
+      nutrition: v.nutrition ?? {},
+      recipe_ingredients: recipe.recipe_ingredients,
+    };
+  }
+
+  const labelOpts = () => ({
+    size: labelSize,
+    portionG: labelPortion,
+    country: profile?.country,
+    countryName: profile?.countryProfile?.name,
+    taxIdLabel: profile?.taxIdLabel ?? "CUIT",
+  });
+
+  async function handleGenerateLabel() {
+    const snap = labelRecipeSnapshot();
+    if (!snap || !branding) {
+      toast({
+        title: "Guardá la receta primero",
+        description: "El rótulo se arma con la receta guardada.",
+        variant: "error",
+      });
+      return;
+    }
+    setLabelBusy(true);
+    try {
+      const { blob } = await generateLabelBlob(snap, branding, labelOpts());
+      setLabelPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(blob);
+      });
+    } catch (e) {
+      toast({
+        title: "No se pudo generar el rótulo",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "error",
+      });
+    } finally {
+      setLabelBusy(false);
+    }
+  }
+
+  async function handleDownloadLabel() {
+    const snap = labelRecipeSnapshot();
+    if (!snap || !branding) return;
+    setLabelBusy(true);
+    try {
+      await generateLabelPdf(snap, branding, labelOpts());
+    } catch (e) {
+      toast({
+        title: "No se pudo descargar el rótulo",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "error",
+      });
+    } finally {
+      setLabelBusy(false);
+    }
+  }
+
+  async function handleSaveLabelVersion() {
+    const snap = labelRecipeSnapshot();
+    if (!snap || !branding) return;
+    setLabelSaving(true);
+    try {
+      const { blob } = await generateLabelBlob(snap, branding, labelOpts());
+      const { version, versions } = await saveLabelVersion(snap, blob);
+      setLabelVersions(versions);
+      void queryClient.invalidateQueries({ queryKey: ["recipes"] });
+      toast({
+        title: `Versión v${version.version} guardada`,
+        description: "Queda disponible para descargar.",
+        variant: "success",
+      });
+    } catch (e) {
+      toast({
+        title: "No se pudo guardar la versión",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "error",
+      });
+    } finally {
+      setLabelSaving(false);
+    }
   }
 
   const onSubmit = handleSubmit(async (values) => {
@@ -847,6 +992,196 @@ export function RecipeFormModal({
             Las grasas saturadas/trans y los azúcares se usan para calcular los
             sellos frontales. Cargalos para un cálculo preciso.
           </p>
+        </div>
+
+        {/* Alérgenos — se resaltan en negrita en el rótulo */}
+        <div className="space-y-3">
+          <SectionTitle>Alérgenos declarados</SectionTitle>
+          <div className="flex flex-wrap gap-2">
+            {COMMON_ALLERGENS.map((a) => {
+              const active = (allergens ?? []).includes(a.value);
+              return (
+                <button
+                  key={a.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    setValue(
+                      "allergens",
+                      active
+                        ? (allergens ?? []).filter((x) => x !== a.value)
+                        : [...(allergens ?? []), a.value],
+                      { shouldDirty: true },
+                    )
+                  }
+                  className={cn(
+                    "rounded-ninjaFull border px-3 py-1.5 text-xs font-medium transition",
+                    active
+                      ? "border-primary bg-primary/15 text-primary"
+                      : "border-border bg-card text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {a.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Los ingredientes que coincidan con estos alérgenos se imprimen en
+            negrita en la lista del rótulo.
+          </p>
+        </div>
+
+        {/* Rótulo legal print-ready */}
+        <div className="space-y-4">
+          <div className="space-y-1.5 border-b border-border pb-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-display text-base font-bold text-foreground">
+                Rótulo
+              </h3>
+              <span className="rounded-ninjaFull bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+                Print-ready
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Documento vectorial para imprimir y pegar en el envase o enviar a
+              la imprenta. Tabla nutricional en el formato del país, sellos,
+              ingredientes, alérgenos y datos legales. Lote y vencimiento quedan
+              como {"{LOTE}"} / {"{VTO}"} para completar al producir.
+            </p>
+          </div>
+
+          {!recipe ? (
+            <p className="rounded-ninjaSm border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+              Guardá la receta para generar su rótulo.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                    Tamaño
+                  </label>
+                  <select
+                    className={selectCls}
+                    value={labelSize}
+                    onChange={(e) =>
+                      setLabelSize(e.target.value as LabelSize)
+                    }
+                  >
+                    {LABEL_SIZES.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Input
+                  label="Porción (g)"
+                  type="number"
+                  step="any"
+                  value={labelPortion || ""}
+                  onChange={(e) =>
+                    setLabelPortion(Number(e.target.value) || 100)
+                  }
+                  hint="Columna 'por porción' de la tabla"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleGenerateLabel}
+                  loading={labelBusy}
+                  disabled={!branding}
+                >
+                  <FileText size={14} />
+                  Generar rótulo
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSaveLabelVersion}
+                  loading={labelSaving}
+                  disabled={!branding}
+                >
+                  <Plus size={14} />
+                  Guardar versión
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleDownloadLabel}
+                  disabled={!branding || labelBusy}
+                >
+                  <Download size={14} />
+                  Descargar
+                </Button>
+              </div>
+
+              {labelPreviewUrl && (
+                <object
+                  data={labelPreviewUrl}
+                  type="application/pdf"
+                  className="h-96 w-full rounded-ninjaMd border border-border bg-muted/30"
+                  aria-label="Vista previa del rótulo"
+                >
+                  <p className="p-4 text-sm text-muted-foreground">
+                    Tu navegador no puede mostrar el PDF.{" "}
+                    <a
+                      href={labelPreviewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary underline"
+                    >
+                      Abrir en una pestaña
+                    </a>
+                    .
+                  </p>
+                </object>
+              )}
+
+              {labelVersions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    Versiones guardadas
+                  </p>
+                  <ul className="divide-y divide-border rounded-ninjaMd border border-border">
+                    {[...labelVersions]
+                      .sort((a, b) => b.version - a.version)
+                      .map((v) => (
+                        <li
+                          key={v.version}
+                          className="flex items-center justify-between gap-3 px-3 py-2"
+                        >
+                          <span className="flex items-center gap-2 text-sm">
+                            <span className="rounded-ninjaSm bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                              v{v.version}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {formatDate(v.created_at)}
+                            </span>
+                          </span>
+                          <a
+                            href={labelVersionUrl(v.path)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                          >
+                            <Download size={13} />
+                            Descargar
+                          </a>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 border-t border-border pt-4">
