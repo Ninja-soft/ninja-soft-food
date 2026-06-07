@@ -1754,6 +1754,195 @@ describe.skipIf(!RLS_ENABLED)("RLS multi-tenant isolation (cloud)", () => {
     );
   });
 
+  // ── 5f. multi_establishment: establishment_id en operativas (migración 0024) ─
+  //
+  // Aislamiento TENANT con las columnas nuevas + verificación de que
+  // establishment_id es un FILTRO dentro del tenant (no seguridad). Mientras
+  // 0024 NO esté en cloud, los casos que tocan la columna se SKIPEAN al detectar
+  // que no existe (no se marca verde). Patrón compliance_engine / saas_console.
+  describe("multi_establishment (establishment_id, migración 0024)", () => {
+    let estabA1: string | null = null; // planta 1 del tenant A
+    let estabA2: string | null = null; // planta 2 del tenant A
+    let estabEntryA1: string | null = null; // stock de A en planta 1
+
+    /** true si el error indica que 0024 todavía no está aplicada en cloud. */
+    function isMissingMultiEstab(err: {
+      code?: string;
+      message?: string;
+    } | null): boolean {
+      if (!err) return false;
+      return (
+        err.code === "PGRST202" || // RPC/firma no encontrada
+        err.code === "PGRST204" || // columna no en el schema cache (insert/select)
+        err.code === "42703" || // undefined_column
+        /establishment_id|p_establishment_id|schema cache|does not exist|not found|could not find/i.test(
+          err.message ?? ""
+        )
+      );
+    }
+
+    test(
+      "A crea dos plantas; ambas del tenant A; B no las ve",
+      async () => {
+        const mk = async (name: string) =>
+          tenantA.client
+            .from("establishments")
+            .insert({ tenant_id: tenantA.tenantId, name: `${RUN_PREFIX} ${name}` })
+            .select("id")
+            .single();
+
+        const { data: e1, error: e1Err } = await mk("Planta Norte");
+        expect(e1Err).toBeNull();
+        estabA1 = e1!.id;
+        const { data: e2, error: e2Err } = await mk("Planta Sur");
+        expect(e2Err).toBeNull();
+        estabA2 = e2!.id;
+
+        // B no ve las plantas de A (aislamiento tenant intacto).
+        const { data: bSee } = await tenantB.client
+          .from("establishments")
+          .select("id")
+          .in("id", [estabA1, estabA2]);
+        expect(bSee ?? []).toEqual([]);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "stock con establishment_id: B NO lo ve (aislamiento tenant con la columna nueva)",
+      async (ctx) => {
+        if (!estabA1) {
+          ctx.skip();
+          return;
+        }
+        expect(ingredientAId).toBeTruthy();
+        // create_stock_entry ya acepta p_establishment_id (0004); asigna el lote
+        // a la planta 1 de A.
+        const { data: entryId, error } = await tenantA.client.rpc(
+          "create_stock_entry",
+          {
+            p_ingredient_id: ingredientAId,
+            p_quantity: 40,
+            p_unit: "kg",
+            p_lot_number: `${RUN_PREFIX}-ESTAB`,
+            p_establishment_id: estabA1,
+          }
+        );
+        if (isMissingMultiEstab(error)) {
+          console.warn(
+            "create_stock_entry(p_establishment_id) no resuelve en cloud (0024/0004 pendiente): " +
+              error!.message
+          );
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+        estabEntryA1 = entryId as string;
+
+        // El lote quedó en la planta correcta del tenant A.
+        const { data: row } = await admin
+          .from("stock_entries")
+          .select("tenant_id, establishment_id")
+          .eq("id", estabEntryA1!)
+          .single();
+        expect(row?.tenant_id).toBe(tenantA.tenantId);
+        expect(row?.establishment_id).toBe(estabA1);
+
+        // B NO lo ve (la columna nueva no abrió ninguna fuga cross-tenant).
+        const { data: bSee } = await tenantB.client
+          .from("stock_entries")
+          .select("id")
+          .eq("id", estabEntryA1!);
+        expect(bSee ?? []).toEqual([]);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "establishment_id es FILTRO dentro del tenant: A ve su lote en planta 1, no en planta 2",
+      async (ctx) => {
+        if (!estabEntryA1 || !estabA1 || !estabA2) {
+          ctx.skip();
+          return;
+        }
+        // Filtrando por la planta correcta, A ve el lote.
+        const { data: atP1, error: p1Err } = await tenantA.client
+          .from("stock_entries")
+          .select("id")
+          .eq("id", estabEntryA1!)
+          .eq("establishment_id", estabA1!);
+        expect(p1Err).toBeNull();
+        expect(atP1).toHaveLength(1);
+
+        // Filtrando por la OTRA planta del MISMO tenant, no aparece (es filtro de
+        // negocio, no de seguridad: el dato sigue siendo de A).
+        const { data: atP2 } = await tenantA.client
+          .from("stock_entries")
+          .select("id")
+          .eq("id", estabEntryA1!)
+          .eq("establishment_id", estabA2!);
+        expect(atP2 ?? []).toEqual([]);
+      },
+      TEST_TIMEOUT
+    );
+
+    test(
+      "complete_production(p_establishment_id) escribe la planta y aísla por tenant",
+      async (ctx) => {
+        if (!estabA1 || !recipeAId || !estabEntryA1) {
+          ctx.skip();
+          return;
+        }
+        const { data: prod, error } = await tenantA.client.rpc(
+          "complete_production",
+          {
+            p_recipe_id: recipeAId,
+            p_quantity_kg: 5,
+            p_production_date: "2026-06-06",
+            p_inputs: [
+              {
+                ingredient_id: ingredientAId,
+                stock_entry_id: estabEntryA1,
+                taken_qty: 5,
+                is_substitute: false,
+                source_ingredient_id: null,
+              },
+            ],
+            p_establishment_id: estabA1,
+          }
+        );
+        if (isMissingMultiEstab(error)) {
+          console.warn(
+            "complete_production(p_establishment_id) no resuelve en cloud (0024 pendiente): " +
+              error!.message
+          );
+          ctx.skip();
+          return;
+        }
+        expect(error).toBeNull();
+        const prodId = (prod as { production_id: string }).production_id;
+        expect(prodId).toBeTruthy();
+
+        // La producción quedó en la planta correcta del tenant A.
+        const { data: row } = await admin
+          .from("productions")
+          .select("tenant_id, establishment_id")
+          .eq("id", prodId)
+          .single();
+        expect(row?.tenant_id).toBe(tenantA.tenantId);
+        expect(row?.establishment_id).toBe(estabA1);
+
+        // B no la ve.
+        const { data: bSee } = await tenantB.client
+          .from("productions")
+          .select("id")
+          .eq("id", prodId);
+        expect(bSee ?? []).toEqual([]);
+      },
+      TEST_TIMEOUT
+    );
+  });
+
   // ── 5bis. Perfil de membresía (tenant_users.display_name/avatar — 0012) ─────
   describe("membership profile (tenant_users, migración 0012)", () => {
     test(

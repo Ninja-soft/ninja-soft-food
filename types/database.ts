@@ -545,6 +545,7 @@ export type Database = {
           corrective_action: string | null
           corrects_submission_id: string | null
           created_at: string
+          establishment_id: string | null
           evidence_urls: string[]
           id: string
           status: Database["public"]["Enums"]["submission_status"]
@@ -558,6 +559,7 @@ export type Database = {
           corrective_action?: string | null
           corrects_submission_id?: string | null
           created_at?: string
+          establishment_id?: string | null
           evidence_urls?: string[]
           id?: string
           status?: Database["public"]["Enums"]["submission_status"]
@@ -571,6 +573,7 @@ export type Database = {
           corrective_action?: string | null
           corrects_submission_id?: string | null
           created_at?: string
+          establishment_id?: string | null
           evidence_urls?: string[]
           id?: string
           status?: Database["public"]["Enums"]["submission_status"]
@@ -581,6 +584,13 @@ export type Database = {
           values?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "form_submissions_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "form_submissions_corrects_submission_id_fkey"
             columns: ["corrects_submission_id"]
@@ -616,6 +626,7 @@ export type Database = {
           action_on_fail: Json | null
           created_at: string
           deleted_at: string | null
+          establishment_id: string | null
           fields: Json
           frequency: Json
           id: string
@@ -630,6 +641,7 @@ export type Database = {
           action_on_fail?: Json | null
           created_at?: string
           deleted_at?: string | null
+          establishment_id?: string | null
           fields?: Json
           frequency?: Json
           id?: string
@@ -644,6 +656,7 @@ export type Database = {
           action_on_fail?: Json | null
           created_at?: string
           deleted_at?: string | null
+          establishment_id?: string | null
           fields?: Json
           frequency?: Json
           id?: string
@@ -655,6 +668,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "form_templates_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "form_templates_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -2794,6 +2814,7 @@ export type Database = {
           capacity_kg: number | null
           created_at: string
           deleted_at: string | null
+          establishment_id: string | null
           id: string
           plate: string
           tenant_id: string
@@ -2807,6 +2828,7 @@ export type Database = {
           capacity_kg?: number | null
           created_at?: string
           deleted_at?: string | null
+          establishment_id?: string | null
           id?: string
           plate: string
           tenant_id: string
@@ -2820,6 +2842,7 @@ export type Database = {
           capacity_kg?: number | null
           created_at?: string
           deleted_at?: string | null
+          establishment_id?: string | null
           id?: string
           plate?: string
           tenant_id?: string
@@ -2831,10 +2854,80 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "vehicles_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "vehicles_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_deliveries: {
+        Row: {
+          attempts: number
+          created_at: string
+          delivered_at: string | null
+          event: string
+          id: string
+          last_error: string | null
+          last_status: number | null
+          payload: Json
+          resource_created_at: string
+          resource_id: string
+          status: string
+          tenant_id: string
+          webhook_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          delivered_at?: string | null
+          event: string
+          id?: string
+          last_error?: string | null
+          last_status?: number | null
+          payload: Json
+          resource_created_at: string
+          resource_id: string
+          status?: string
+          tenant_id: string
+          webhook_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          delivered_at?: string | null
+          event?: string
+          id?: string
+          last_error?: string | null
+          last_status?: number | null
+          payload?: Json
+          resource_created_at?: string
+          resource_id?: string
+          status?: string
+          tenant_id?: string
+          webhook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_deliveries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_deliveries_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "outbound_webhooks"
             referencedColumns: ["id"]
           },
         ]
@@ -2909,6 +3002,7 @@ export type Database = {
       }
       complete_production: {
         Args: {
+          p_establishment_id?: string
           p_inputs: Json
           p_manager_member_id?: string
           p_notes?: string
@@ -2923,6 +3017,7 @@ export type Database = {
         Args: {
           p_customer_id: string
           p_dispatch_date: string
+          p_establishment_id?: string
           p_items: Json
           p_vehicle_id?: string
         }

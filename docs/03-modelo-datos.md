@@ -344,6 +344,34 @@ Aditivo: ambas columnas nullable/default-vacío (recetas viejas validan sin back
 cambios (recipes ya tenant-scoped en 0001; el bucket `recipes` restringe escritura a la carpeta del
 propio tenant en 0003).
 
+### Multi-establecimiento (migración 0024)
+
+Plan Industria: un tenant opera N plantas (`establishments`, ya existe desde 0001) con stock y
+producción separados. `stock_entries`/`productions`/`dispatches` ya traían `establishment_id` (0001)
+y `create_stock_entry` ya aceptaba `p_establishment_id` (0004). 0024 agrega:
+
+```
+vehicles.establishment_id          uuid null → fk establishments (planta base; del tenant si null)
+form_templates.establishment_id    uuid null → fk establishments (null = planilla global del tenant)
+form_submissions.establishment_id  uuid null → fk establishments (null = global; inmutable, set en INSERT)
+```
+
++ índices parciales `(tenant_id, establishment_id)` en stock_entries / productions / dispatches /
+form_templates / form_submissions / vehicles para el filtro "datos de esta planta".
+
+`complete_production` (CREATE OR REPLACE sobre la base de 0021) y `create_dispatch` (sobre 0008)
+agregan `p_establishment_id uuid default null` al final de la firma (MISMO nombre + default, no
+overload; PostgREST lo resuelve sin ambigüedad). Con null = comportamiento idéntico al previo
+(compatible con callers existentes). En producción, si hay planta, el consumo de lotes se limita a esa
+planta o a lotes legacy sin planta. `suppliers`/`recipes`/`ingredients`/`customers` siguen siendo del
+TENANT (compartidos entre plantas). `regulatory_permits` ya modela `entity_type='establishment'`.
+
+establishment_id es NULLABLE en todas partes (datos legacy y tenants mono-planta operan sin
+fricción) y es un FILTRO de negocio dentro del tenant, **no un límite de RLS** — el aislamiento sigue
+siendo tenant-level por `current_tenant_id()`. Acceso v1: todos los miembros ven todas las plantas;
+selector de "establecimiento activo" como filtro de UI. Restricción por usuario (tabla
+`user_establishments`) queda para v2. Diseño completo: `docs/12-multi-establecimiento.md`.
+
 ---
 
 ## 3. RLS — estrategia
