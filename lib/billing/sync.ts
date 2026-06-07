@@ -4,6 +4,7 @@ import { sendSystemEmail } from "@/lib/emails/enqueue";
 import type { SubscriptionInfo } from "./types";
 import {
   buildSubscriptionPatch,
+  isReconciliationExempt,
   statusDiffers,
   type SubscriptionRowForSync,
 } from "./sync-decisions";
@@ -27,7 +28,12 @@ type AdminClient = ReturnType<typeof createAdminClient>;
 
 // Re-exporta las decisiones puras para que los consumidores tengan un único punto
 // de entrada (el webhook y el cron importan desde "@/lib/billing/sync").
-export { buildSubscriptionPatch, statusDiffers, type SubscriptionRowForSync };
+export {
+  buildSubscriptionPatch,
+  isReconciliationExempt,
+  statusDiffers,
+  type SubscriptionRowForSync,
+};
 
 /**
  * Aplica el patch canónico: escribe subscriptions, sincroniza tenants.status y
@@ -41,6 +47,11 @@ export async function applySubscriptionUpdate(
   info: SubscriptionInfo,
   now: Date = new Date()
 ): Promise<void> {
+  // Guard de cortesía / vitalicio (regla dura 7 + 0014): una suscripción comp,
+  // manual o lifetime NUNCA se degrada por el estado de la pasarela. El cron ya
+  // las filtra, pero acá lo reforzamos por si otro caller (webhook) llega con una.
+  if (isReconciliationExempt(sub)) return;
+
   const patch = buildSubscriptionPatch(sub, info, now);
 
   await admin.from("subscriptions").update(patch).eq("id", sub.id);
@@ -117,7 +128,7 @@ export async function reprocessSubscriptionFromProvider(
   const matchTenant = info.externalReference;
   let query = admin
     .from("subscriptions")
-    .select("id, tenant_id, billing_cycle, status")
+    .select("id, tenant_id, billing_cycle, status, billing_mode, is_lifetime")
     .eq("provider", "mercadopago");
   query = matchTenant
     ? query.eq("tenant_id", matchTenant)
@@ -128,7 +139,7 @@ export async function reprocessSubscriptionFromProvider(
     // Suscripción creada como manual durante el trial (provider != mercadopago).
     const { data: trialSub } = await admin
       .from("subscriptions")
-      .select("id, tenant_id, billing_cycle, status")
+      .select("id, tenant_id, billing_cycle, status, billing_mode, is_lifetime")
       .eq("tenant_id", matchTenant)
       .maybeSingle();
     sub = trialSub;

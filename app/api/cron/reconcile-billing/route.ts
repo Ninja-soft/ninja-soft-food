@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getBillingProvider } from "@/lib/billing";
 import {
   applySubscriptionUpdate,
+  isReconciliationExempt,
   reprocessSubscriptionFromProvider,
   statusDiffers,
 } from "@/lib/billing/sync";
@@ -52,7 +53,9 @@ async function handle(req: Request) {
   // ── Pasada 1: reconciliar cada subscription activa/past_due/trial contra MP ──
   const { data: subs, error: subsErr } = await admin
     .from("subscriptions")
-    .select("id, tenant_id, billing_cycle, status, provider_subscription_id")
+    .select(
+      "id, tenant_id, billing_cycle, status, provider_subscription_id, billing_mode, is_lifetime"
+    )
     .eq("provider", "mercadopago")
     .not("provider_subscription_id", "is", null)
     .neq("status", "cancelled");
@@ -64,6 +67,9 @@ async function handle(req: Request) {
   for (const sub of subs ?? []) {
     const providerSubId = sub.provider_subscription_id;
     if (!providerSubId) continue;
+    // Cortesía / pago manual / vitalicio: las administra el staff, no MP. El job
+    // diario jamás las toca (no las marca past_due ni recalcula el período).
+    if (isReconciliationExempt(sub)) continue;
     try {
       const info = await provider.getSubscription(providerSubId);
       if (statusDiffers(sub.status, info.status)) {

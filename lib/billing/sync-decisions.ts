@@ -20,6 +20,28 @@ export interface SubscriptionRowForSync {
   billing_cycle: string;
   /** Estado local actual (para comparar contra el de la pasarela). */
   status?: CanonicalStatus | null;
+  /** automatic | manual | comp (0014). Las comp/manual no las toca la pasarela. */
+  billing_mode?: string | null;
+  /** Acceso vitalicio: nunca vence ni se degrada por reconciliación. */
+  is_lifetime?: boolean | null;
+}
+
+/**
+ * ¿La suscripción está protegida de la reconciliación automática? Acceso
+ * vitalicio (is_lifetime) y cortesías (billing_mode = 'comp') NO se cobran por
+ * pasarela: el job diario NUNCA debe marcarlas past_due / suspended / cancelled
+ * ni recalcular su período. Los pagos manuales (billing_mode = 'manual') también
+ * los administra el staff a mano, así que también quedan fuera del sync de MP.
+ * FUNCIÓN PURA, testeable en aislamiento.
+ */
+export function isReconciliationExempt(
+  sub: Pick<SubscriptionRowForSync, "billing_mode" | "is_lifetime">,
+): boolean {
+  return (
+    sub.is_lifetime === true ||
+    sub.billing_mode === "comp" ||
+    sub.billing_mode === "manual"
+  );
 }
 
 /**

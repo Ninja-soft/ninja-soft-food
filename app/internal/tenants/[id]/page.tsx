@@ -22,13 +22,16 @@ import { SpinnerBlock } from "@/components/ui/Spinner";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { StatusBadge, TENANT_STATUS_LABELS } from "@/components/internal/StatusBadge";
+import { BillingOpsCard } from "@/components/internal/BillingOpsCard";
+import { InternalNotesCard } from "@/components/internal/InternalNotesCard";
+import { TenantFlagsCard } from "@/components/internal/TenantFlagsCard";
 import { useTenantDetail, useTenantActions } from "@/modules/internal/hooks";
 import {
   useImpersonate,
   useTenantHealth,
   type ImpersonateResult,
 } from "@/modules/internal-ops/hooks";
-import { formatDate, formatMoney } from "@/lib/utils/format";
+import { formatDate } from "@/lib/utils/format";
 
 function fmtDateTime(iso: string | null): string {
   if (!iso) return "Nunca";
@@ -248,57 +251,23 @@ export default function InternalTenantDetailPage({
         </CardContent>
       </Card>
 
-      {/* ── Suscripción ── */}
+      {/* ── Suscripción y cobros ── */}
       <Heading as="h2" className="mt-8 text-lg">
-        Suscripción
+        Suscripción y cobros
       </Heading>
-      <Card className="mt-3">
-        <CardContent className="p-5">
-          {subscription ? (
-            <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-              <Row
-                label="Plan"
-                value={`${subscription.planName ?? "—"}${
-                  subscription.monthlyPriceArs
-                    ? ` · ${formatMoney(subscription.monthlyPriceArs)}/mes`
-                    : ""
-                }`}
-              />
-              <Row
-                label="Estado"
-                valueNode={<StatusBadge status={subscription.status} />}
-              />
-              <Row
-                label="Ciclo"
-                value={
-                  subscription.billingCycle === "yearly" ? "Anual" : "Mensual"
-                }
-              />
-              <Row label="Pasarela" value={subscription.provider} mono />
-              <Row
-                label="Período desde"
-                value={
-                  subscription.periodStart
-                    ? formatDate(subscription.periodStart)
-                    : "—"
-                }
-              />
-              <Row
-                label="Período hasta"
-                value={
-                  subscription.periodEnd
-                    ? formatDate(subscription.periodEnd)
-                    : "—"
-                }
-              />
-            </dl>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Este negocio no tiene suscripción registrada.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <BillingOpsCard tenantId={tenant.id} tenantName={tenant.name} />
+
+      {/* ── Notas internas ── */}
+      <Heading as="h2" className="mt-8 text-lg">
+        Notas
+      </Heading>
+      <InternalNotesCard tenantId={tenant.id} />
+
+      {/* ── Feature flags ── */}
+      <Heading as="h2" className="mt-8 text-lg">
+        Flags
+      </Heading>
+      <TenantFlagsCard tenantId={tenant.id} />
 
       {/* ── Acciones de staff ── */}
       <Heading as="h2" className="mt-8 text-lg">

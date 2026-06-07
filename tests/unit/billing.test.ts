@@ -13,6 +13,7 @@ import {
   type PlanLimits,
 } from "@/lib/billing/limits";
 import { resolvePlanPrice } from "@/lib/billing/pricing";
+import { isReconciliationExempt } from "@/lib/billing/sync-decisions";
 
 const SECRET = "test_webhook_secret_123";
 
@@ -306,6 +307,39 @@ describe("resolvePlanPrice — moneda + monto del preapproval", () => {
     // Tenant no-ARS de un plan sin precio USD cargado.
     const noUsd = { ...prices, monthly_price_usd: null };
     expect(resolvePlanPrice(noUsd, "monthly", "MXN")).toBeNull();
+  });
+});
+
+describe("isReconciliationExempt — guard cortesía / vitalicio / manual", () => {
+  it("una suscripción automática NO está exenta (la reconcilia MP)", () => {
+    expect(
+      isReconciliationExempt({ billing_mode: "automatic", is_lifetime: false }),
+    ).toBe(false);
+  });
+
+  it("acceso vitalicio queda exento aunque el billing_mode sea automatic", () => {
+    expect(
+      isReconciliationExempt({ billing_mode: "automatic", is_lifetime: true }),
+    ).toBe(true);
+  });
+
+  it("cortesía (comp) queda exenta: nunca past_due / suspended por el cron", () => {
+    expect(
+      isReconciliationExempt({ billing_mode: "comp", is_lifetime: false }),
+    ).toBe(true);
+  });
+
+  it("pago manual (transferencia/efectivo) queda exento del sync de MP", () => {
+    expect(
+      isReconciliationExempt({ billing_mode: "manual", is_lifetime: false }),
+    ).toBe(true);
+  });
+
+  it("tolera campos nulos / ausentes como no-exento", () => {
+    expect(isReconciliationExempt({})).toBe(false);
+    expect(
+      isReconciliationExempt({ billing_mode: null, is_lifetime: null }),
+    ).toBe(false);
   });
 });
 
