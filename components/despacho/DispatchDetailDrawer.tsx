@@ -12,6 +12,7 @@ import { daysUntil, formatDate, formatQty } from "@/lib/utils/format";
 import { useDispatchDetail } from "@/modules/dispatch/hooks";
 import { generateRemito } from "@/modules/dispatch/remito";
 import { getTenantBranding } from "@/modules/planillas/api";
+import { useOperatingProfile } from "@/modules/tenant-profile/hooks";
 
 const STATUS_LABELS: Record<string, string> = {
   completed: "Completado",
@@ -28,7 +29,11 @@ export function DispatchDetailDrawer({
 }) {
   const { toast } = useToast();
   const { data: detail, isLoading } = useDispatchDetail(dispatchId);
+  const { data: profile } = useOperatingProfile();
   const [downloading, setDownloading] = useState(false);
+
+  // UTA/URA son siglas argentinas; fuera de AR el número se rotula genérico.
+  const isAr = (profile?.country ?? "AR").toUpperCase() === "AR";
 
   async function handleRemito() {
     if (!detail) return;
@@ -91,10 +96,10 @@ export function DispatchDetailDrawer({
                 {detail.vehicle
                   ? [
                       detail.vehicle.uta_number
-                        ? `UTA ${detail.vehicle.uta_number}`
+                        ? `${isAr ? "UTA" : "Habilitación"} ${detail.vehicle.uta_number}`
                         : null,
                       detail.vehicle.ura_number
-                        ? `URA ${detail.vehicle.ura_number}`
+                        ? `${isAr ? "URA" : "Habilitación"} ${detail.vehicle.ura_number}`
                         : null,
                     ]
                       .filter(Boolean)

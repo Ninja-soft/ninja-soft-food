@@ -22,6 +22,7 @@ import {
 } from "@/modules/dispatch/hooks";
 import { dispatchSchema, type DispatchInput } from "@/modules/dispatch/schemas";
 import { useRecipes } from "@/modules/recipes/hooks";
+import { useOperatingProfile } from "@/modules/tenant-profile/hooks";
 
 const selectCls =
   "h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20";
@@ -40,7 +41,11 @@ export function DispatchFormModal({
   const { data: vehicles } = useVehicles();
   const { data: recipes } = useRecipes("", null);
   const { data: productions } = useCompletedProductions();
+  const { data: profile } = useOperatingProfile();
   const createDispatchMut = useCreateDispatch();
+
+  // UTA/URA son siglas argentinas; fuera de AR el aviso es genérico.
+  const isAr = (profile?.country ?? "AR").toUpperCase() === "AR";
   const createCustomerMut = useCreateCustomer();
   const createVehicleMut = useCreateVehicle();
 
@@ -310,7 +315,9 @@ export function DispatchFormModal({
         {vehicleExpired && (
           <p className="border-accent/40 bg-accent/10 flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-accent">
             <AlertTriangle size={13} />
-            El vehículo seleccionado tiene UTA o URA vencida a la fecha de hoy.
+            {isAr
+              ? "El vehículo seleccionado tiene UTA o URA vencida a la fecha de hoy."
+              : "El vehículo seleccionado tiene una habilitación de transporte vencida a la fecha de hoy."}
           </p>
         )}
 

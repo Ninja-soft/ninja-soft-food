@@ -22,6 +22,7 @@ import {
   stockEntrySchema,
   type StockEntryInput,
 } from "@/modules/stock/schemas";
+import { useOperatingProfile } from "@/modules/tenant-profile/hooks";
 
 function genLotNumber(): string {
   const date = format(new Date(), "yyMMdd");
@@ -40,8 +41,13 @@ export function StockEntryFormModal({
   const { toast } = useToast();
   const { data: ingredients } = useIngredients("", null);
   const { data: suppliers } = useSuppliers();
+  const { data: profile } = useOperatingProfile();
   const createMut = useCreateEntry();
   const createSupplierMut = useCreateSupplier();
+
+  // El número del proveedor es RNE en Argentina; para otros países lo mostramos
+  // como "Registro" genérico (el registro fino vive en regulatory_permits).
+  const isAr = (profile?.country ?? "AR").toUpperCase() === "AR";
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
@@ -315,7 +321,9 @@ export function StockEntryFormModal({
                 {(suppliers ?? []).map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
-                    {s.rne_number ? ` · RNE ${s.rne_number}` : " · sin RNE"}
+                    {s.rne_number
+                      ? ` · ${isAr ? "RNE" : "Registro"} ${s.rne_number}`
+                      : ` · sin ${isAr ? "RNE" : "registro"}`}
                   </option>
                 ))}
               </select>

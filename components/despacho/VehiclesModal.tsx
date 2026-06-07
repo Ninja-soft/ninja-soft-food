@@ -21,6 +21,7 @@ import {
 } from "@/modules/dispatch/hooks";
 import { vehicleSchema, type VehicleInput } from "@/modules/dispatch/schemas";
 import { PermitsSection } from "@/components/permits/PermitsSection";
+import { useOperatingProfile } from "@/modules/tenant-profile/hooks";
 
 /** ¿Hay alguna habilitación (UTA/URA) vencida? Lee las columnas legacy; las
  *  alertas finas por país viven en regulatory_permits (PermitsSection). */
@@ -47,7 +48,12 @@ export function VehiclesModal({
   const [deleteTarget, setDeleteTarget] = useState<Vehicle | null>(null);
 
   const { data: vehicles, isLoading } = useVehicles();
+  const { data: profile } = useOperatingProfile();
   const deleteMut = useDeleteVehicle();
+
+  // Las siglas UTA/URA son argentinas; fuera de AR usamos el término genérico
+  // del producto (las habilitaciones por país viven en regulatory_permits).
+  const isAr = (profile?.country ?? "AR").toUpperCase() === "AR";
 
   useEffect(() => {
     if (!open) {
@@ -79,7 +85,11 @@ export function VehiclesModal({
         open={open}
         onOpenChange={onOpenChange}
         title="Vehículos"
-        description="Transportes habilitados (UTA/URA) para despachar."
+        description={
+          isAr
+            ? "Transportes habilitados (UTA/URA) para despachar."
+            : "Transportes con habilitaciones de transporte para despachar."
+        }
         className="max-w-2xl"
       >
         {showForm ? (
@@ -135,12 +145,16 @@ export function VehiclesModal({
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
                           {v.uta_number
-                            ? `UTA ${v.uta_number} · vence ${formatDate(v.uta_expiry)}`
-                            : "Sin UTA"}
+                            ? `${isAr ? "UTA" : "Habilitación"} ${v.uta_number} · vence ${formatDate(v.uta_expiry)}`
+                            : isAr
+                              ? "Sin UTA"
+                              : "Sin habilitación"}
                           {" · "}
                           {v.ura_number
-                            ? `URA ${v.ura_number} · vence ${formatDate(v.ura_expiry)}`
-                            : "Sin URA"}
+                            ? `${isAr ? "URA" : "Habilitación"} ${v.ura_number} · vence ${formatDate(v.ura_expiry)}`
+                            : isAr
+                              ? "Sin URA"
+                              : "Sin habilitación"}
                         </p>
                       </div>
                       <div className="flex shrink-0 gap-1">
