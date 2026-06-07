@@ -1,55 +1,53 @@
-import { Heading } from "@/components/ui/Typography";
-import { EmailConsole } from "@/components/internal/EmailConsole";
-import { SystemEmailsTable } from "@/components/internal/SystemEmailsTable";
+import { EmailsTabs } from "@/components/internal/EmailsTabs";
 import { listSystemEmails } from "@/modules/internal/server";
 import {
   getSmtpConfig,
   getTemplateOverrides,
 } from "@/modules/internal-emails/server";
+import {
+  listCampaignHistory,
+  listCountryOptions,
+  listPlanOptions,
+} from "@/modules/internal-campaigns/server";
 
 export const dynamic = "force-dynamic";
 
-// Consola de emails del panel staff Ninja-Soft (calcada del POS app/internal/
-// emails). Server component: lee config SMTP y overrides de plantilla con admin
-// client (ambas tablas son solo service_role) y baja todo al EmailConsole. La
-// bitacora de envios (system_emails) queda debajo como historial.
+// Consola de emails del panel staff Ninja-Soft. Server component: lee config
+// SMTP, overrides de plantilla, bitácora de envíos y los datos de campañas
+// (planes, países de la audiencia, historial) con admin client, y baja todo a
+// EmailsTabs (Plantillas | Campañas). Las tablas de config son solo service_role.
 
 export default async function InternalEmailsPage() {
-  const [smtp, overrides, emails] = await Promise.all([
-    getSmtpConfig(),
-    getTemplateOverrides(),
-    listSystemEmails(200),
-  ]);
+  const [smtp, overrides, emails, plans, countries, campaigns] =
+    await Promise.all([
+      getSmtpConfig(),
+      getTemplateOverrides(),
+      listSystemEmails(200),
+      listPlanOptions(),
+      listCountryOptions(),
+      listCampaignHistory(),
+    ]);
 
   return (
-    <>
-      <EmailConsole
-        smtp={
-          smtp
-            ? {
-                hostname: smtp.hostname,
-                port: smtp.port,
-                username: smtp.username,
-                hasPassword: smtp.hasPassword,
-                fromEmail: smtp.fromEmail,
-                fromName: smtp.fromName,
-                secure: smtp.secure,
-              }
-            : null
-        }
-        overrides={overrides}
-      />
-
-      <div className="mt-10">
-        <Heading className="text-xl">Bitácora de envíos</Heading>
-        <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
-          Últimos emails que Ninja Food envió (verificación, alertas, billing).
-          Estado de entrega y errores de SMTP.
-        </p>
-        <div className="mt-4">
-          <SystemEmailsTable emails={emails} />
-        </div>
-      </div>
-    </>
+    <EmailsTabs
+      smtp={
+        smtp
+          ? {
+              hostname: smtp.hostname,
+              port: smtp.port,
+              username: smtp.username,
+              hasPassword: smtp.hasPassword,
+              fromEmail: smtp.fromEmail,
+              fromName: smtp.fromName,
+              secure: smtp.secure,
+            }
+          : null
+      }
+      overrides={overrides}
+      emails={emails}
+      plans={plans}
+      countries={countries}
+      campaigns={campaigns}
+    />
   );
 }

@@ -64,9 +64,11 @@ export interface EmailConsoleProps {
   smtp: SmtpInitial | null;
   /** Overrides globales por key (system_email_templates). */
   overrides: Record<string, { subject: string; html: string }>;
+  /** Si true, omite el encabezado propio (lo provee el contenedor de pestañas). */
+  bare?: boolean;
 }
 
-export function EmailConsole({ smtp, overrides }: EmailConsoleProps) {
+export function EmailConsole({ smtp, overrides, bare = false }: EmailConsoleProps) {
   const { toast } = useToast();
   const saveSmtp = useSaveSmtp();
   const saveTpl = useSaveTemplate();
@@ -227,16 +229,22 @@ export function EmailConsole({ smtp, overrides }: EmailConsoleProps) {
 
   return (
     <>
-      <Eyebrow>Comunicaciones</Eyebrow>
-      <Display className="mt-3 text-3xl md:text-4xl">Consola de emails</Display>
-      <p className="mt-2 max-w-2xl text-muted-foreground">
-        Configurá el remitente, editá las plantillas que Ninja Food envía a los
-        negocios y mandate una prueba. Estilo de marca: sin emojis, sin guiones
-        largos, separador punto medio (·).
-      </p>
+      {!bare && (
+        <>
+          <Eyebrow>Comunicaciones</Eyebrow>
+          <Display className="mt-3 text-3xl md:text-4xl">
+            Consola de emails
+          </Display>
+          <p className="mt-2 max-w-2xl text-muted-foreground">
+            Configurá el remitente, editá las plantillas que Ninja Food envía a
+            los negocios y mandate una prueba. Estilo de marca: sin emojis, sin
+            guiones largos, separador punto medio (·).
+          </p>
+        </>
+      )}
 
       {/* SMTP del remitente */}
-      <Card className="mt-6 bg-card shadow-soft backdrop-blur-xl">
+      <Card className={cn("bg-card shadow-soft backdrop-blur-xl", !bare && "mt-6")}>
         <CardContent className="space-y-4 p-5">
           <div className="flex items-center gap-2 font-semibold text-foreground">
             <Server size={16} className="text-primary" /> Servidor de envío (SMTP)
