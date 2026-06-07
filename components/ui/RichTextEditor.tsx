@@ -101,11 +101,18 @@ export function RichTextEditor({
   onChange,
   placeholder = "Escribí el informe…",
   className,
+  toolbarExtra,
 }: {
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
   className?: string;
+  /**
+   * Slot opcional al final de la toolbar (alineado a la derecha). Mantiene el
+   * editor genérico: integraciones como el asistente de IA se inyectan por acá
+   * en vez de hardcodearse adentro. El consumidor controla su propia lógica.
+   */
+  toolbarExtra?: React.ReactNode;
 }) {
   const editor = useEditor({
     immediatelyRender: false,
@@ -171,6 +178,9 @@ export function RichTextEditor({
             })}
           </div>
         ))}
+        {toolbarExtra && (
+          <div className="ml-auto flex items-center">{toolbarExtra}</div>
+        )}
       </div>
       <EditorContent editor={editor} />
     </div>

@@ -11,7 +11,9 @@ import { Modal } from "@/components/ui/Modal";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { useToast } from "@/components/ui/Toast";
 import { ImportanceBadge } from "@/components/informes/ImportanceBadge";
+import { ReportAiAssistant } from "@/components/informes/ReportAiAssistant";
 import { cn } from "@/lib/utils/cn";
+import { useAiStatus } from "@/modules/ai/hooks";
 import type { Report, ReportAttachment } from "@/modules/quality/api";
 import {
   useCreateReport,
@@ -42,6 +44,12 @@ export function ReportFormModal({
 }) {
   const { toast } = useToast();
   const { data: members } = useMembers();
+  // Gating de IA por tenant. Gobierna la aparición del asistente en el editor.
+  // Los informes (reports) NO tienen estado finalizado/inmutable: son editables
+  // como borrador (docs/03 §2/§3 reserva la inmutabilidad a form_submissions),
+  // así que el asistente está disponible siempre que la IA esté habilitada.
+  const { data: aiStatus } = useAiStatus();
+  const aiEnabled = aiStatus?.enabled === true;
   const createMut = useCreateReport();
   const updateMut = useUpdateReport();
   const uploadMut = useUploadReportAttachment();
@@ -227,6 +235,16 @@ export function ReportFormModal({
               setValue("content_html", html, { shouldValidate: true })
             }
             placeholder="Hallazgos, conclusiones, recomendaciones…"
+            toolbarExtra={
+              aiEnabled ? (
+                <ReportAiAssistant
+                  getHtml={() => watch("content_html") ?? ""}
+                  onApply={(html) =>
+                    setValue("content_html", html, { shouldValidate: true })
+                  }
+                />
+              ) : undefined
+            }
           />
           {errors.content_html && (
             <p className="mt-2 text-sm text-destructive">
