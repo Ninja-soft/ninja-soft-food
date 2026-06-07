@@ -2,15 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, format } from "date-fns";
-import { Paperclip, RefreshCw } from "lucide-react";
+import { Paperclip, RefreshCw, ScanBarcode } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { BarcodeScanner } from "@/components/ui/BarcodeScanner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
-import { useIngredients } from "@/modules/ingredients/hooks";
+import {
+  useFindIngredientByBarcode,
+  useIngredients,
+} from "@/modules/ingredients/hooks";
 import { uploadInvoice } from "@/modules/stock/api";
 import {
   useCreateEntry,
@@ -44,6 +48,7 @@ export function StockEntryFormModal({
   const { data: profile } = useOperatingProfile();
   const createMut = useCreateEntry();
   const createSupplierMut = useCreateSupplier();
+  const findByBarcodeMut = useFindIngredientByBarcode();
 
   // El número del proveedor es RNE en Argentina; para otros países lo mostramos
   // como "Registro" genérico (el registro fino vive en regulatory_permits).
@@ -54,6 +59,7 @@ export function StockEntryFormModal({
   const [newSupplierName, setNewSupplierName] = useState("");
   const [showNewSupplier, setShowNewSupplier] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const {
     register,
@@ -137,6 +143,33 @@ export function StockEntryFormModal({
     }
   }
 
+  async function handleScannedBarcode(code: string) {
+    setScannerOpen(false);
+    try {
+      const found = await findByBarcodeMut.mutateAsync(code);
+      if (found) {
+        setValue("ingredient_id", found.id, { shouldValidate: true });
+        toast({
+          title: "Ingrediente seleccionado",
+          description: found.name,
+          variant: "success",
+        });
+      } else {
+        toast({
+          title: "No hay ingrediente con ese código",
+          description: `Código ${code} · elegilo manualmente o cargá su barcode en el catálogo`,
+          variant: "error",
+        });
+      }
+    } catch (e) {
+      toast({
+        title: "Error al buscar el código",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "error",
+      });
+    }
+  }
+
   const onSubmit = handleSubmit(async (values) => {
     if (!ingredient) return;
     try {
@@ -184,18 +217,30 @@ export function StockEntryFormModal({
           >
             Ingrediente
           </label>
-          <select
-            id="entry-ingredient"
-            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-            {...register("ingredient_id")}
-          >
-            <option value="">Elegir ingrediente…</option>
-            {(ingredients ?? []).map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.name} ({i.unit})
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              id="entry-ingredient"
+              className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              {...register("ingredient_id")}
+            >
+              <option value="">Elegir ingrediente…</option>
+              {(ingredients ?? []).map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.name} ({i.unit})
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              aria-label="Escanear código de barras"
+              loading={findByBarcodeMut.isPending}
+              onClick={() => setScannerOpen(true)}
+            >
+              <ScanBarcode size={18} />
+            </Button>
+          </div>
           {errors.ingredient_id && (
             <p className="mt-2 text-sm text-destructive">
               {errors.ingredient_id.message}
@@ -402,6 +447,14 @@ export function StockEntryFormModal({
           </Button>
         </div>
       </form>
+
+      <BarcodeScanner
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        title="Escanear ingrediente"
+        description="Buscamos el ingrediente por su código de barras."
+        onResult={handleScannedBarcode}
+      />
     </Modal>
   );
 }

@@ -36,6 +36,11 @@ const PRESET_ACCENTS = [
   "#E8456B", "#111827",
 ];
 
+// Defaults de la paleta de planillas PDF (espejan resolvePalette en lib/utils/pdf):
+// primario = food-dark de la banda, secundario = verde marca de acentos.
+const PDF_DEFAULT_PRIMARY = "#08120A";
+const PDF_DEFAULT_SECONDARY = "#2E7D32";
+
 type Branding = {
   logo_url: string | null;
   accent: string;
@@ -44,6 +49,9 @@ type Branding = {
   phone: string | null;
   address: string | null;
   abr_enabled: boolean;
+  // null → la planilla usa el fallback Ninja Food (no se persiste el default).
+  pdf_primary_color: string | null;
+  pdf_secondary_color: string | null;
 };
 
 const EMPTY: Branding = {
@@ -54,6 +62,8 @@ const EMPTY: Branding = {
   phone: null,
   address: null,
   abr_enabled: true,
+  pdf_primary_color: null,
+  pdf_secondary_color: null,
 };
 
 export function BrandingCard() {
@@ -74,7 +84,7 @@ export function BrandingCard() {
       const { data: b } = await supabase
         .from("tenant_branding")
         .select(
-          "logo_url, accent, legal_name, cuit, phone, address, regulatory_seals, sello_abr_enabled",
+          "logo_url, accent, legal_name, cuit, phone, address, regulatory_seals, sello_abr_enabled, pdf_primary_color, pdf_secondary_color",
         )
         .eq("tenant_id", tenantId)
         .maybeSingle();
@@ -89,6 +99,8 @@ export function BrandingCard() {
           address?: string | null;
           regulatory_seals?: RegulatorySeal[] | null;
           sello_abr_enabled?: boolean | null;
+          pdf_primary_color?: string | null;
+          pdf_secondary_color?: string | null;
         },
       };
     },
@@ -108,6 +120,8 @@ export function BrandingCard() {
         b.regulatory_seals ?? null,
         b.sello_abr_enabled ?? true,
       ),
+      pdf_primary_color: b.pdf_primary_color ?? null,
+      pdf_secondary_color: b.pdf_secondary_color ?? null,
     });
   }, [data]);
 
@@ -130,6 +144,8 @@ export function BrandingCard() {
           address: form.address,
           regulatory_seals: seals,
           sello_abr_enabled: isAr ? form.abr_enabled : false,
+          pdf_primary_color: form.pdf_primary_color,
+          pdf_secondary_color: form.pdf_secondary_color,
         },
         { onConflict: "tenant_id" },
       );
@@ -274,6 +290,65 @@ export function BrandingCard() {
           </div>
         </div>
 
+        {/* Colores de planillas PDF (regla 10: configurable por tenant) */}
+        <div className="space-y-3">
+          <div>
+            <div className="text-sm font-medium">Colores de planillas PDF</div>
+            <p className="text-xs text-muted-foreground">
+              El primario pinta la banda del encabezado; el secundario, los
+              títulos y las tablas. Si no los definís, se usa la marca Ninja Food.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <PdfColorPicker
+              label="Primario (encabezado)"
+              value={form.pdf_primary_color}
+              fallback={PDF_DEFAULT_PRIMARY}
+              onChange={(c) =>
+                setForm((f) => (f ? { ...f, pdf_primary_color: c } : f))
+              }
+            />
+            <PdfColorPicker
+              label="Secundario (acentos)"
+              value={form.pdf_secondary_color}
+              fallback={PDF_DEFAULT_SECONDARY}
+              onChange={(c) =>
+                setForm((f) => (f ? { ...f, pdf_secondary_color: c } : f))
+              }
+            />
+          </div>
+          {/* Preview de la banda de planilla con los colores elegidos. */}
+          <div className="overflow-hidden rounded-lg border border-border">
+            <div
+              className="flex items-center gap-3 px-4 py-3"
+              style={{
+                background: form.pdf_primary_color ?? PDF_DEFAULT_PRIMARY,
+              }}
+            >
+              <span className="text-sm font-bold text-white">
+                {form.legal_name || "Tu empresa"}
+              </span>
+              <span className="text-xs text-white/70">Planilla de producción</span>
+            </div>
+            <div
+              className="h-1"
+              style={{
+                background: form.pdf_secondary_color ?? PDF_DEFAULT_SECONDARY,
+              }}
+            />
+            <div className="bg-card px-4 py-2">
+              <span
+                className="text-xs font-bold uppercase tracking-wide"
+                style={{
+                  color: form.pdf_secondary_color ?? PDF_DEFAULT_SECONDARY,
+                }}
+              >
+                Producto elaborado
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Datos legales */}
         <div className="grid gap-3 sm:grid-cols-2">
           <Input
@@ -344,5 +419,64 @@ export function BrandingCard() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ── Color picker de planilla PDF (swatch + hex + reset al default) ────────────
+// value=null significa "usar el fallback Ninja Food"; el reset vuelve a null.
+function PdfColorPicker({
+  label,
+  value,
+  fallback,
+  onChange,
+}: {
+  label: string;
+  value: string | null;
+  fallback: string;
+  onChange: (color: string | null) => void;
+}) {
+  const effective = value ?? fallback;
+  const valid = /^#[0-9a-fA-F]{6}$/.test(effective);
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-medium text-muted-foreground">
+        {label}
+      </label>
+      <div className="flex items-center gap-2">
+        <label
+          className="flex h-9 flex-1 cursor-pointer items-center gap-2 rounded-lg border border-border px-3 text-xs text-muted-foreground"
+          title="Elegir color"
+        >
+          <span
+            className="h-4 w-4 rounded-full border border-black/10"
+            style={{ background: effective }}
+          />
+          <span className="font-price">{effective.toUpperCase()}</span>
+          {value === null && (
+            <span className="text-[10px] uppercase text-muted-foreground/70">
+              · default
+            </span>
+          )}
+          <input
+            type="color"
+            aria-label={label}
+            className="sr-only"
+            value={valid ? effective : fallback}
+            onChange={(e) => onChange(e.target.value.toUpperCase())}
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          disabled={value === null}
+          className={cn(
+            "rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition hover:text-foreground",
+            value === null && "pointer-events-none opacity-40",
+          )}
+        >
+          Reset
+        </button>
+      </div>
+    </div>
   );
 }

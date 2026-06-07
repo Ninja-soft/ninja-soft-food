@@ -18,10 +18,14 @@ export type Ingredient = {
   is_perishable: boolean;
   image_url: string | null;
   description: string | null;
+  barcode: string | null;
   low_stock_threshold: number | null;
   default_shelf_days: number | null;
   family: { name: string } | null;
 };
+
+const INGREDIENT_SELECT =
+  "id, name, family_id, unit, is_perishable, image_url, description, barcode, low_stock_threshold, default_shelf_days, family:ingredient_families(name)";
 
 export type MeasureUnit = { id: string; name: string; abbr: string };
 
@@ -80,19 +84,46 @@ export async function listIngredients(params: {
   const supabase = createClient();
   let query = supabase
     .from("ingredients")
-    .select(
-      "id, name, family_id, unit, is_perishable, image_url, description, low_stock_threshold, default_shelf_days, family:ingredient_families(name)",
-    )
+    .select(INGREDIENT_SELECT)
     .is("deleted_at", null)
     .order("name");
 
   if (params.familyId) query = query.eq("family_id", params.familyId);
-  if (params.search?.trim())
-    query = query.ilike("name", `%${params.search.trim()}%`);
+  // El input de búsqueda matchea por nombre (substring) o por código de barras
+  // exacto: así un código escaneado/pegado encuentra su ingrediente. PostgREST
+  // necesita escapar comas dentro del valor del `or` para no romper el parseo.
+  const search = params.search?.trim();
+  if (search) {
+    const term = search.replace(/[%,]/g, " ");
+    query = query.or(`name.ilike.%${term}%,barcode.eq.${term}`);
+  }
 
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as unknown as Ingredient[];
+}
+
+/**
+ * Busca un ingrediente por código de barras exacto dentro del tenant (RLS).
+ * Devuelve el primero vivo que coincida o null. El barcode NO es unique por
+ * diseño (datos sucios), así que el "primero" basta para preseleccionar.
+ */
+export async function findIngredientByBarcode(
+  barcode: string,
+): Promise<Ingredient | null> {
+  const code = barcode.trim();
+  if (!code) return null;
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("ingredients")
+    .select(INGREDIENT_SELECT)
+    .is("deleted_at", null)
+    .eq("barcode", code)
+    .order("name")
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as unknown as Ingredient | null;
 }
 
 export async function createIngredient(

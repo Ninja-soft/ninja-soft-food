@@ -1,19 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ImagePlus,
+  Loader2,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils/cn";
 import { useFormMembers, useSubmitForm } from "@/modules/forms/hooks";
-import type { FormSubmission, FormTemplate } from "@/modules/forms/api";
+import {
+  removeFormPhoto,
+  uploadFormPhoto,
+  type FormSubmission,
+  type FormTemplate,
+} from "@/modules/forms/api";
 import {
   buildValuesSchema,
   evaluateSubmission,
-  type FieldValue,
+  isChecklistValue,
+  isPhotoValue,
   type FormField,
   type FormValues,
+  type PhotoValue,
 } from "@/modules/forms/schemas";
 
 const inputCls =
@@ -21,13 +34,20 @@ const inputCls =
 
 // Estado interno: los inputs guardan el valor crudo; al enviar se coacciona y se
 // valida con buildValuesSchema. El semáforo se calcula en vivo con los valores
-// numéricos ya parseados.
-type DraftValues = Record<string, string | boolean>;
+// ya parseados. Los nuevos tipos guardan su shape final ya en el draft:
+//  - checklist → string[] (opciones tildadas)
+//  - photo     → PhotoValue | null (subida al bucket antes de enviar)
+//  - time      → string "HH:mm"
+type DraftFieldValue = string | boolean | string[] | PhotoValue | null;
+type DraftValues = Record<string, DraftFieldValue>;
 
 function initialDraft(fields: FormField[]): DraftValues {
   const d: DraftValues = {};
   for (const f of fields) {
-    d[f.key] = f.type === "bool" ? false : "";
+    if (f.type === "bool") d[f.key] = false;
+    else if (f.type === "checklist") d[f.key] = [];
+    else if (f.type === "photo") d[f.key] = null;
+    else d[f.key] = "";
   }
   return d;
 }
@@ -42,7 +62,12 @@ function coerce(fields: FormField[], draft: DraftValues): FormValues {
     } else if (f.type === "number" || f.type === "temperature") {
       const s = String(raw ?? "").trim();
       out[f.key] = s === "" ? null : Number(s.replace(",", "."));
+    } else if (f.type === "checklist") {
+      out[f.key] = isChecklistValue(raw) ? raw : [];
+    } else if (f.type === "photo") {
+      out[f.key] = isPhotoValue(raw) ? raw : null;
     } else {
+      // text / select / time
       const s = String(raw ?? "");
       out[f.key] = s === "" ? null : s;
     }
@@ -95,8 +120,8 @@ export function FillFormModal({
     [fields, values]
   );
 
-  function setValue(key: string, value: FieldValue | boolean) {
-    setDraft((prev) => ({ ...prev, [key]: value as string | boolean }));
+  function setValue(key: string, value: DraftFieldValue) {
+    setDraft((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleSubmit() {
@@ -292,9 +317,9 @@ function FieldInput({
   onChange,
 }: {
   field: FormField;
-  value: string | boolean | undefined;
+  value: DraftFieldValue | undefined;
   error?: string;
-  onChange: (v: FieldValue | boolean) => void;
+  onChange: (v: DraftFieldValue) => void;
 }) {
   const labelEl = (
     <label className="mb-2 block text-sm font-medium text-muted-foreground">
@@ -322,7 +347,7 @@ function FieldInput({
       ) : field.type === "select" ? (
         <select
           className={inputCls}
-          value={String(value ?? "")}
+          value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
         >
           <option value="">Elegir…</option>
@@ -335,9 +360,27 @@ function FieldInput({
       ) : field.type === "text" ? (
         <input
           className={inputCls}
-          value={String(value ?? "")}
+          value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Texto…"
+        />
+      ) : field.type === "time" ? (
+        <input
+          type="time"
+          className={inputCls}
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      ) : field.type === "checklist" ? (
+        <ChecklistInput
+          options={field.options ?? []}
+          value={isChecklistValue(value) ? value : []}
+          onChange={onChange}
+        />
+      ) : field.type === "photo" ? (
+        <PhotoInput
+          value={isPhotoValue(value) ? value : null}
+          onChange={onChange}
         />
       ) : (
         // number / temperature
@@ -347,7 +390,7 @@ function FieldInput({
             step="any"
             inputMode="decimal"
             className={cn(inputCls, "text-right")}
-            value={String(value ?? "")}
+            value={typeof value === "string" ? value : ""}
             onChange={(e) => onChange(e.target.value)}
             placeholder={
               field.min != null || field.max != null
@@ -371,6 +414,161 @@ function FieldInput({
           </p>
         )}
       {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+// ── Checklist (opciones tildables) ───────────────────────────────────────────
+
+function ChecklistInput({
+  options,
+  value,
+  onChange,
+}: {
+  options: string[];
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  function toggle(opt: string) {
+    onChange(
+      value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]
+    );
+  }
+  return (
+    <div className="space-y-1.5">
+      {options.map((opt) => (
+        <label
+          key={opt}
+          className="flex cursor-pointer items-center gap-2.5 rounded-md border border-border bg-card px-3 py-2 text-sm transition hover:border-primary/40"
+        >
+          <input
+            type="checkbox"
+            checked={value.includes(opt)}
+            onChange={() => toggle(opt)}
+            className="h-4 w-4 rounded border-input accent-primary"
+          />
+          {opt}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+// ── Foto (upload al bucket privado + thumbnail) ──────────────────────────────
+
+function PhotoInput({
+  value,
+  onChange,
+}: {
+  value: PhotoValue | null;
+  onChange: (v: PhotoValue | null) => void;
+}) {
+  const { toast } = useToast();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  // Preview local (objectURL) mientras la captura está abierta: evita firmar URL.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      toast({
+        title: "Imagen muy pesada",
+        description: "Máximo 8 MB",
+        variant: "error",
+      });
+      return;
+    }
+    try {
+      setUploading(true);
+      // Si había una foto previa subida, la quitamos del bucket (best-effort).
+      if (value?.path) void removeFormPhoto(value.path);
+      const uploaded = await uploadFormPhoto(file);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(file));
+      onChange(uploaded);
+    } catch (err) {
+      toast({
+        title: "No se pudo subir la foto",
+        description: err instanceof Error ? err.message : undefined,
+        variant: "error",
+      });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function clear() {
+    if (value?.path) void removeFormPhoto(value.path);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    onChange(null);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        aria-label="Adjuntar foto"
+        className="relative grid h-20 w-28 shrink-0 place-items-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/40 text-muted-foreground transition hover:border-primary hover:text-primary disabled:opacity-60"
+      >
+        {uploading ? (
+          <Loader2 size={20} className="animate-spin" />
+        ) : previewUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previewUrl}
+            alt={value?.name ?? "Foto"}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <ImagePlus size={22} />
+        )}
+      </button>
+      <div className="min-w-0 flex-1">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          loading={uploading}
+          onClick={() => inputRef.current?.click()}
+        >
+          {value ? "Cambiar foto" : "Adjuntar foto"}
+        </Button>
+        {value && (
+          <button
+            type="button"
+            onClick={clear}
+            className="ml-2 inline-flex items-center gap-1 text-xs text-muted-foreground transition hover:text-destructive"
+          >
+            <X size={12} />
+            Quitar
+          </button>
+        )}
+        {value?.name && (
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {value.name}
+          </p>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={onPick}
+      />
     </div>
   );
 }

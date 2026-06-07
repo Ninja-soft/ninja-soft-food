@@ -13,6 +13,7 @@ import {
   Menu,
   Moon,
   ScrollText,
+  Settings,
   Shield,
   Store,
   Sun,
@@ -47,6 +48,7 @@ const NAV = [
   { href: "/internal/emails", label: "Emails", icon: Mail },
   { href: "/internal/audit", label: "Auditoría", icon: ScrollText },
   { href: "/internal/staff", label: "Staff", icon: Shield },
+  { href: "/internal/configuracion", label: "Configuración", icon: Settings },
 ];
 
 const LEVEL_LABELS: Record<string, string> = {

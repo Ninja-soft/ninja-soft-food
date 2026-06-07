@@ -12,6 +12,15 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "."),
+      // `server-only` es un marcador de Next (no es un paquete real instalado):
+      // en producción Next lo resuelve a un módulo que lanza si se importa desde
+      // un Client Component. En los tests unit (node/jsdom) lo mapeamos al stub
+      // vacío que Next trae compilado, para poder importar módulos server-side
+      // (lib/ai/config, lib/ai/access) sin que el marcador rompa.
+      "server-only": path.resolve(
+        __dirname,
+        "node_modules/next/dist/compiled/server-only/empty.js",
+      ),
     },
   },
 });

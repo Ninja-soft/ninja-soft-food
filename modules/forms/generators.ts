@@ -8,6 +8,7 @@ import {
   drawSectionTitle,
   drawSignatureBlock,
   finalizePdf,
+  resolvePalette,
   type PlanillaMeta,
 } from "@/lib/utils/pdf";
 import { exportToExcel, type XlsxColumn } from "@/lib/utils/xlsx";
@@ -17,6 +18,8 @@ import {
   FIELD_TYPE_LABELS,
   FORM_KIND_LABELS,
   FREQUENCY_LABELS,
+  isChecklistValue,
+  isPhotoValue,
   type FieldValue,
 } from "./schemas";
 
@@ -55,6 +58,10 @@ function tenantToMeta(
     tenantName: branding.legalName || branding.name,
     logoUrl: branding.logoUrl,
     subtitle,
+    palette: resolvePalette({
+      primary: branding.pdfPrimaryColor,
+      secondary: branding.pdfSecondaryColor,
+    }),
   };
 }
 
@@ -78,6 +85,7 @@ export async function generateBlankFormPdf(
   meta.logoUrl = await loadLogoDataUrl(branding.logoUrl);
   const { doc, startY } = createPlanillaDoc(meta);
 
+  const accent = (meta.palette ?? resolvePalette()).accent;
   const CONTENT_W = PAGE.width - PAGE.margin * 2;
   const MUTED: [number, number, number] = [90, 107, 88];
   const TEXT: [number, number, number] = [19, 25, 15];
@@ -101,18 +109,29 @@ export async function generateBlankFormPdf(
   );
   y += 8;
 
-  y = drawSectionTitle(doc, "Datos a registrar", y);
+  y = drawSectionTitle(doc, "Datos a registrar", y, accent);
 
   // Cada campo: etiqueta + casilla/línea vacía para completar a mano.
   for (const field of template.fields) {
-    if (y > PAGE.height - 50) {
+    // El checklist ocupa una fila por opción; el resto, una fila base.
+    const checklistOpts =
+      field.type === "checklist"
+        ? (field.options ?? []).filter((o) => o.length > 0)
+        : [];
+    const rowH =
+      field.type === "checklist"
+        ? 8 + checklistOpts.length * 5.5
+        : field.type === "photo"
+          ? 24
+          : 11;
+
+    if (y + rowH > PAGE.height - 40) {
       doc.addPage();
       drawHeader(doc, meta);
       y = 42;
-      y = drawSectionTitle(doc, "Datos a registrar (continuación)", y);
+      y = drawSectionTitle(doc, "Datos a registrar (continuación)", y, accent);
     }
 
-    const rowH = 11;
     // Etiqueta + tipo/unidad/rango.
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
@@ -147,23 +166,47 @@ export async function generateBlankFormPdf(
         maxWidth: 90,
         align: "left",
       });
+    } else if (field.type === "checklist") {
+      // Una casilla tildable + etiqueta por opción, debajo del label.
+      let cy = y + 6;
+      doc.setFontSize(8);
+      for (const opt of checklistOpts.length ? checklistOpts : ["____________"]) {
+        doc.setDrawColor(...HAIRLINE);
+        doc.setLineWidth(0.3);
+        doc.rect(PAGE.margin + 2, cy - 3, 3.5, 3.5);
+        doc.setTextColor(...MUTED);
+        doc.text(opt, PAGE.margin + 8, cy);
+        cy += 5.5;
+      }
+    } else if (field.type === "photo") {
+      // Recuadro para pegar/grapar la foto impresa.
+      const bw = 50;
+      const bh = 18;
+      const bx = PAGE.margin + CONTENT_W - bw;
+      doc.setDrawColor(...HAIRLINE);
+      doc.setLineWidth(0.3);
+      doc.rect(bx, y - 2, bw, bh);
+      doc.setFontSize(7);
+      doc.setTextColor(...MUTED);
+      doc.text("Foto", bx + bw / 2, y + bh / 2, { align: "center" });
     } else {
-      // Línea para escribir.
+      // Línea para escribir (number / temperature / text / time).
       const lx = PAGE.margin + CONTENT_W - 70;
       doc.setDrawColor(...HAIRLINE);
       doc.setLineWidth(0.3);
       doc.line(lx, y, lx + 60, y);
-      if (field.unit) {
+      const suffix = field.unit || (field.type === "time" ? "hs" : "");
+      if (suffix) {
         doc.setFontSize(8);
         doc.setTextColor(...MUTED);
-        doc.text(field.unit, lx + 62, y);
+        doc.text(suffix, lx + 62, y);
       }
     }
 
     // Hairline separador.
     doc.setDrawColor(216, 226, 214);
     doc.setLineWidth(0.1);
-    doc.line(PAGE.margin, y + 5, PAGE.width - PAGE.margin, y + 5);
+    doc.line(PAGE.margin, y + rowH - 6, PAGE.width - PAGE.margin, y + rowH - 6);
     y += rowH;
   }
 
@@ -171,7 +214,7 @@ export async function generateBlankFormPdf(
   const instructions = template.action_on_fail?.instructions;
   if (instructions) {
     y += 4;
-    y = drawSectionTitle(doc, "Acción ante desvío", y);
+    y = drawSectionTitle(doc, "Acción ante desvío", y, accent);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(...MUTED);
@@ -215,6 +258,10 @@ const STATUS_LABELS: Record<string, string> = {
 function valueToCell(value: FieldValue | undefined): string | number {
   if (value === null || value === undefined) return "";
   if (typeof value === "boolean") return value ? "Sí" : "No";
+  // checklist → opciones tildadas separadas por coma.
+  if (isChecklistValue(value)) return value.join(", ");
+  // photo → nombre del archivo (el path/URL no se vuelca al Excel plano).
+  if (isPhotoValue(value)) return value.name || "Foto adjunta";
   return value;
 }
 

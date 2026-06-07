@@ -1,7 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Eye, Plus, Trash2, X } from "lucide-react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Eye, GripVertical, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -43,7 +60,10 @@ type DraftField = {
   min: string;
   max: string;
   unit: string;
+  // options: usado por `select` (lista) y por `checklist` (ítems tildables).
   options: string[];
+  // checklist: todas las opciones deben estar tildadas para no marcar desvío.
+  optionsRequired: boolean;
 };
 
 const WEEKDAYS = [
@@ -70,6 +90,7 @@ function newDraftField(): DraftField {
     max: "",
     unit: "",
     options: [],
+    optionsRequired: true,
   };
 }
 
@@ -85,6 +106,7 @@ function templateToDrafts(t: FormTemplate): DraftField[] {
     max: f.max != null ? String(f.max) : "",
     unit: f.unit ?? "",
     options: f.options ?? [],
+    optionsRequired: f.options_required ?? true,
   }));
 }
 
@@ -99,6 +121,7 @@ function parseNum(v: string): number | null {
 function draftsToFields(drafts: DraftField[]): FormField[] {
   return drafts.map((d) => {
     const numeric = isNumericField(d.type);
+    const hasOptions = d.type === "select" || d.type === "checklist";
     return {
       key: d.key || slugifyFieldKey(d.label),
       label: d.label,
@@ -107,10 +130,10 @@ function draftsToFields(drafts: DraftField[]): FormField[] {
       min: numeric ? parseNum(d.min) : null,
       max: numeric ? parseNum(d.max) : null,
       unit: d.type === "temperature" || numeric ? d.unit.trim() || null : null,
-      options:
-        d.type === "select"
-          ? d.options.map((o) => o.trim()).filter((o) => o.length > 0)
-          : undefined,
+      options: hasOptions
+        ? d.options.map((o) => o.trim()).filter((o) => o.length > 0)
+        : undefined,
+      options_required: d.type === "checklist" ? d.optionsRequired : null,
     };
   });
 }
@@ -139,6 +162,15 @@ export function TemplateBuilderModal({
   const [failInstructions, setFailInstructions] = useState("");
   const [drafts, setDrafts] = useState<DraftField[]>([newDraftField()]);
   const [error, setError] = useState<string | null>(null);
+
+  // Sensores de drag&drop: puntero + teclado (accesible). El de teclado usa la
+  // estrategia de listas verticales para mover con flechas tras tomar el handle.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -180,13 +212,14 @@ export function TemplateBuilderModal({
     );
   }
 
-  function moveField(index: number, dir: -1 | 1) {
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
     setDrafts((prev) => {
-      const next = [...prev];
-      const target = index + dir;
-      if (target < 0 || target >= next.length) return prev;
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
+      const from = prev.findIndex((d) => d.uid === active.id);
+      const to = prev.findIndex((d) => d.uid === over.id);
+      if (from === -1 || to === -1) return prev;
+      return arrayMove(prev, from, to);
     });
   }
 
@@ -382,17 +415,28 @@ export function TemplateBuilderModal({
               </Button>
             </div>
 
-            {drafts.map((d, index) => (
-              <FieldEditor
-                key={d.uid}
-                field={d}
-                index={index}
-                total={drafts.length}
-                onChange={(patch) => patchField(d.uid, patch)}
-                onMove={(dir) => moveField(index, dir)}
-                onRemove={() => removeField(d.uid)}
-              />
-            ))}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={drafts.map((d) => d.uid)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-3">
+                  {drafts.map((d) => (
+                    <SortableFieldEditor
+                      key={d.uid}
+                      field={d}
+                      total={drafts.length}
+                      onChange={(patch) => patchField(d.uid, patch)}
+                      onRemove={() => removeField(d.uid)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           </div>
 
           {error && (
@@ -447,50 +491,55 @@ export function TemplateBuilderModal({
   );
 }
 
-// ── Editor de un campo ───────────────────────────────────────────────────────
+// ── Editor de un campo (sortable con dnd-kit) ─────────────────────────────────
 
-function FieldEditor({
+function SortableFieldEditor({
   field,
-  index,
   total,
   onChange,
-  onMove,
   onRemove,
 }: {
   field: DraftField;
-  index: number;
   total: number;
   onChange: (patch: Partial<DraftField>) => void;
-  onMove: (dir: -1 | 1) => void;
   onRemove: () => void;
 }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: field.uid });
+
   const numeric = isNumericField(field.type);
   const isTemp = field.type === "temperature";
   const isSelect = field.type === "select";
+  const isChecklist = field.type === "checklist";
 
   return (
-    <div className="rounded-md border border-border bg-card p-3">
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      className={cn(
+        "rounded-md border border-border bg-card p-3",
+        isDragging && "relative z-10 opacity-80 shadow-lg"
+      )}
+    >
       <div className="flex items-start gap-2">
-        <div className="flex flex-col gap-0.5 pt-1">
-          <button
-            type="button"
-            aria-label="Subir campo"
-            disabled={index === 0}
-            onClick={() => onMove(-1)}
-            className="grid h-6 w-6 place-items-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
-          >
-            <ArrowUp size={14} />
-          </button>
-          <button
-            type="button"
-            aria-label="Bajar campo"
-            disabled={index === total - 1}
-            onClick={() => onMove(1)}
-            className="grid h-6 w-6 place-items-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
-          >
-            <ArrowDown size={14} />
-          </button>
-        </div>
+        <button
+          type="button"
+          aria-label="Reordenar campo (arrastrá o usá flechas)"
+          className="mt-1 grid h-7 w-6 cursor-grab touch-none place-items-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical size={15} />
+        </button>
 
         <div className="min-w-0 flex-1 space-y-2">
           <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
@@ -557,23 +606,49 @@ function FieldEditor({
             </div>
           )}
 
-          {/* Select: opciones */}
-          {isSelect && (
+          {/* Select / Checklist: opciones */}
+          {(isSelect || isChecklist) && (
             <OptionsEditor
               options={field.options}
+              label={isChecklist ? "Ítems del checklist" : undefined}
               onChange={(options) => onChange({ options })}
             />
           )}
 
-          <label className="flex w-fit items-center gap-2 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={field.required}
-              onChange={(e) => onChange({ required: e.target.checked })}
-              className="h-4 w-4 rounded border-input accent-primary"
-            />
-            Obligatorio
-          </label>
+          {/* Foto: ayuda */}
+          {field.type === "photo" && (
+            <p className="text-xs text-muted-foreground">
+              El operario adjunta una foto desde la cámara o galería. Se guarda en
+              el bucket privado de la empresa.
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="flex w-fit items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={field.required}
+                onChange={(e) => onChange({ required: e.target.checked })}
+                className="h-4 w-4 rounded border-input accent-primary"
+              />
+              Obligatorio
+            </label>
+
+            {/* Checklist: ¿todas las opciones son obligatorias para no marcar desvío? */}
+            {isChecklist && (
+              <label className="flex w-fit items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={field.optionsRequired}
+                  onChange={(e) =>
+                    onChange({ optionsRequired: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-input accent-primary"
+                />
+                Todas obligatorias (marca desvío si falta alguna)
+              </label>
+            )}
+          </div>
         </div>
 
         <button
@@ -593,13 +668,18 @@ function FieldEditor({
 function OptionsEditor({
   options,
   onChange,
+  label,
 }: {
   options: string[];
   onChange: (opts: string[]) => void;
+  label?: string;
 }) {
   const list = options.length > 0 ? options : [""];
   return (
     <div className="space-y-1.5">
+      {label && (
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      )}
       {list.map((opt, i) => (
         <div key={i} className="flex gap-1.5">
           <input
@@ -659,6 +739,29 @@ function PreviewField({ field }: { field: FormField }) {
       ) : field.type === "select" ? (
         <div className="h-9 rounded-lg border border-input bg-background px-3 text-sm leading-9 text-muted-foreground">
           {(field.options ?? [])[0] ?? "Elegir…"}
+        </div>
+      ) : field.type === "checklist" ? (
+        <div className="space-y-1">
+          {((field.options ?? []).length > 0
+            ? field.options ?? []
+            : ["Ítem…"]
+          ).map((o, i) => (
+            <div
+              key={`${o}-${i}`}
+              className="flex items-center gap-2 text-xs text-muted-foreground"
+            >
+              <span className="h-4 w-4 rounded border border-input" />
+              {o}
+            </div>
+          ))}
+        </div>
+      ) : field.type === "photo" ? (
+        <div className="grid h-16 w-full place-items-center rounded-lg border border-dashed border-input text-xs text-muted-foreground">
+          Adjuntar foto
+        </div>
+      ) : field.type === "time" ? (
+        <div className="h-9 rounded-lg border border-input bg-background px-3 text-sm leading-9 text-muted-foreground">
+          --:--
         </div>
       ) : (
         <div className="flex items-center gap-2">

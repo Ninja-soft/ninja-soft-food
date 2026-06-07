@@ -104,6 +104,13 @@ export const INGREDIENT_COLUMNS: TemplateColumn[] = [
     hint: "Texto libre. Opcional.",
     examples: ["", ""],
   },
+  {
+    header: "Código de barras",
+    key: "barcode",
+    width: 18,
+    hint: "EAN-13 / Code-128. Opcional.",
+    examples: ["7791234567890", ""],
+  },
 ];
 
 export const CUSTOMER_COLUMNS: TemplateColumn[] = [
@@ -199,6 +206,7 @@ const INGREDIENT_LABELS: Record<string, string> = {
   default_shelf_days: "Vida útil",
   low_stock_threshold: "Stock mínimo",
   description: "Descripción",
+  barcode: "Código de barras",
 };
 
 export function validateIngredientRow(
@@ -232,6 +240,7 @@ export function validateIngredientRow(
     family_id: null,
     unit: raw.unit ?? "",
     is_perishable: parseBoolEs(raw.is_perishable ?? null) ?? false,
+    barcode: raw.barcode ?? null,
     description: raw.description ?? null,
     low_stock_threshold:
       raw.low_stock_threshold === null || Number.isNaN(threshold)

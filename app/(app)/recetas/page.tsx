@@ -26,9 +26,15 @@ import { useToast } from "@/components/ui/Toast";
 import { Eyebrow, Heading } from "@/components/ui/Typography";
 import { GroupFormModal } from "@/components/recipes/GroupFormModal";
 import { RecipeFormModal } from "@/components/recipes/RecipeFormModal";
+import { RegulatorySeal, type SealShape } from "@/components/ui/RegulatorySeal";
 import { cn } from "@/lib/utils/cn";
 import { daysUntil, formatDate } from "@/lib/utils/format";
 import { exportToExcel } from "@/lib/utils/xlsx";
+import {
+  getLabelSystem,
+  type LabelSystem,
+  type LabelSystemId,
+} from "@/lib/globalization/labelSystems";
 import type { Recipe, RecipeGroup } from "@/modules/recipes/api";
 import {
   useDeleteGroup,
@@ -62,11 +68,62 @@ function rnpaBadge(r: Recipe): { label: string; cls: string } | null {
   return { label: `RNPA ${r.rnpa_number}`, cls: "bg-primary/15 text-primary" };
 }
 
-// Cantidad de sellos de rotulado de la receta: lee regulatory_labels (sistema
-// resuelto por país) con fallback a front_labels legacy (octógonos AR).
-function labelCount(r: Recipe): number {
-  if (r.regulatory_labels?.values) return r.regulatory_labels.values.length;
-  return r.front_labels?.length ?? 0;
+// Resuelve sistema + valores de rotulado para dibujar mini-sellos en la card:
+// prioriza regulatory_labels (sistema por país); si solo hay front_labels son
+// octógonos AR legacy. Devuelve null si la receta no tiene sellos.
+function resolveCardLabels(
+  r: Recipe,
+): { system: LabelSystem; values: string[] } | null {
+  if (r.regulatory_labels?.values?.length) {
+    return {
+      system: getLabelSystem(r.regulatory_labels.system as LabelSystemId),
+      values: r.regulatory_labels.values,
+    };
+  }
+  if (r.front_labels?.length) {
+    return { system: getLabelSystem("ar_octogonos"), values: r.front_labels };
+  }
+  return null;
+}
+
+function cardSealShape(system: LabelSystem): SealShape {
+  if (system.kind === "grade") return "grade";
+  if (system.seal.shape === "octagon") return "octagon";
+  if (system.seal.shape === "magnifier") return "magnifier";
+  return "rect";
+}
+
+// Mini-sellos de rotulado en la card (24px): comunican de un vistazo qué
+// advertencias lleva la receta. Tope de 4 + contador "+N" para no romper el layout.
+function CardSeals({ recipe }: { recipe: Recipe }) {
+  const labels = resolveCardLabels(recipe);
+  if (!labels) return null;
+  const shape = cardSealShape(labels.system);
+  const max = 4;
+  const shown = labels.values.slice(0, max);
+  const extra = labels.values.length - shown.length;
+  return (
+    <span className="mt-2 flex items-center gap-1">
+      {shown.map((id) => {
+        const v = labels.system.values.find((x) => x.id === id);
+        const text = (v?.labelLocal ?? v?.label ?? id).toUpperCase();
+        return (
+          <RegulatorySeal
+            key={id}
+            shape={shape}
+            text={text}
+            grade={id}
+            size="sm"
+          />
+        );
+      })}
+      {extra > 0 && (
+        <span className="text-[11px] font-semibold text-muted-foreground">
+          +{extra}
+        </span>
+      )}
+    </span>
+  );
 }
 
 function matchesRnpaFilter(r: Recipe, f: RnpaFilter): boolean {
@@ -411,12 +468,8 @@ export default function RecetasPage() {
                       <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                         {r.shelf_life_days}d vida útil
                       </span>
-                      {labelCount(r) > 0 && (
-                        <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-xs font-medium text-foreground">
-                          {labelCount(r)} sello{labelCount(r) > 1 ? "s" : ""}
-                        </span>
-                      )}
                     </span>
+                    <CardSeals recipe={r} />
                     {r.rnpa_expiry && !r.rnpa_exempt && (
                       <span className="mt-1 block text-xs text-muted-foreground">
                         RNPA vence {formatDate(r.rnpa_expiry)}

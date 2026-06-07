@@ -583,16 +583,23 @@ export function RecipeFormModal({
 
         {/* Rotulado frontal — sistema resuelto por país del tenant */}
         {labelSystem && labelSystem.kind !== "none" && (
-          <div className="space-y-3">
-            <div>
-              <SectionTitle>
-                Rotulado frontal · {labelSystem.name}
-              </SectionTitle>
-              <p className="mt-2 text-xs text-muted-foreground">
+          <div className="space-y-4">
+            <div className="space-y-1.5 border-b border-border pb-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-display text-base font-bold text-foreground">
+                  Rotulado frontal
+                </h3>
+                <span className="rounded-ninjaFull border border-border bg-muted/60 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  {labelSystem.name}
+                </span>
+                <span className="rounded-ninjaFull bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+                  {labelSystem.legalRef}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
                 {labelSystem.kind === "grade"
-                  ? "Calificación única del producto."
-                  : "Marcá las advertencias que aplican al producto."}{" "}
-                {labelSystem.legalRef}
+                  ? "Elegí la calificación nutricional que corresponde al producto."
+                  : "Marcá las advertencias que aplican al producto. Aparecen en el rótulo y en la traza pública."}
               </p>
             </div>
             <RegulatoryLabelSelector

@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage: {
+        Row: {
+          created_at: string
+          feature: string
+          id: string
+          input_tokens: number
+          model: string
+          output_tokens: number
+          provider: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          feature: string
+          id?: string
+          input_tokens?: number
+          model: string
+          output_tokens?: number
+          provider: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          feature?: string
+          id?: string
+          input_tokens?: number
+          model?: string
+          output_tokens?: number
+          provider?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analyses: {
         Row: {
           analysis_date: string
@@ -663,6 +704,7 @@ export type Database = {
       }
       ingredients: {
         Row: {
+          barcode: string | null
           created_at: string
           default_shelf_days: number | null
           deleted_at: string | null
@@ -678,6 +720,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          barcode?: string | null
           created_at?: string
           default_shelf_days?: number | null
           deleted_at?: string | null
@@ -693,6 +736,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          barcode?: string | null
           created_at?: string
           default_shelf_days?: number | null
           deleted_at?: string | null
@@ -2387,6 +2431,8 @@ export type Database = {
           cuit: string | null
           legal_name: string | null
           logo_url: string | null
+          pdf_primary_color: string | null
+          pdf_secondary_color: string | null
           phone: string | null
           regulatory_seals: Json
           sello_abr_enabled: boolean
@@ -2400,6 +2446,8 @@ export type Database = {
           cuit?: string | null
           legal_name?: string | null
           logo_url?: string | null
+          pdf_primary_color?: string | null
+          pdf_secondary_color?: string | null
           phone?: string | null
           regulatory_seals?: Json
           sello_abr_enabled?: boolean
@@ -2413,6 +2461,8 @@ export type Database = {
           cuit?: string | null
           legal_name?: string | null
           logo_url?: string | null
+          pdf_primary_color?: string | null
+          pdf_secondary_color?: string | null
           phone?: string | null
           regulatory_seals?: Json
           sello_abr_enabled?: boolean

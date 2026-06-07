@@ -8,13 +8,54 @@ import { es } from "date-fns/locale";
 // con salto de página + repetición de header. Todo en español rioplatense.
 
 // ── Paleta de marca (RGB) ───────────────────────────────────────────────────
-const BRAND_DARK: [number, number, number] = [8, 18, 10]; // food-dark
-const BRAND_GREEN: [number, number, number] = [46, 125, 50]; // primary
-const MUTED: [number, number, number] = [90, 107, 88];
-const HAIRLINE: [number, number, number] = [216, 226, 214];
-const ZEBRA: [number, number, number] = [241, 246, 240];
-const TEXT: [number, number, number] = [19, 25, 15];
-const WHITE: [number, number, number] = [255, 255, 255];
+// Los acentos (primario = banda del header / secundario = títulos y tablas) ya
+// NO son constantes fijas: cada tenant define sus colores en tenant_branding
+// (regla 10 — nada hardcodeado al cliente). DEFAULT_* son el fallback Ninja Food.
+type RGB = [number, number, number];
+
+const DEFAULT_BRAND_DARK: RGB = [8, 18, 10]; // food-dark · #08120A
+const DEFAULT_BRAND_GREEN: RGB = [46, 125, 50]; // primary · #2E7D32
+const MUTED: RGB = [90, 107, 88];
+const HAIRLINE: RGB = [216, 226, 214];
+const ZEBRA: RGB = [241, 246, 240];
+const TEXT: RGB = [19, 25, 15];
+const WHITE: RGB = [255, 255, 255];
+
+/** Hex válido de 6 dígitos (#RRGGBB), con o sin almohadilla. */
+export function hexToRgb(hex: string | null | undefined, fallback: RGB): RGB {
+  if (!hex) return fallback;
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) return fallback;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/**
+ * Paleta resuelta de una planilla: el color PRIMARIO pinta la banda oscura del
+ * header; el SECUNDARIO (acento) pinta el header de tablas, títulos de sección y
+ * la regla bajo ellos. Construir con resolvePalette(branding) para aplicar el
+ * fallback Ninja Food cuando el tenant no definió colores.
+ */
+export interface PlanillaPalette {
+  primary: RGB;
+  accent: RGB;
+}
+
+export const DEFAULT_PALETTE: PlanillaPalette = {
+  primary: DEFAULT_BRAND_DARK,
+  accent: DEFAULT_BRAND_GREEN,
+};
+
+/** Resuelve la paleta de la planilla desde dos hex (con fallback al default). */
+export function resolvePalette(colors?: {
+  primary?: string | null;
+  secondary?: string | null;
+}): PlanillaPalette {
+  return {
+    primary: hexToRgb(colors?.primary, DEFAULT_BRAND_DARK),
+    accent: hexToRgb(colors?.secondary, DEFAULT_BRAND_GREEN),
+  };
+}
 
 // A4 en mm.
 export const PAGE = {
@@ -32,6 +73,8 @@ export interface PlanillaMeta {
   /** dataURL (png/jpg) del logo del tenant; opcional. */
   logoUrl?: string | null;
   subtitle?: string;
+  /** Paleta del tenant; si falta se usa DEFAULT_PALETTE (Ninja Food). */
+  palette?: PlanillaPalette;
 }
 
 /** Documento A4 con header de marca; el footer se pinta al final con finalizePdf. */
@@ -47,11 +90,12 @@ export function createPlanillaDoc(meta: PlanillaMeta): {
 
 /** Pinta la banda de marca en la página actual. */
 export function drawHeader(doc: jsPDF, meta: PlanillaMeta): void {
-  // Banda de fondo.
-  doc.setFillColor(...BRAND_DARK);
+  const palette = meta.palette ?? DEFAULT_PALETTE;
+  // Banda de fondo (color primario del tenant).
+  doc.setFillColor(...palette.primary);
   doc.rect(0, 0, PAGE.width, HEADER_BOTTOM, "F");
-  // Acento inferior.
-  doc.setFillColor(...BRAND_GREEN);
+  // Acento inferior (color secundario del tenant).
+  doc.setFillColor(...palette.accent);
   doc.rect(0, HEADER_BOTTOM, PAGE.width, 1.2, "F");
 
   let textX = PAGE.margin;
@@ -108,6 +152,8 @@ export interface DrawTableOptions {
   /** Callback de header de página tras un salto (para repintar la banda). */
   onPageBreak?: (doc: jsPDF) => number;
   fontSize?: number;
+  /** Color del header de la tabla (acento del tenant). Default Ninja Food. */
+  accent?: RGB;
 }
 
 const ROW_PAD_Y = 2.4;
@@ -148,10 +194,11 @@ export function drawTable(doc: jsPDF, opts: DrawTableOptions): number {
   const lineH = fontSize * 0.42; // mm aprox.
   const widths = resolveWidths(opts.columns);
   const repeatHeader = opts.repeatHeader ?? true;
+  const accent = opts.accent ?? DEFAULT_BRAND_GREEN;
   let y = opts.startY;
 
   const drawTableHeader = () => {
-    doc.setFillColor(...BRAND_GREEN);
+    doc.setFillColor(...accent);
     doc.rect(PAGE.margin, y, CONTENT_W, lineH + ROW_PAD_Y * 2, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(fontSize);
@@ -221,13 +268,18 @@ export function drawTable(doc: jsPDF, opts: DrawTableOptions): number {
 
 // ── Bloques reutilizables ────────────────────────────────────────────────────
 
-/** Título de sección con regla bajo el texto. */
-export function drawSectionTitle(doc: jsPDF, text: string, y: number): number {
+/** Título de sección con regla bajo el texto (acento del tenant). */
+export function drawSectionTitle(
+  doc: jsPDF,
+  text: string,
+  y: number,
+  accent: RGB = DEFAULT_BRAND_GREEN,
+): number {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(...BRAND_GREEN);
+  doc.setTextColor(...accent);
   doc.text(text.toUpperCase(), PAGE.margin, y);
-  doc.setDrawColor(...BRAND_GREEN);
+  doc.setDrawColor(...accent);
   doc.setLineWidth(0.4);
   doc.line(PAGE.margin, y + 1.5, PAGE.margin + 24, y + 1.5);
   return y + 7;

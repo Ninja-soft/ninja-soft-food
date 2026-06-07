@@ -10,6 +10,11 @@ export const ingredientSchema = z.object({
   family_id: z.string().uuid().nullable(),
   unit: z.string().min(1, "Elegí una unidad"),
   is_perishable: z.boolean(),
+  barcode: z
+    .string()
+    .max(64)
+    .transform((v) => v.trim() || null)
+    .nullable(),
   description: z
     .string()
     .max(500)

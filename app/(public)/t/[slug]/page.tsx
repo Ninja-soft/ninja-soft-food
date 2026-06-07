@@ -6,6 +6,10 @@ import {
   type LabelSystem,
   type LabelSystemId,
 } from "@/lib/globalization/labelSystems";
+import {
+  RegulatorySeal,
+  type SealShape,
+} from "@/components/ui/RegulatorySeal";
 
 export const revalidate = 0;
 
@@ -184,12 +188,15 @@ export default async function PublicTracePage({
           </div>
 
           {labels && (
-            <div className="mt-4 flex flex-wrap gap-1.5">
+            <div className="mt-4 flex flex-wrap items-center gap-2">
               {labels.values.map((l) => (
-                <TraceSeal
+                <RegulatorySeal
                   key={l}
-                  shape={labels.system.seal.shape}
+                  shape={traceSealShape(labels.system)}
                   text={sealText(labels.system, l)}
+                  grade={l}
+                  signature={traceSealSignature(labels.system)}
+                  size="md"
                 />
               ))}
             </div>
@@ -248,43 +255,18 @@ export default async function PublicTracePage({
   );
 }
 
-// Sello de rotulado en la traza pública. Para octógonos mantiene el look actual
-// (cápsula negra); otros sistemas adoptan la forma del catálogo (octágono real,
-// lupa, rect Nutri-Score) de forma simple y digna sobre el fondo atmosférico.
-function TraceSeal({
-  shape,
-  text,
-}: {
-  shape: LabelSystem["seal"]["shape"];
-  text: string;
-}) {
-  if (shape === "octagon") {
-    return (
-      <span
-        className="grid place-items-center bg-black px-2.5 py-1.5 text-center text-[9px] font-black uppercase leading-tight tracking-wide text-white"
-        style={{
-          clipPath:
-            "polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%)",
-        }}
-      >
-        {text}
-      </span>
-    );
-  }
-  if (shape === "magnifier") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-white/40 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-black">
-        <span aria-hidden>🔍</span>
-        {text}
-      </span>
-    );
-  }
-  // rect (Nutri-Score / genérico)
-  return (
-    <span className="rounded-md bg-white px-2.5 py-1.5 text-[11px] font-black uppercase tracking-wide text-black">
-      {text}
-    </span>
-  );
+// Mapea el sistema del catálogo al shape que dibuja el sello compartido
+// (RegulatorySeal): Nutri-Score (kind "grade") -> "grade"; el resto, su forma.
+function traceSealShape(system: LabelSystem): SealShape {
+  if (system.kind === "grade") return "grade";
+  if (system.seal.shape === "octagon") return "octagon";
+  if (system.seal.shape === "magnifier") return "magnifier";
+  return "rect";
+}
+
+// Firma chiquita bajo el octógono: solo el sistema chileno "ALTO EN".
+function traceSealSignature(system: LabelSystem): string | null {
+  return system.id === "cl_sellos" ? "Ministerio de Salud" : null;
 }
 
 function TraceField({

@@ -16,6 +16,9 @@ export const FIELD_TYPES = [
   "bool",
   "select",
   "temperature",
+  "time",
+  "photo",
+  "checklist",
 ] as const;
 export type FieldType = (typeof FIELD_TYPES)[number];
 
@@ -25,6 +28,9 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   bool: "Sí / No",
   select: "Lista de opciones",
   temperature: "Temperatura",
+  time: "Hora",
+  photo: "Foto adjunta",
+  checklist: "Checklist",
 };
 
 /** Tipos numéricos que participan del semáforo (tienen rango min/max). */
@@ -69,11 +75,15 @@ export const formFieldSchema = z
     required: z.boolean().default(false),
     min: z.number().nullable().optional(),
     max: z.number().nullable().optional(),
+    // options: usado por `select` (lista) y por `checklist` (ítems tildables).
     options: z.array(z.string().min(1).max(80)).optional(),
     unit: z.string().max(16).nullable().optional(),
+    // checklist: si es true, el campo solo es OK cuando TODAS las opciones están
+    // tildadas (semáforo fail si falta alguna). Si es false, no evalúa fail.
+    options_required: z.boolean().nullable().optional(),
   })
   .superRefine((f, ctx) => {
-    if (f.type === "select") {
+    if (f.type === "select" || f.type === "checklist") {
       const opts = (f.options ?? []).filter((o) => o.trim().length > 0);
       if (opts.length < 1) {
         ctx.addIssue({
@@ -178,9 +188,45 @@ export type TemplateInput = z.infer<typeof templateSchema>;
 export const SUBMISSION_STATUSES = ["ok", "fail", "corrected"] as const;
 export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
 
-/** Valor crudo de un campo del formulario tal como lo emite la UI. */
-export type FieldValue = string | number | boolean | null;
+/**
+ * Valor de un adjunto de foto dentro de `values` (jsonb). Guardamos el path del
+ * objeto en el bucket privado `attachments` + el nombre original. La URL se firma
+ * al leer (nunca persistimos URLs firmadas).
+ */
+export type PhotoValue = { path: string; name: string };
+
+/**
+ * Valor crudo de un campo del formulario tal como lo persiste el jsonb `values`.
+ * El shape es ADITIVO (regla 5: submissions viejas siguen siendo válidas):
+ *  - number/temperature → number | null
+ *  - text/select/time   → string | null
+ *  - bool               → boolean
+ *  - photo              → PhotoValue | null
+ *  - checklist          → string[] (opciones tildadas)
+ */
+export type FieldValue =
+  | string
+  | number
+  | boolean
+  | null
+  | string[]
+  | PhotoValue;
 export type FormValues = Record<string, FieldValue>;
+
+/** type guard: el valor es un PhotoValue persistido. */
+export function isPhotoValue(value: unknown): value is PhotoValue {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    typeof (value as PhotoValue).path === "string"
+  );
+}
+
+/** type guard: el valor es un checklist (array de strings). */
+export function isChecklistValue(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((v) => typeof v === "string");
+}
 
 /**
  * Arma el zod del registro a partir de los fields del template. Cada tipo se
@@ -229,6 +275,48 @@ export function buildValuesSchema(fields: FormField[]): z.ZodType<FormValues> {
               .transform((v) => (v === "" ? null : v));
         break;
       }
+      case "time": {
+        const re = /^\d{2}:\d{2}$/;
+        const base = z.string().regex(re, "Hora inválida (HH:mm)");
+        schema = field.required
+          ? base
+          : z
+              .union([base, z.literal(""), z.null()])
+              .transform((v) => (v === "" ? null : (v as string | null)));
+        break;
+      }
+      case "photo": {
+        // PhotoValue persistido { path, name } o null. La carga al bucket la hace
+        // la captura ANTES de enviar; acá solo validamos el shape final.
+        const photo = z
+          .object({ path: z.string().min(1), name: z.string().min(1) })
+          .nullable();
+        schema = field.required
+          ? photo.refine((v) => v !== null, "Adjuntá una foto")
+          : photo;
+        break;
+      }
+      case "checklist": {
+        const opts = (field.options ?? []).filter((o) => o.length > 0);
+        const required = field.required;
+        // Array de opciones tildadas; cada una debe pertenecer a las definidas y,
+        // si es requerido, debe haber al menos una.
+        schema = z.array(z.string()).superRefine((vals, ctx) => {
+          if (!vals.every((v) => opts.includes(v))) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Opción no válida en el checklist",
+            });
+          }
+          if (required && vals.length === 0) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Marcá al menos una opción",
+            });
+          }
+        });
+        break;
+      }
       case "text":
       default: {
         const base = z.string().max(2000);
@@ -248,17 +336,33 @@ export function buildValuesSchema(fields: FormField[]): z.ZodType<FormValues> {
 
 /**
  * Semáforo: deriva el estado del registro a partir de los valores.
- * Devuelve 'fail' si algún campo numérico (number/temperature) REQUERIDO está
- * fuera de su rango [min, max]; si no, 'ok'. (El estado 'corrected' lo asigna el
- * flujo de corrección, no esta función.)
+ * Devuelve 'fail' si:
+ *  - algún campo numérico (number/temperature) está fuera de su rango [min, max], o
+ *  - un checklist con "todas obligatorias" (options_required) no tiene todas las
+ *    opciones tildadas.
+ * photo y time NUNCA evalúan fail. Si no hay desvíos, 'ok'. (El estado
+ * 'corrected' lo asigna el flujo de corrección, no esta función.)
  */
 export function evaluateSubmission(
   fields: FormField[],
   values: FormValues
 ): Extract<SubmissionStatus, "ok" | "fail"> {
   for (const field of fields) {
-    if (!isNumericField(field.type)) continue;
     const raw = values[field.key];
+
+    // Checklist con todas obligatorias: fail si falta alguna opción tildada.
+    if (field.type === "checklist") {
+      if (!field.options_required) continue;
+      const opts = (field.options ?? []).filter((o) => o.length > 0);
+      if (opts.length === 0) continue;
+      const checked = isChecklistValue(raw) ? raw : [];
+      const allChecked = opts.every((o) => checked.includes(o));
+      if (!allChecked) return "fail";
+      continue;
+    }
+
+    // Solo los numéricos participan del rango min/max. photo/time/text/etc no.
+    if (!isNumericField(field.type)) continue;
     if (raw === null || raw === undefined || raw === "") {
       // Campo numérico vacío: si era requerido, lo bloquea la validación zod;
       // acá lo ignoramos para el semáforo.

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus } from "lucide-react";
+import { ImagePlus, ScanBarcode } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { BarcodeScanner } from "@/components/ui/BarcodeScanner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -41,6 +42,7 @@ export function IngredientFormModal({
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const {
     register,
@@ -56,6 +58,7 @@ export function IngredientFormModal({
       family_id: null,
       unit: "kg",
       is_perishable: true,
+      barcode: null,
       description: null,
       low_stock_threshold: null,
       default_shelf_days: null,
@@ -73,6 +76,7 @@ export function IngredientFormModal({
       family_id: ingredient?.family_id ?? null,
       unit: ingredient?.unit ?? "kg",
       is_perishable: ingredient?.is_perishable ?? true,
+      barcode: ingredient?.barcode ?? null,
       description: ingredient?.description ?? null,
       low_stock_threshold: ingredient?.low_stock_threshold ?? null,
       default_shelf_days: ingredient?.default_shelf_days ?? null,
@@ -243,6 +247,35 @@ export function IngredientFormModal({
           />
         </div>
 
+        <div>
+          <label
+            htmlFor="ing-barcode"
+            className="mb-2 block text-sm font-medium text-muted-foreground"
+          >
+            Código de barras
+          </label>
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <Input
+                id="ing-barcode"
+                placeholder="EAN-13 / Code-128 (opcional)"
+                inputMode="numeric"
+                error={errors.barcode?.message}
+                {...register("barcode")}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              aria-label="Escanear código de barras"
+              onClick={() => setScannerOpen(true)}
+            >
+              <ScanBarcode size={18} />
+            </Button>
+          </div>
+        </div>
+
         <Input
           label="Descripción"
           placeholder="Notas internas (opcional)"
@@ -263,6 +296,16 @@ export function IngredientFormModal({
           </Button>
         </div>
       </form>
+
+      <BarcodeScanner
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        title="Escanear código del ingrediente"
+        onResult={(code) => {
+          setValue("barcode", code, { shouldDirty: true });
+          setScannerOpen(false);
+        }}
+      />
     </Modal>
   );
 }

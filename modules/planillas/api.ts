@@ -18,6 +18,10 @@ export type TenantBranding = {
   locale: string;
   /** Moneda del tenant (operating profile), ISO 4217. */
   currency: string;
+  /** Color primario de las planillas PDF (hex). null → fallback Ninja Food. */
+  pdfPrimaryColor: string | null;
+  /** Color secundario/acento de las planillas PDF (hex). null → fallback. */
+  pdfSecondaryColor: string | null;
 };
 
 export async function getTenantBranding(): Promise<TenantBranding> {
@@ -26,7 +30,7 @@ export async function getTenantBranding(): Promise<TenantBranding> {
   const { data, error } = await supabase
     .from("tenants")
     .select(
-      "name, cuit, country, branding:tenant_branding(legal_name, logo_url, cuit, address)",
+      "name, cuit, country, branding:tenant_branding(legal_name, logo_url, cuit, address, pdf_primary_color, pdf_secondary_color)",
     )
     .eq("id", tenantId)
     .single();
@@ -38,6 +42,8 @@ export async function getTenantBranding(): Promise<TenantBranding> {
     logo_url: string | null;
     cuit: string | null;
     address: string | null;
+    pdf_primary_color: string | null;
+    pdf_secondary_color: string | null;
   } | null;
 
   // Locale/currency salen del operating profile del tenant; si no está cargado,
@@ -59,6 +65,8 @@ export async function getTenantBranding(): Promise<TenantBranding> {
     address: branding?.address ?? null,
     locale: opProfile?.locale ?? countryFallback.locale,
     currency: opProfile?.currency ?? countryFallback.currency,
+    pdfPrimaryColor: branding?.pdf_primary_color ?? null,
+    pdfSecondaryColor: branding?.pdf_secondary_color ?? null,
   };
 }
 

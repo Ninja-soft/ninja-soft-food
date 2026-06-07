@@ -1,66 +1,103 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import type { LabelSystem } from "@/lib/globalization/labelSystems";
+import { RegulatorySeal, type SealShape } from "@/components/ui/RegulatorySeal";
+import type { LabelSystem, LabelValue } from "@/lib/globalization/labelSystems";
 
 // Selector de rotulado frontal resuelto por país. El sistema (octógonos AR,
 // NOM-051 MX, ALTO EN CL, lupa ANVISA BR, Nutri-Score EU, none US) lo decide
-// el OperatingProfile del tenant, no la pantalla. Estética nivel POS: chips con
-// la forma del sello real (octógono/rect/lupa) y glow de selección.
+// el OperatingProfile del tenant, no la pantalla. Cada opción se dibuja como el
+// sello REAL del sistema (componente compartido RegulatorySeal). No seleccionado:
+// atenuado en escala de grises; seleccionado: pleno con ring de acento + check.
 
-/** Forma visual del sello del sistema, como chip seleccionable. */
-function SealShape({
-  system,
+// Mapea el shape del catálogo (octagon/rect/magnifier/scale) al que dibuja el
+// sello compartido. Nutri-Score es kind "grade" -> shape "grade".
+function shapeFor(system: LabelSystem): SealShape {
+  if (system.kind === "grade") return "grade";
+  if (system.seal.shape === "octagon") return "octagon";
+  if (system.seal.shape === "magnifier") return "magnifier";
+  return "rect";
+}
+
+// Texto del octógono/lupa: local cuando difiere del español (NOM-051, ALTO EN,
+// ANVISA traen labelLocal en mayúsculas), si no el label base en mayúsculas.
+function sealText(v: LabelValue): string {
+  return (v.labelLocal ?? v.label).toUpperCase();
+}
+
+// Firma chiquita bajo el texto del octógono: solo el sistema chileno "ALTO EN"
+// lleva "Ministerio de Salud" en el sello real.
+function signatureFor(systemId: string): string | null {
+  return systemId === "cl_sellos" ? "Ministerio de Salud" : null;
+}
+
+/** Una opción seleccionable: el sello con estados atenuado / pleno + check. */
+function SealOption({
+  shape,
+  text,
+  grade,
+  signature,
   active,
-  children,
+  onToggle,
+  ariaLabel,
 }: {
-  system: LabelSystem;
+  shape: SealShape;
+  text: string;
+  grade?: string;
+  signature?: string | null;
   active: boolean;
-  children: React.ReactNode;
+  onToggle: () => void;
+  ariaLabel: string;
 }) {
-  if (system.seal.shape === "octagon") {
-    return (
-      <span
-        className={cn(
-          "grid place-items-center px-3 py-2 text-center text-[10px] font-black uppercase leading-tight tracking-wide transition",
-          active
-            ? "bg-foreground text-background"
-            : "bg-muted text-muted-foreground",
-        )}
-        style={{
-          clipPath:
-            "polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%)",
-        }}
-      >
-        {children}
-      </span>
-    );
-  }
-  if (system.seal.shape === "magnifier") {
-    return (
-      <span
-        className={cn(
-          "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition",
-          active
-            ? "border-foreground bg-background text-foreground"
-            : "border-border text-muted-foreground",
-        )}
-      >
-        <span aria-hidden>🔍</span>
-        {children}
-      </span>
-    );
-  }
-  // rect (Nutri-Score grade y otros): cápsula sólida.
   return (
-    <span
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={active}
+      aria-label={ariaLabel}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
       className={cn(
-        "grid place-items-center rounded-md px-3 py-2 text-sm font-black uppercase tracking-wide transition",
-        active ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
+        "group relative rounded-ninjaSm p-1.5 outline-none transition-all duration-200",
+        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        active
+          ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+          : "ring-1 ring-transparent hover:bg-muted/40",
       )}
     >
-      {children}
-    </span>
+      <span
+        className={cn(
+          "block transition-all duration-200",
+          active
+            ? "scale-100 opacity-100 drop-shadow-[0_0_10px_rgba(0,0,0,0.25)]"
+            : "scale-95 opacity-40 grayscale group-hover:scale-100 group-hover:opacity-75 group-hover:grayscale-0",
+        )}
+      >
+        <RegulatorySeal
+          shape={shape}
+          text={text}
+          grade={grade}
+          signature={signature}
+          size="lg"
+        />
+      </span>
+      {/* Check de selección en la esquina */}
+      <span
+        className={cn(
+          "absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm transition-all duration-200",
+          active ? "scale-100 opacity-100" : "scale-50 opacity-0",
+        )}
+        aria-hidden
+      >
+        <Check size={12} strokeWidth={3.5} />
+      </span>
+    </button>
   );
 }
 
@@ -76,28 +113,27 @@ export function RegulatoryLabelSelector({
   // kind "none" (FDA): sin sellos frontales — sección oculta por el caller.
   if (system.kind === "none") return null;
 
-  // kind "grade" (Nutri-Score): selección única A..E.
+  const shape = shapeFor(system);
+  const signature = signatureFor(system.id);
+
+  // kind "grade" (Nutri-Score): selección única A..E. Los badges A-E con su
+  // color legal; el elegido a tamaño pleno, el resto atenuado.
   if (system.kind === "grade") {
     const selected = values[0] ?? null;
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2.5">
         {system.values.map((v) => {
           const active = selected === v.id;
           return (
-            <button
+            <SealOption
               key={v.id}
-              type="button"
-              onClick={() => onChange(active ? [] : [v.id])}
-              aria-pressed={active}
-              className={cn(
-                "transition",
-                active && "ring-2 ring-primary ring-offset-2 ring-offset-background",
-              )}
-            >
-              <SealShape system={system} active={active}>
-                {v.label}
-              </SealShape>
-            </button>
+              shape="grade"
+              text={v.label}
+              grade={v.label}
+              active={active}
+              ariaLabel={`Nutri-Score ${v.label}`}
+              onToggle={() => onChange(active ? [] : [v.id])}
+            />
           );
         })}
       </div>
@@ -106,29 +142,23 @@ export function RegulatoryLabelSelector({
 
   // kind "multi-seal": 0..N sellos de advertencia.
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
       {system.values.map((v) => {
         const active = values.includes(v.id);
         return (
-          <button
+          <SealOption
             key={v.id}
-            type="button"
-            onClick={() =>
+            shape={shape}
+            text={sealText(v)}
+            signature={signature}
+            active={active}
+            ariaLabel={v.label}
+            onToggle={() =>
               onChange(
                 active ? values.filter((x) => x !== v.id) : [...values, v.id],
               )
             }
-            aria-pressed={active}
-            className={cn(
-              "rounded-md transition",
-              active && "ring-2 ring-primary ring-offset-2 ring-offset-background",
-            )}
-            title={v.label}
-          >
-            <SealShape system={system} active={active}>
-              {v.labelLocal ?? v.label}
-            </SealShape>
-          </button>
+          />
         );
       })}
     </div>

@@ -17,7 +17,12 @@ import { formatDate } from "@/lib/utils/format";
 import { useSubmissions } from "@/modules/forms/hooks";
 import type { FormSubmission, FormTemplate } from "@/modules/forms/api";
 import { exportSubmissionsToExcel } from "@/modules/forms/generators";
-import type { FieldValue, SubmissionStatus } from "@/modules/forms/schemas";
+import {
+  isChecklistValue,
+  isPhotoValue,
+  type FieldValue,
+  type SubmissionStatus,
+} from "@/modules/forms/schemas";
 
 const STATUS_STYLE: Record<SubmissionStatus, { label: string; cls: string }> = {
   ok: { label: "OK", cls: "bg-emerald-500/15 text-emerald-500" },
@@ -28,6 +33,8 @@ const STATUS_STYLE: Record<SubmissionStatus, { label: string; cls: string }> = {
 function fmtValue(value: FieldValue | undefined): string {
   if (value === null || value === undefined || value === "") return "-";
   if (typeof value === "boolean") return value ? "Sí" : "No";
+  if (isChecklistValue(value)) return value.length ? value.join(", ") : "-";
+  if (isPhotoValue(value)) return value.name || "Foto adjunta";
   return String(value);
 }
 

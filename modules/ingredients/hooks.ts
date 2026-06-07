@@ -103,3 +103,13 @@ export function useDeleteIngredient() {
     onSuccess: inv.ingredients,
   });
 }
+
+/**
+ * Lookup imperativo de ingrediente por código de barras (al escanear). Es una
+ * mutación porque se dispara on-demand y no debe cachearse por query key.
+ */
+export function useFindIngredientByBarcode() {
+  return useMutation({
+    mutationFn: (barcode: string) => api.findIngredientByBarcode(barcode),
+  });
+}

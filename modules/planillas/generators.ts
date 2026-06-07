@@ -10,7 +10,9 @@ import {
   drawSignatureBlock,
   drawTable,
   finalizePdf,
+  resolvePalette,
   type PlanillaMeta,
+  type PlanillaPalette,
 } from "@/lib/utils/pdf";
 import type {
   ProductionDetail,
@@ -57,6 +59,14 @@ function makeFormatters(locale: string): Formatters {
   };
 }
 
+/** Paleta de planilla del tenant (colores configurables, fallback Ninja Food). */
+function tenantPalette(branding: TenantBranding): PlanillaPalette {
+  return resolvePalette({
+    primary: branding.pdfPrimaryColor,
+    secondary: branding.pdfSecondaryColor,
+  });
+}
+
 function tenantToMeta(
   branding: TenantBranding,
   title: string,
@@ -67,6 +77,7 @@ function tenantToMeta(
     tenantName: branding.legalName || branding.name,
     logoUrl: branding.logoUrl,
     subtitle,
+    palette: tenantPalette(branding),
   };
 }
 
@@ -120,9 +131,10 @@ function renderProductionPlanilla(
   { fmtDate, fmtNum }: Formatters,
 ): void {
   let y = startY;
+  const accent = (meta.palette ?? resolvePalette()).accent;
 
   // Encabezado de datos del producto.
-  y = drawSectionTitle(doc, "Producto elaborado", y);
+  y = drawSectionTitle(doc, "Producto elaborado", y, accent);
   y = drawFieldGrid(
     doc,
     [
@@ -152,9 +164,10 @@ function renderProductionPlanilla(
   y += 4;
 
   // Tabla de insumos consumidos.
-  y = drawSectionTitle(doc, "Insumos consumidos (trazabilidad)", y);
+  y = drawSectionTitle(doc, "Insumos consumidos (trazabilidad)", y, accent);
   y = drawTable(doc, {
     startY: y,
+    accent,
     columns: [
       { header: "Ingrediente", width: 48 },
       { header: "Lote", width: 30 },
@@ -260,12 +273,14 @@ export function generateWeeklyProductionPlanilla(
   const { fmtDate, fmtNum } = makeFormatters(branding.locale);
   const subtitle = `${fmtDate(range.from)} al ${fmtDate(range.to)} · ${rows.length} producciones`;
   const meta = tenantToMeta(branding, "Resumen de producción", subtitle);
+  const accent = (meta.palette ?? resolvePalette()).accent;
   const { doc, startY } = createPlanillaDoc(meta);
 
   const totalKg = rows.reduce((s, r) => s + (r.quantity_kg ?? 0), 0);
 
   drawTable(doc, {
     startY,
+    accent,
     columns: [
       { header: "Fecha", width: 26 },
       { header: "Código", width: 30 },
@@ -291,7 +306,7 @@ export function generateWeeklyProductionPlanilla(
   // Total general.
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.setTextColor(46, 125, 50);
+  doc.setTextColor(...accent);
   doc.text(
     `Total elaborado: ${fmtNum(totalKg)} kg`,
     196,
@@ -314,10 +329,12 @@ export function generateWeeklyStockPlanilla(
   const { fmtDate, fmtNum } = makeFormatters(branding.locale);
   const subtitle = `${fmtDate(range.from)} al ${fmtDate(range.to)} · ${rows.length} ingresos`;
   const meta = tenantToMeta(branding, "Resumen de ingresos de stock", subtitle);
+  const accent = (meta.palette ?? resolvePalette()).accent;
   const { doc, startY } = createPlanillaDoc(meta);
 
   drawTable(doc, {
     startY,
+    accent,
     columns: [
       { header: "Fecha", width: 26 },
       { header: "Ingrediente" },

@@ -338,3 +338,41 @@ export async function listMembers(): Promise<Member[]> {
   if (error) throw error;
   return (data ?? []) as Member[];
 }
+
+// ── Fotos de campos `photo` (bucket privado `attachments`) ────────────────────
+// Mismo patrón que modules/quality: la primera carpeta del path es SIEMPRE el
+// tenant_id (RLS de storage, migración 0003). Las fotos de planillas viven en
+// {tenant}/forms/... y se referencian desde values[key] = { path, name }.
+// El path se persiste en el jsonb inmutable; la URL se firma al leer.
+
+/** Sube una foto al bucket privado y devuelve { path, name }. Lanza si falla. */
+export async function uploadFormPhoto(file: File): Promise<{
+  path: string;
+  name: string;
+}> {
+  const supabase = createClient();
+  const tenantId = await getTenantId();
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `${tenantId}/forms/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("attachments")
+    .upload(path, file, { contentType: file.type });
+  if (error) throw error;
+  return { path, name: file.name };
+}
+
+/** Borra una foto del bucket (best-effort, p.ej. al descartar el draft). */
+export async function removeFormPhoto(path: string): Promise<void> {
+  const supabase = createClient();
+  await supabase.storage.from("attachments").remove([path]);
+}
+
+/** Signed URL de lectura (bucket privado) para mostrar/descargar una foto. */
+export async function getFormPhotoUrl(path: string): Promise<string> {
+  const supabase = createClient();
+  const { data, error } = await supabase.storage
+    .from("attachments")
+    .createSignedUrl(path, 60 * 10);
+  if (error) throw error;
+  return data.signedUrl;
+}
