@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireInternal } from "@/modules/internal/server";
-import { canEditPlans, parseUpdatePlan } from "@/modules/internal/plans";
+import {
+  applyAiIncludedToLimits,
+  canEditPlans,
+  parseUpdatePlan,
+} from "@/modules/internal/plans";
+import type { Json } from "@/types/database";
 
 // =============================================================================
 // POST /api/internal/update-plan — edita precios ARS y estado de un plan.
@@ -41,7 +46,7 @@ export async function POST(req: Request) {
       status: 400,
     });
   }
-  const { plan_id, monthly_price_ars, yearly_price_ars, is_active } =
+  const { plan_id, monthly_price_ars, yearly_price_ars, is_active, ai_included } =
     parsed.data;
 
   const admin = createAdminClient();
@@ -49,7 +54,7 @@ export async function POST(req: Request) {
   // Snapshot previo (solo los campos auditados) para el before/after.
   const { data: current, error: lookupErr } = await admin
     .from("plans")
-    .select("id, key, monthly_price_ars, yearly_price_ars, is_active")
+    .select("id, key, monthly_price_ars, yearly_price_ars, is_active, limits")
     .eq("id", plan_id)
     .maybeSingle();
   if (lookupErr) {
@@ -59,21 +64,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
   }
 
+  const beforeLimits = current.limits;
   const before = {
     monthly_price_ars: current.monthly_price_ars,
     yearly_price_ars: current.yearly_price_ars,
     is_active: current.is_active,
+    limits: beforeLimits,
   };
 
   const update: {
     monthly_price_ars: number | null;
     yearly_price_ars: number | null;
     is_active?: boolean;
+    limits?: Json;
   } = {
     monthly_price_ars,
     yearly_price_ars,
   };
   if (typeof is_active === "boolean") update.is_active = is_active;
+  // Toggle "IA incluida": preserva el resto de limits, solo cambia ai_included.
+  if (typeof ai_included === "boolean") {
+    update.limits = applyAiIncludedToLimits(beforeLimits, ai_included) as Json;
+  }
 
   const { data: updated, error: updErr } = await admin
     .from("plans")
@@ -91,6 +103,7 @@ export async function POST(req: Request) {
     monthly_price_ars: updated.monthly_price_ars,
     yearly_price_ars: updated.yearly_price_ars,
     is_active: updated.is_active,
+    limits: updated.limits,
   };
 
   await admin.from("audit_logs").insert({

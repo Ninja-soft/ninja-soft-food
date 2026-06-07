@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getBillingProvider } from "@/lib/billing";
+import { getBillingProvider, parseAddonExternalReference } from "@/lib/billing";
 import { applySubscriptionUpdate } from "@/lib/billing/sync";
+import { applyAddonUpdate } from "@/lib/billing/addon-sync";
 import type { Database } from "@/types/database";
 
 // =============================================================================
@@ -90,6 +91,17 @@ export async function POST(req: Request) {
 
     // 4) Re-fetch del recurso real (NO confiar en el body).
     const info = await provider.getSubscription(event.resourceId);
+
+    // 4.bis) ¿Es un preapproval de ADD-ON? El external_reference de un add-on
+    // tiene prefijo (addon:<key>:<tenantId>); el de la suscripción principal es
+    // el tenantId pelado. Si parsea como add-on, lo procesa el sync de add-ons y
+    // NUNCA toca subscriptions (son cobros independientes).
+    const addonRef = parseAddonExternalReference(info.externalReference);
+    if (addonRef) {
+      await applyAddonUpdate(admin, addonRef.addonKey, addonRef.tenantId, info);
+      await markProcessed(admin, eventRowId);
+      return ok();
+    }
 
     // Match por external_reference (= tenant_id) o por provider_subscription_id.
     const matchTenant = info.externalReference;

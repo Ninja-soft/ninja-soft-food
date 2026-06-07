@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
 import { useUpdatePlan } from "@/modules/internal/hooks";
 import type { InternalPlan } from "@/modules/internal/api";
-import { MAX_PRICE } from "@/modules/internal/plans";
+import { MAX_PRICE, limitsIncludeAI } from "@/modules/internal/plans";
 
 // Modal de edición de precios de un plan (panel staff). Inputs numéricos crudos
 // (sin formato de moneda mientras se edita); la lista los muestra formateados.
@@ -46,12 +46,14 @@ export function PlanEditorModal({
   const [monthly, setMonthly] = useState("");
   const [yearly, setYearly] = useState("");
   const [active, setActive] = useState(true);
+  const [aiIncluded, setAiIncluded] = useState(false);
 
   useEffect(() => {
     if (open) {
       setMonthly(plan.monthlyPriceArs != null ? String(plan.monthlyPriceArs) : "");
       setYearly(plan.yearlyPriceArs != null ? String(plan.yearlyPriceArs) : "");
       setActive(plan.isActive);
+      setAiIncluded(limitsIncludeAI(plan.limits));
     }
   }, [open, plan]);
 
@@ -67,6 +69,7 @@ export function PlanEditorModal({
         monthly_price_ars: monthlyParsed.value,
         yearly_price_ars: yearlyParsed.value,
         is_active: active,
+        ai_included: aiIncluded,
       },
       {
         onSuccess: () => {
@@ -130,6 +133,22 @@ export function PlanEditorModal({
             </div>
           </div>
           <Switch checked={active} onCheckedChange={setActive} label="Plan activo" />
+        </div>
+
+        <div className="flex items-center justify-between rounded-ninjaMd border border-border bg-muted/30 px-4 py-3">
+          <div>
+            <div className="text-sm font-medium text-foreground">IA incluida</div>
+            <div className="text-xs text-muted-foreground">
+              Si está activa, el plan trae el Asistente IA sin costo extra (no se
+              vende como add-on). Setea{" "}
+              <span className="font-price">limits.ai_included</span>.
+            </div>
+          </div>
+          <Switch
+            checked={aiIncluded}
+            onCheckedChange={setAiIncluded}
+            label="IA incluida"
+          />
         </div>
 
         <div className="flex justify-end gap-2 pt-1">

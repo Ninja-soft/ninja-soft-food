@@ -13,6 +13,20 @@ export * from "./types";
 export { resolvePlanPrice } from "./pricing";
 export type { PlanPrices, ResolvedPrice } from "./pricing";
 export { mapPreapprovalStatus, verifyMpSignature } from "./mercadopago";
+export {
+  AI_ADDON_KEY,
+  buildAddonExternalReference,
+  parseAddonExternalReference,
+  isAddonReference,
+  resolveAddonPrice,
+  deriveAddonCardState,
+} from "./addons";
+export type {
+  AddonPrices,
+  ParsedAddonReference,
+  AddonCardState,
+  AddonStateInput,
+} from "./addons";
 
 const PROVIDERS: Partial<Record<ProviderKey, BillingProvider>> = {
   mercadopago,

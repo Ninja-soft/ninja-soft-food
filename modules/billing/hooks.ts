@@ -34,3 +34,31 @@ export function useCancelSubscription() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["my-subscription"] }),
   });
 }
+
+// ── Add-on Asistente IA ───────────────────────────────────────────────────────
+
+export function useAddonStatus() {
+  return useQuery({
+    queryKey: ["addon-status"],
+    queryFn: api.getAddonStatus,
+    staleTime: 30_000,
+  });
+}
+
+export function useStartAddonCheckout() {
+  return useMutation({
+    mutationFn: () => api.startAddonCheckout(),
+  });
+}
+
+export function useCancelAddon() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.cancelAddon(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["addon-status"] });
+      // El gating de IA (RecipeFormModal) lee /api/ai/status; refrescamos.
+      qc.invalidateQueries({ queryKey: ["ai-status"] });
+    },
+  });
+}

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { CreditCard, Globe2, Mail, Palette, Plug, Store } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Segmented } from "@/components/ui/Segmented";
 import { Display, Eyebrow } from "@/components/ui/Typography";
+import { AICard } from "@/components/settings/AICard";
 import { ApiKeysCard } from "@/components/settings/ApiKeysCard";
 import { BrandingCard } from "@/components/settings/BrandingCard";
 import { EmailCard } from "@/components/settings/EmailCard";
@@ -314,7 +315,16 @@ export default function ConfiguracionPage() {
             <ApiKeysCard onUpgrade={() => setSection("suscripcion")} />
           )}
 
-          {section === "suscripcion" && <SubscriptionCard />}
+          {section === "suscripcion" && (
+            <div className="space-y-6">
+              <SubscriptionCard />
+              {/* AICard usa useSearchParams (?addon=pending): Suspense por el
+                  requisito de App Router. */}
+              <Suspense fallback={null}>
+                <AICard />
+              </Suspense>
+            </div>
+          )}
         </div>
       </div>
     </div>

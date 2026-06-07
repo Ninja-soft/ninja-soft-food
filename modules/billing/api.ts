@@ -139,3 +139,43 @@ export async function cancelSubscription(): Promise<void> {
     throw new Error(json.error ?? "No se pudo cancelar la suscripción");
   }
 }
+
+// ── Add-on Asistente IA ───────────────────────────────────────────────────────
+
+/** Estado del add-on IA del tenant (lo resuelve /api/billing/addon/status). */
+export interface AddonStatusView {
+  included: boolean;
+  addonActive: boolean;
+  addonSource: string | null;
+  hasPreapproval: boolean;
+  price: { currency: string; amount: number } | null;
+  description: string | null;
+}
+
+export async function getAddonStatus(): Promise<AddonStatusView> {
+  const res = await fetch("/api/billing/addon/status");
+  if (!res.ok) {
+    throw new Error("No se pudo leer el estado del Asistente IA");
+  }
+  return (await res.json()) as AddonStatusView;
+}
+
+export async function startAddonCheckout(): Promise<{ init_point: string }> {
+  const res = await fetch("/api/billing/addon/subscribe", { method: "POST" });
+  const json = (await res.json().catch(() => ({}))) as {
+    init_point?: string;
+    error?: string;
+  };
+  if (!res.ok || !json.init_point) {
+    throw new Error(json.error ?? "No se pudo iniciar el pago del add-on");
+  }
+  return { init_point: json.init_point };
+}
+
+export async function cancelAddon(): Promise<void> {
+  const res = await fetch("/api/billing/addon/cancel", { method: "POST" });
+  if (!res.ok) {
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(json.error ?? "No se pudo cancelar el Asistente IA");
+  }
+}

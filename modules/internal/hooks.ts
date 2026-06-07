@@ -38,6 +38,14 @@ export function useInternalPlans() {
   });
 }
 
+export function useInternalAddons() {
+  return useQuery({
+    queryKey: ["internal", "addons"],
+    queryFn: () => internalApi.listAddons(),
+    staleTime: 30_000,
+  });
+}
+
 // ── Mutaciones (route handlers server con admin client + check is_internal) ───
 
 async function postAction<T>(path: string, body: unknown): Promise<T> {
@@ -82,6 +90,8 @@ export interface UpdatePlanPayload {
   monthly_price_ars: number | null;
   yearly_price_ars: number | null;
   is_active?: boolean;
+  /** Toggle "IA incluida": setea limits.ai_included (lo lee tenantHasAI). */
+  ai_included?: boolean;
 }
 
 export function useUpdatePlan() {
@@ -94,6 +104,25 @@ export function useUpdatePlan() {
       // El catálogo de billing del tenant (modules/billing/hooks → usePlans)
       // lee la misma tabla; refrescamos por si el cache convive.
       qc.invalidateQueries({ queryKey: ["plans"] });
+    },
+  });
+}
+
+export interface UpdateAddonPayload {
+  key: string;
+  monthly_price_ars: number | null;
+  monthly_price_usd: number | null;
+  is_active?: boolean;
+  description?: string;
+}
+
+export function useUpdateAddon() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: UpdateAddonPayload) =>
+      postAction<{ ok: boolean }>("/api/internal/update-addon", payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["internal", "addons"] });
     },
   });
 }

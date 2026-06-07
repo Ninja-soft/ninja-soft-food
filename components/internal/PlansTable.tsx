@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/Button";
 import { PlanEditorModal } from "@/components/internal/PlanEditorModal";
 import { useInternalPlans } from "@/modules/internal/hooks";
 import type { InternalPlan } from "@/modules/internal/api";
-import { canEditPlans } from "@/modules/internal/plans";
+import { canEditPlans, limitsIncludeAI } from "@/modules/internal/plans";
 import { formatMoney } from "@/lib/utils/format";
+import { AddonsCard } from "@/components/internal/AddonsCard";
 
 // Tabla de planes del panel staff. Solo admin edita precios (canEditPlans);
 // editor/viewer ven todo en lectura con una nota. Estética consola staff
@@ -101,17 +102,23 @@ export function PlansTable({ level }: { level: string | null }) {
             )}
             {(plans ?? []).map((p) => {
               const selfService = p.monthlyPriceArs !== null;
+              const withAI = limitsIncludeAI(p.limits);
               return (
                 <tr key={p.id} className="transition hover:bg-muted/40">
                   <td className="px-4 py-3">
                     <div className="font-medium text-foreground">{p.name}</div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-price text-xs uppercase tracking-wide text-muted-foreground">
                         {p.key}
                       </span>
                       {!selfService && (
                         <span className="rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Sin precio · no self-service
+                        </span>
+                      )}
+                      {withAI && (
+                        <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                          IA incluida
                         </span>
                       )}
                     </div>
@@ -159,6 +166,10 @@ export function PlansTable({ level }: { level: string | null }) {
             })}
           </tbody>
         </table>
+      </div>
+
+      <div className="mt-10">
+        <AddonsCard canEdit={canEdit} />
       </div>
 
       {canEdit && editing && (

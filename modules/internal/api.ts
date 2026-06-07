@@ -79,6 +79,15 @@ export interface InternalPlan {
   isActive: boolean;
 }
 
+export interface InternalAddon {
+  key: string;
+  name: string;
+  description: string | null;
+  monthlyPriceArs: number | null;
+  monthlyPriceUsd: number | null;
+  isActive: boolean;
+}
+
 export interface AuditEntry {
   id: string;
   tenantId: string | null;
@@ -280,6 +289,26 @@ export const internalApi = {
       monthlyPriceUsd: p.monthly_price_usd,
       limits: p.limits,
       isActive: p.is_active,
+    }));
+  },
+
+  // ── Add-ons ───────────────────────────────────────────────────────────────
+  // Lectura con el cliente autenticado: plan_addons tiene policy addons_public_read.
+  // La escritura va por route handler admin (app/api/internal/update-addon).
+  listAddons: async (): Promise<InternalAddon[]> => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("plan_addons")
+      .select("key, name, description, monthly_price_ars, monthly_price_usd, is_active")
+      .order("key", { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map((a) => ({
+      key: a.key,
+      name: a.name,
+      description: a.description,
+      monthlyPriceArs: a.monthly_price_ars,
+      monthlyPriceUsd: a.monthly_price_usd,
+      isActive: a.is_active,
     }));
   },
 

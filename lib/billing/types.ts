@@ -35,6 +35,15 @@ export interface CreateSubscriptionInput {
    */
   currency: string;
   cycle: BillingCycle;
+  /**
+   * external_reference a enviar a la pasarela. Por defecto el caller lo deja en
+   * `tenantId` (suscripción principal). Para un add-on, el caller pasa un ref con
+   * prefijo (`addon:<key>:<tenantId>`, ver lib/billing/addons) para que el
+   * webhook distinga el cobro del add-on del de la suscripción principal.
+   */
+  externalReference?: string;
+  /** Texto comercial del cargo en la pasarela. Por defecto deriva de planName. */
+  reason?: string;
   /** Email del pagador (owner del tenant). */
   payerEmail: string;
   /** URL de retorno tras el checkout (NO es la fuente de verdad del cobro). */
