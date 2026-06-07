@@ -21,13 +21,62 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // está en types/database.ts y el admin client va tipado: las queries salen directas.
 // =============================================================================
 
+// Catálogo de eventos suscribibles por un webhook del tenant. Los cuatro
+// primeros los emite el outbox por detección de filas (cron emit-webhooks);
+// 'stock.low' es de umbral (lo cubre el cron de alertas de stock). El catálogo
+// fuente para el outbox vive en lib/api/webhook-emit.ts (EMITTABLE_EVENTS).
 export const WEBHOOK_EVENTS = [
   "production.completed",
   "dispatch.created",
+  "dispatch.voided",
+  "stock.entry_created",
   "stock.low",
 ] as const;
 
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
+
+/** Cuerpo canónico de una entrega: {event, created_at, data}. Determinístico. */
+export function buildDeliveryBody(
+  event: string,
+  data: unknown,
+  tsSeconds: number,
+): string {
+  return JSON.stringify({
+    event,
+    created_at: new Date(tsSeconds * 1000).toISOString(),
+    data,
+  });
+}
+
+/**
+ * Entrega un cuerpo ya serializado a una URL, firmado con `secret`. Devuelve el
+ * status HTTP (0 si timeout/red). NO lanza. Reutilizable por el cron del outbox.
+ */
+export async function deliverSigned(
+  url: string,
+  body: string,
+  secret: string,
+  tsSeconds: number,
+): Promise<number> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DELIVERY_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-NinjaFood-Signature": buildSignatureHeader(body, secret, tsSeconds),
+      },
+      body,
+      signal: controller.signal,
+    });
+    return res.status;
+  } catch {
+    return 0;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 const DELIVERY_TIMEOUT_MS = 5000;
 

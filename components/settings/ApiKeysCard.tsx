@@ -7,6 +7,7 @@ import {
   Copy,
   KeyRound,
   Plus,
+  Send,
   Sparkles,
   Trash2,
   Webhook,
@@ -22,10 +23,12 @@ import { useMySubscription } from "@/modules/billing/hooks";
 import { hasFeature } from "@/lib/billing/limits";
 import {
   API_SCOPES,
+  DELIVERY_STATUS_LABELS,
   EVENT_LABELS,
   SCOPE_LABELS,
   WEBHOOK_EVENTS,
   type ApiScope,
+  type DeliveryStatus,
   type WebhookEvent,
 } from "@/modules/api-keys/api";
 import { MigrationPendingError } from "@/modules/api-keys/api";
@@ -36,6 +39,7 @@ import {
   useDeleteWebhook,
   useRevokeApiKey,
   useSetWebhookActive,
+  useWebhookDeliveries,
   useWebhooks,
 } from "@/modules/api-keys/hooks";
 import { formatDate } from "@/lib/utils/format";
@@ -96,6 +100,7 @@ export function ApiKeysCard({ onUpgrade }: { onUpgrade?: () => void }) {
     <div className="space-y-6">
       <ApiKeysSection />
       <WebhooksSection />
+      <DeliveriesSection />
     </div>
   );
 }
@@ -619,6 +624,77 @@ function WebhooksSection() {
         loading={deleteWebhook.isPending}
         onConfirm={() => onDelete()}
       />
+    </Card>
+  );
+}
+
+// ── Sección: últimas entregas (outbox webhook_deliveries) ─────────────────────
+
+const DELIVERY_BADGE: Record<DeliveryStatus, string> = {
+  pending: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+  delivered: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
+  failed: "border-destructive/30 bg-destructive/10 text-destructive",
+};
+
+function DeliveriesSection() {
+  const { data: deliveries, isLoading, error } = useWebhookDeliveries();
+
+  if (isMigrationPending(error)) return null; // ya lo cubre la sección de keys
+
+  return (
+    <Card>
+      <CardContent className="space-y-5 p-6">
+        <div>
+          <h3 className="flex items-center gap-2 text-base font-bold tracking-tight">
+            <Send size={17} className="text-primary" />
+            Últimas entregas
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Eventos enviados a tus webhooks. Se procesan cada pocos minutos, con
+            hasta 3 reintentos.
+          </p>
+        </div>
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Cargando entregas…</p>
+        ) : (deliveries ?? []).length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+            Todavía no se envió ningún evento.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {(deliveries ?? []).map((d) => (
+              <li
+                key={d.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3"
+              >
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <code className="rounded bg-background px-1.5 py-0.5 font-mono text-xs">
+                      {EVENT_LABELS[d.event as WebhookEvent] ?? d.event}
+                    </code>
+                    <span
+                      className={cn(
+                        "rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+                        DELIVERY_BADGE[d.status],
+                      )}
+                    >
+                      {DELIVERY_STATUS_LABELS[d.status]}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatDate(d.delivered_at ?? d.created_at)}
+                    {d.attempts > 0 && ` · ${d.attempts} intento${d.attempts === 1 ? "" : "s"}`}
+                    {d.last_error && (
+                      <span className="text-destructive"> · {d.last_error}</span>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
     </Card>
   );
 }

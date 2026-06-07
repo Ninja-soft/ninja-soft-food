@@ -200,8 +200,55 @@ Snapshot inmutable de la traza pública por slug (el mismo JSON que respalda
 
 ## Webhooks salientes
 
-El tenant registra endpoints en Ajustes → API. Eventos disponibles:
-`production.completed`, `dispatch.created`, `stock.low`.
+El tenant registra endpoints en Ajustes → API y elige a qué eventos suscribirse.
+
+### Catálogo de eventos (v1)
+
+| evento | se dispara cuando | datos clave del payload |
+|---|---|---|
+| `production.completed` | se completa una producción (`productions.status='completed'`) | `id, code, status, production_date, packaging_date, quantity_kg, product_lot_number, product_expiry_date, recipe_id` |
+| `dispatch.created` | se da de alta un despacho | `id, dispatch_date, status, customer_id, vehicle_id` |
+| `dispatch.voided` | un despacho pasa a `voided` | `id, dispatch_date, status, customer_id, voided_at` |
+| `stock.entry_created` | ingreso de stock con trazabilidad (no aplica a ingresos `no_traceability`) | `id, ingredient_id, lot_number, quantity, unit, expiry_date, is_frozen, supplier_id` |
+| `stock.low` | un ingrediente cae bajo su umbral (evento de UMBRAL, ver nota) | — |
+
+Todo payload incluye además `id` del recurso, `tenant_id` y `created_at`. Nunca
+contiene datos de otro tenant (cada fila se filtra por `tenant_id` antes de
+construir el payload).
+
+### Mecanismo de entrega (outbox + cron)
+
+El disparo es **outbox-style por cron**, no `pg_net` ni emisión client-side.
+Razón de diseño: las acciones que generan eventos corren vía RPC *frozen*
+(`complete_production`, `create_dispatch`, `create_stock_entry`) llamadas **desde
+el cliente del tenant**; no hay route handler server en el medio donde colgar la
+emisión, y disparar desde el browser se perdería si la pestaña se cierra.
+
+- El cron `app/api/cron/emit-webhooks` (cada 5 min, `vercel.json`, auth
+  `CRON_SECRET`) detecta recursos nuevos por **cursor**: para cada
+  `(webhook, evento)` toma `MAX(resource_created_at)` ya encolado y trae solo lo
+  posterior.
+- Encola una fila en `webhook_deliveries` por `(webhook, evento, recurso)` con
+  `ON CONFLICT DO NOTHING`: re-correr el cron **nunca duplica** una entrega
+  (idempotencia garantizada por el índice único).
+- Entrega con `POST` firmado y hasta **3 intentos** (uno por corrida; el
+  espaciado real lo da la cadencia de 5 min). Tras agotarlos queda `failed`.
+- El `payload` que se firma es el **snapshot** guardado al encolar: un reintento
+  no recalcula datos.
+
+El tenant ve el estado de sus entregas (evento, estado, fecha, error) en
+Ajustes → API → "Últimas entregas" (lee `webhook_deliveries`, RLS solo-lectura
+del tenant; los writes son service_role desde el cron).
+
+> Nota `stock.low`: es un evento de **umbral**, no de creación de fila, así que no
+> entra en el outbox por cursor; lo cubre el cron de alertas de stock por su
+> propio criterio. Se mantiene suscribible para fases siguientes.
+
+> Migración: el outbox vive en `webhook_deliveries`
+> (`supabase/migrations/00000000000023_webhook_deliveries.sql`), pendiente de
+> aplicar junto al resto de migraciones acumuladas.
+
+### Firma de cada entrega
 
 Cada entrega es un `POST` JSON firmado:
 
@@ -227,10 +274,7 @@ expected = hmac_sha256(`${parts.ts}.${rawBody}`, webhook_secret)
 ok = constant_time_equals(expected, parts.v1)
 ```
 
-El `secret` de firma se muestra una sola vez al crear el webhook. Reintentos con
-backoff: anotado para una fase posterior. El disparo real de eventos se conectará
-vía database webhook / `pg_net` (no desde el flujo client-side de completar
-producción); por ahora la función `emitWebhookEvent` queda expuesta y testeada.
+El `secret` de firma se muestra una sola vez al crear el webhook.
 
 ## Ejemplo curl
 
@@ -244,6 +288,8 @@ curl -s "https://ninja-soft-food.vercel.app/api/v1/productions?limit=20&from=202
 - Auth + helpers de error: `lib/api/auth.ts`
 - Data-access (admin client + scoping por tenant + paginación): `lib/api/data.ts`
 - Dispatcher de webhooks firmados: `lib/api/webhooks.ts`
+- Lógica pura del outbox (catálogo, cursor, payload builders): `lib/api/webhook-emit.ts`
+- Cron emisor (encola + entrega): `app/api/cron/emit-webhooks/route.ts`
 - Handlers: `app/api/v1/**`
 - Gestión de credenciales (UI): `components/settings/ApiKeysCard.tsx` +
   `modules/api-keys/`

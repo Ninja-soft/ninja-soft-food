@@ -27,6 +27,14 @@ export function useWebhooks() {
   });
 }
 
+export function useWebhookDeliveries() {
+  return useQuery({
+    queryKey: ["webhook-deliveries"],
+    queryFn: () => api.listWebhookDeliveries(),
+    retry: (count, error) => !isMigrationPending(error) && count < 2,
+  });
+}
+
 export function useCreateApiKey() {
   const qc = useQueryClient();
   return useMutation({

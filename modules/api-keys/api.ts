@@ -36,6 +36,8 @@ export const SCOPE_LABELS: Record<ApiScope, string> = {
 export const WEBHOOK_EVENTS = [
   "production.completed",
   "dispatch.created",
+  "dispatch.voided",
+  "stock.entry_created",
   "stock.low",
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
@@ -43,7 +45,30 @@ export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 export const EVENT_LABELS: Record<WebhookEvent, string> = {
   "production.completed": "Producción completada",
   "dispatch.created": "Despacho creado",
+  "dispatch.voided": "Despacho anulado",
+  "stock.entry_created": "Ingreso de stock",
   "stock.low": "Stock bajo",
+};
+
+/** Estado de una entrega en el outbox (webhook_deliveries). */
+export type DeliveryStatus = "pending" | "delivered" | "failed";
+
+export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
+  pending: "En cola",
+  delivered: "Entregado",
+  failed: "Falló",
+};
+
+export type WebhookDelivery = {
+  id: string;
+  webhook_id: string;
+  event: string;
+  status: DeliveryStatus;
+  attempts: number;
+  last_status: number | null;
+  last_error: string | null;
+  created_at: string;
+  delivered_at: string | null;
 };
 
 export type ApiKey = {
@@ -269,4 +294,31 @@ export async function deleteWebhook(id: string): Promise<void> {
     if (isMigrationPending(error)) throw new MigrationPendingError();
     throw error;
   }
+}
+
+// ── Entregas (outbox webhook_deliveries) ──────────────────────────────────────
+
+const DELIVERY_SELECT =
+  "id, webhook_id, event, status, attempts, last_status, last_error, created_at, delivered_at";
+
+/**
+ * Últimas entregas del tenant (transparencia: estado/errores de los webhooks).
+ * RLS: tenant_read. La tabla la escribe el cron con service_role; el tenant solo
+ * lee. Si la migración 0023 todavía no está aplicada, traduce a MigrationPending.
+ */
+export async function listWebhookDeliveries(
+  limit = 25,
+): Promise<WebhookDelivery[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("webhook_deliveries")
+    .select(DELIVERY_SELECT)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    if (isMigrationPending(error) || error.message.includes("webhook_deliveries"))
+      throw new MigrationPendingError();
+    throw error;
+  }
+  return (data ?? []) as unknown as WebhookDelivery[];
 }
