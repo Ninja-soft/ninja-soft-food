@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { listPublicPlans } from "@/modules/billing/server";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { Hero } from "@/components/landing/Hero";
 import { AbrBadge } from "@/components/landing/AbrBadge";
@@ -23,6 +25,15 @@ export const metadata: Metadata = {
   },
 };
 
+// Planes para la grilla de precios: leídos de la DB (fuente de verdad) y
+// cacheados 5 min — los precios cambian rara vez desde /internal/planes y la
+// landing no debe pegarle a la base en cada request. La página es dinámica por
+// el chequeo de sesión, así que el cache vive a nivel de esta query.
+const getCachedPlans = unstable_cache(listPublicPlans, ["landing-plans"], {
+  revalidate: 300,
+  tags: ["plans"],
+});
+
 // Landing comercial (raíz pública). Es SIEMPRE oscura (igual que auth):
 // el data-theme/fondo de marca se fijan acá, no heredan el tema del usuario.
 export default async function LandingPage() {
@@ -37,6 +48,8 @@ export default async function LandingPage() {
     redirect(typeof tenantId === "string" && tenantId ? "/dashboard" : "/onboarding");
   }
 
+  const plans = await getCachedPlans();
+
   return (
     <div
       data-theme="food-dark"
@@ -48,7 +61,7 @@ export default async function LandingPage() {
         <AbrBadge />
         <Features />
         <HowItWorks />
-        <Pricing />
+        <Pricing plans={plans} />
         <FinalCta />
       </main>
       <Footer />

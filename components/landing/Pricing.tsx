@@ -6,7 +6,8 @@ import { Check, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Eyebrow, Money } from "@/components/ui/Typography";
 import { cn } from "@/lib/utils/cn";
-import { PLANS } from "./data";
+import type { PublicPlan } from "@/modules/billing/server";
+import { PLAN_COPY } from "./data";
 
 type Cycle = "monthly" | "yearly";
 
@@ -14,10 +15,45 @@ const ARS = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
-// Pricing — 3 planes self-service (datos estáticos del seed) + Enterprise a
-// medida. Toggle mensual/anual (yearly = 10 meses, espejado del seed).
-export function Pricing() {
+type PricingPlan = {
+  key: string;
+  name: string;
+  monthlyArs: number;
+  yearlyArs: number;
+  tagline: string;
+  highlight: boolean;
+  features: string[];
+};
+
+// Combina las filas de planes de la DB (precios + nombre, fuente de verdad) con
+// la copy de marketing por key (data.ts). Si un plan no tiene copy, cae a un
+// detalle genérico para no romper la grilla.
+function mergePlans(plans: PublicPlan[]): PricingPlan[] {
+  return plans
+    .filter((p) => (p.monthlyArs ?? 0) > 0 && (p.yearlyArs ?? 0) > 0)
+    .map((p) => {
+      const copy = PLAN_COPY[p.key];
+      return {
+        key: p.key,
+        name: p.name,
+        monthlyArs: p.monthlyArs as number,
+        yearlyArs: p.yearlyArs as number,
+        tagline: copy?.tagline ?? "Trazabilidad bromatológica para tu producción.",
+        highlight: copy?.highlight ?? false,
+        features: copy?.features ?? [
+          "Trazabilidad con QR público",
+          "Stock con lotes y vencimientos",
+        ],
+      };
+    });
+}
+
+// Pricing — planes self-service leídos de la DB (modules/billing/server.ts,
+// fuente de verdad editable en /internal/planes) + Enterprise a medida. Toggle
+// mensual/anual. La copy de cada plan (features/tagline) viene de data.ts.
+export function Pricing({ plans }: { plans: PublicPlan[] }) {
   const [cycle, setCycle] = useState<Cycle>("monthly");
+  const merged = mergePlans(plans);
 
   return (
     <section id="precios" className="relative mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:px-6">
@@ -74,7 +110,7 @@ export function Pricing() {
       </div>
 
       <div className="mt-14 grid items-stretch gap-6 lg:grid-cols-3">
-        {PLANS.map((plan) => {
+        {merged.map((plan) => {
           const price = cycle === "monthly" ? plan.monthlyArs : plan.yearlyArs;
           const suffix = cycle === "monthly" ? "/mes" : "/año";
           return (

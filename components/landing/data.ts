@@ -1,12 +1,10 @@
 // Datos estáticos de la landing comercial.
-// Los precios replican el seed (supabase/seed.sql): start/pro/business en ARS,
-// yearly = 10 meses (2 de descuento por pago anual). enterprise es a medida.
-// No se leen de la base a propósito: la landing es pública/anónima y los precios
-// son contenido comercial estático (igual que en el seed).
 //
-// FUENTE DE VERDAD COMERCIAL = tabla `plans` (editable desde el panel interno,
-// /internal/planes). Estos valores son solo marketing estático: si se cambian
-// los precios en el panel, SINCRONIZAR MANUALMENTE este archivo.
+// IMPORTANTE: los precios y límites NO viven acá. La fuente de verdad es la
+// tabla `plans` (editable desde /internal/planes), que la landing lee
+// server-side (modules/billing/server.ts → app/(public)/page.tsx). Este archivo
+// solo guarda COPY de marketing: el orden visual de los planes y el detalle de
+// features por plan, matcheado por `key` con las filas de la DB.
 
 import type { LucideIcon } from "lucide-react";
 import {
@@ -90,24 +88,21 @@ export const STEPS: Step[] = [
   },
 ];
 
-export type Plan = {
+// PlanCopy — solo marketing por plan (key, tagline, features destacadas y si va
+// resaltado en el grid). Los números (precio, límites) los trae la DB. Se
+// matchea por `key` con las filas de `plans`. Si la DB tiene un plan self-service
+// que no figura acá, la landing usa fallback genérico (ver Pricing.tsx).
+export type PlanCopy = {
   key: string;
-  name: string;
   tagline: string;
-  monthlyArs: number;
-  yearlyArs: number;
   highlight: boolean;
   features: string[];
 };
 
-// Precios ARS espejados del seed (supabase/seed.sql). yearly = 10 meses.
-export const PLANS: Plan[] = [
-  {
+export const PLAN_COPY: Record<string, PlanCopy> = {
+  start: {
     key: "start",
-    name: "Inicio",
     tagline: "Para arrancar a trazar tu producción.",
-    monthlyArs: 24990,
-    yearlyArs: 249900,
     highlight: false,
     features: [
       "1 establecimiento",
@@ -118,12 +113,9 @@ export const PLANS: Plan[] = [
       "Stock con lotes y vencimientos",
     ],
   },
-  {
+  pro: {
     key: "pro",
-    name: "Pyme",
     tagline: "El núcleo bromatológico completo.",
-    monthlyArs: 59990,
-    yearlyArs: 599900,
     highlight: true,
     features: [
       "Todo lo de Inicio",
@@ -134,12 +126,9 @@ export const PLANS: Plan[] = [
       "KPIs y reportes avanzados",
     ],
   },
-  {
+  business: {
     key: "business",
-    name: "Industria",
     tagline: "Multi-establecimiento e integraciones.",
-    monthlyArs: 119990,
-    yearlyArs: 1199900,
     highlight: false,
     features: [
       "Todo lo de Pyme",
@@ -150,7 +139,7 @@ export const PLANS: Plan[] = [
       "Integraciones",
     ],
   },
-];
+};
 
 export type ComplianceItem = {
   abbr: string;
