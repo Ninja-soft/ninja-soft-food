@@ -11,7 +11,6 @@ import { Modal } from "@/components/ui/Modal";
 import { SpinnerBlock } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import { Money } from "@/components/ui/Typography";
-import { cn } from "@/lib/utils/cn";
 import { daysUntil, formatDate } from "@/lib/utils/format";
 import type { Vehicle } from "@/modules/dispatch/api";
 import {
@@ -21,8 +20,10 @@ import {
   useVehicles,
 } from "@/modules/dispatch/hooks";
 import { vehicleSchema, type VehicleInput } from "@/modules/dispatch/schemas";
+import { PermitsSection } from "@/components/permits/PermitsSection";
 
-/** ¿Hay alguna habilitación (UTA/URA) vencida? */
+/** ¿Hay alguna habilitación (UTA/URA) vencida? Lee las columnas legacy; las
+ *  alertas finas por país viven en regulatory_permits (PermitsSection). */
 export function isVehicleExpired(v: {
   uta_expiry: string | null;
   ura_expiry: string | null;
@@ -199,7 +200,6 @@ function VehicleForm({
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<VehicleInput>({
     resolver: zodResolver(vehicleSchema),
@@ -211,13 +211,6 @@ function VehicleForm({
       ura_expiry: vehicle?.ura_expiry ?? null,
       capacity_kg: vehicle?.capacity_kg ?? null,
     },
-  });
-
-  const utaExpiry = watch("uta_expiry");
-  const uraExpiry = watch("ura_expiry");
-  const expired = isVehicleExpired({
-    uta_expiry: utaExpiry || null,
-    ura_expiry: uraExpiry || null,
   });
 
   const onSubmit = handleSubmit(async (values) => {
@@ -259,54 +252,12 @@ function VehicleForm({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Input
-          label="UTA (número)"
-          placeholder="Opcional"
-          error={errors.uta_number?.message}
-          {...register("uta_number", {
-            setValueAs: (v) => (v === "" ? null : v),
-          })}
-        />
-        <Input
-          label="UTA vence"
-          type="date"
-          error={errors.uta_expiry?.message}
-          {...register("uta_expiry", {
-            setValueAs: (v) => (v === "" ? null : v),
-          })}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Input
-          label="URA (número)"
-          placeholder="Opcional"
-          error={errors.ura_number?.message}
-          {...register("ura_number", {
-            setValueAs: (v) => (v === "" ? null : v),
-          })}
-        />
-        <Input
-          label="URA vence"
-          type="date"
-          error={errors.ura_expiry?.message}
-          {...register("ura_expiry", {
-            setValueAs: (v) => (v === "" ? null : v),
-          })}
-        />
-      </div>
-
-      {expired && (
-        <p
-          className={cn(
-            "border-accent/40 bg-accent/10 flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-accent"
-          )}
-        >
-          <AlertTriangle size={13} />
-          Una de las habilitaciones está vencida a la fecha de hoy.
+      <div className="space-y-2">
+        <p className="border-b border-border pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          Permisos y habilitaciones
         </p>
-      )}
+        <PermitsSection entityType="vehicle" entityId={vehicle?.id ?? null} />
+      </div>
 
       <div className="flex justify-end gap-2 border-t border-border pt-4">
         <Button type="button" variant="secondary" onClick={onCancel}>

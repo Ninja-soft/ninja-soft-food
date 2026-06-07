@@ -1,8 +1,15 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getLabelSystem,
+  type LabelSystem,
+  type LabelSystemId,
+} from "@/lib/globalization/labelSystems";
 
 export const revalidate = 0;
+
+type RegulatoryLabels = { system: LabelSystemId; values: string[] };
 
 type TracePayload = {
   code: string;
@@ -17,6 +24,8 @@ type TracePayload = {
   rnpa_number: string | null;
   rnpa_exempt: boolean;
   front_labels: string[];
+  /** Rotulado resuelto por país (snapshot). Fallback: front_labels (octógonos AR). */
+  regulatory_labels?: RegulatoryLabels | null;
   inputs: {
     ingredient: string;
     lot: string | null;
@@ -31,15 +40,62 @@ function fmtDate(iso: string | null | undefined): string {
   return `${d}/${m}/${y}`;
 }
 
-const FRONT_LABEL_TEXT: Record<string, string> = {
-  exceso_azucares: "EXCESO EN AZÚCARES",
-  exceso_sodio: "EXCESO EN SODIO",
-  exceso_grasas_totales: "EXCESO EN GRASAS TOTALES",
-  exceso_grasas_saturadas: "EXCESO EN GRASAS SATURADAS",
-  exceso_calorias: "EXCESO EN CALORÍAS",
-  contiene_cafeina: "CONTIENE CAFEÍNA",
-  contiene_edulcorantes: "CONTIENE EDULCORANTES",
-};
+// Resuelve el sistema de rotulado y los valores desde el snapshot inmutable:
+// prioriza regulatory_labels; si solo hay front_labels, son octógonos AR legacy.
+function resolveLabels(
+  p: TracePayload,
+): { system: LabelSystem; values: string[] } | null {
+  if (p.regulatory_labels && p.regulatory_labels.values?.length) {
+    return {
+      system: getLabelSystem(p.regulatory_labels.system),
+      values: p.regulatory_labels.values,
+    };
+  }
+  if (p.front_labels?.length) {
+    return { system: getLabelSystem("ar_octogonos"), values: p.front_labels };
+  }
+  return null;
+}
+
+// Texto del sello en el snapshot: usa el catálogo del sistema (labelLocal si
+// existe), con fallback al id si el sello no está en el catálogo.
+function sealText(system: LabelSystem, valueId: string): string {
+  const v = system.values.find((x) => x.id === valueId);
+  return (v?.labelLocal ?? v?.label ?? valueId).toUpperCase();
+}
+
+// El aval ABR es argentino: se muestra para tenants AR con el sello habilitado.
+// Lee regulatory_seals (nuevo) con fallback al booleano sello_abr_enabled.
+//
+// Nota RLS: la traza es anónima y tenants/tenant_branding NO tienen política de
+// lectura anon, así que `tenant` puede llegar null. Para NO regresionar el
+// comportamiento histórico (ABR siempre visible), null => mostrar; solo se
+// oculta cuando podemos leer y el país no es AR o el sello está apagado.
+function abrEnabled(
+  tenant: {
+    country: string | null;
+    branding:
+      | { regulatory_seals: unknown; sello_abr_enabled: boolean | null }
+      | { regulatory_seals: unknown; sello_abr_enabled: boolean | null }[]
+      | null;
+  } | null,
+): boolean {
+  if (!tenant) return true; // sin datos (RLS anon): preserva el comportamiento previo
+  if ((tenant.country ?? "AR").toUpperCase() !== "AR") return false;
+  const branding = Array.isArray(tenant.branding)
+    ? tenant.branding[0]
+    : tenant.branding;
+  if (!branding) return true;
+  const seals = branding.regulatory_seals;
+  if (Array.isArray(seals)) {
+    const abr = seals.find(
+      (s) => (s as { type?: string }).type === "abr",
+    ) as { enabled?: boolean } | undefined;
+    if (abr) return abr.enabled !== false;
+  }
+  // Fallback legacy: tenants sin regulatory_seals migrado todavía.
+  return branding.sello_abr_enabled !== false;
+}
 
 // Traza pública (destino del QR): snapshot inmutable, sin autenticación.
 export default async function PublicTracePage({
@@ -55,15 +111,26 @@ export default async function PublicTracePage({
 
   const { data: trace } = await supabase
     .from("public_traces")
-    .select("payload, created_at, tenant:tenants(name)")
+    .select(
+      "payload, created_at, tenant:tenants(name, country, branding:tenant_branding(regulatory_seals, sello_abr_enabled))",
+    )
     .eq("slug", params.slug)
     .single();
 
   if (!trace) notFound();
 
   const p = trace.payload as TracePayload;
-  const tenantName =
-    (trace.tenant as unknown as { name: string } | null)?.name ?? "";
+  const labels = resolveLabels(p);
+  const tenant = trace.tenant as unknown as {
+    name: string;
+    country: string | null;
+    branding:
+      | { regulatory_seals: unknown; sello_abr_enabled: boolean | null }
+      | { regulatory_seals: unknown; sello_abr_enabled: boolean | null }[]
+      | null;
+  } | null;
+  const tenantName = tenant?.name ?? "";
+  const showAbr = abrEnabled(tenant);
 
   return (
     <main className="food-dark-bg relative min-h-dvh px-4 py-10 text-[#F0F7EE]">
@@ -104,15 +171,14 @@ export default async function PublicTracePage({
             />
           </div>
 
-          {p.front_labels?.length > 0 && (
+          {labels && (
             <div className="mt-4 flex flex-wrap gap-1.5">
-              {p.front_labels.map((l) => (
-                <span
+              {labels.values.map((l) => (
+                <TraceSeal
                   key={l}
-                  className="rounded-md border border-white/20 bg-black/60 px-2 py-1 text-[10px] font-bold tracking-wide text-white"
-                >
-                  {FRONT_LABEL_TEXT[l] ?? l}
-                </span>
+                  shape={labels.system.seal.shape}
+                  text={sealText(labels.system, l)}
+                />
               ))}
             </div>
           )}
@@ -150,21 +216,62 @@ export default async function PublicTracePage({
           </ul>
         </div>
 
-        {/* Sello ABR */}
-        <div className="flex items-center justify-center gap-2.5">
-          <Image
-            src="/img/Logo ABR Back Transparent.png"
-            alt="ABR"
-            width={40}
-            height={24}
-            className="h-auto w-9 brightness-0 invert opacity-80"
-          />
-          <p className="text-xs text-[#A9C4A6]">
-            Sistema avalado técnicamente por Asesoría Bromatológica Rosario
-          </p>
-        </div>
+        {/* Sello ABR (solo tenants AR con el aval habilitado) */}
+        {showAbr && (
+          <div className="flex items-center justify-center gap-2.5">
+            <Image
+              src="/img/Logo ABR Back Transparent.png"
+              alt="ABR"
+              width={40}
+              height={24}
+              className="h-auto w-9 opacity-80 brightness-0 invert"
+            />
+            <p className="text-xs text-[#A9C4A6]">
+              Sistema avalado técnicamente por Asesoría Bromatológica Rosario
+            </p>
+          </div>
+        )}
       </div>
     </main>
+  );
+}
+
+// Sello de rotulado en la traza pública. Para octógonos mantiene el look actual
+// (cápsula negra); otros sistemas adoptan la forma del catálogo (octágono real,
+// lupa, rect Nutri-Score) de forma simple y digna sobre el fondo atmosférico.
+function TraceSeal({
+  shape,
+  text,
+}: {
+  shape: LabelSystem["seal"]["shape"];
+  text: string;
+}) {
+  if (shape === "octagon") {
+    return (
+      <span
+        className="grid place-items-center bg-black px-2.5 py-1.5 text-center text-[9px] font-black uppercase leading-tight tracking-wide text-white"
+        style={{
+          clipPath:
+            "polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%)",
+        }}
+      >
+        {text}
+      </span>
+    );
+  }
+  if (shape === "magnifier") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-white/40 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-black">
+        <span aria-hidden>🔍</span>
+        {text}
+      </span>
+    );
+  }
+  // rect (Nutri-Score / genérico)
+  return (
+    <span className="rounded-md bg-white px-2.5 py-1.5 text-[11px] font-black uppercase tracking-wide text-black">
+      {text}
+    </span>
   );
 }
 

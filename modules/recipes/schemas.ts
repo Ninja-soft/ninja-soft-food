@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { LabelSystemId } from "@/lib/globalization/labelSystems";
 
 export const FOOD_CATEGORIES = [
   { value: "carnes", label: "Carnes y derivados" },
@@ -24,7 +25,11 @@ export const PACKAGING_DELAYS = [
   { value: "freeze", label: "Congelado previo al envasado" },
 ] as const;
 
-/** Octógonos Ley 27.642 (rotulado frontal). */
+/**
+ * @deprecated Octógonos Ley 27.642 (AR-only). El rotulado frontal ahora se
+ * resuelve por país vía lib/globalization/labelSystems y se persiste en
+ * recipes.regulatory_labels. Se conserva solo como fallback de lectura legacy.
+ */
 export const FRONT_LABELS = [
   { value: "exceso_azucares", label: "Exceso en azúcares" },
   { value: "exceso_sodio", label: "Exceso en sodio" },
@@ -34,6 +39,16 @@ export const FRONT_LABELS = [
   { value: "contiene_cafeina", label: "Contiene cafeína" },
   { value: "contiene_edulcorantes", label: "Contiene edulcorantes" },
 ] as const;
+
+/**
+ * Rotulado frontal resuelto por país: {system, values}. Reemplaza front_labels.
+ * Para kind "grade" (Nutri-Score) values tiene 1 elemento; para "none" (US), [].
+ */
+export const regulatoryLabelsSchema = z.object({
+  system: z.custom<LabelSystemId>(),
+  values: z.array(z.string()),
+});
+export type RegulatoryLabelsInput = z.infer<typeof regulatoryLabelsSchema>;
 
 export const recipeIngredientSchema = z.object({
   ingredient_id: z.string().uuid({ message: "Elegí un ingrediente" }),
@@ -98,6 +113,7 @@ export const recipeSchema = z
       .transform((v) => v.trim() || null)
       .nullable(),
     front_labels: z.array(z.string()),
+    regulatory_labels: regulatoryLabelsSchema.nullable(),
     nutrition: z.object({
       calories: z.number().nonnegative().nullable(),
       proteins: z.number().nonnegative().nullable(),

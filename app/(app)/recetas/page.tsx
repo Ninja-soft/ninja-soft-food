@@ -59,6 +59,13 @@ function rnpaBadge(r: Recipe): { label: string; cls: string } | null {
   return { label: `RNPA ${r.rnpa_number}`, cls: "bg-primary/15 text-primary" };
 }
 
+// Cantidad de sellos de rotulado de la receta: lee regulatory_labels (sistema
+// resuelto por país) con fallback a front_labels legacy (octógonos AR).
+function labelCount(r: Recipe): number {
+  if (r.regulatory_labels?.values) return r.regulatory_labels.values.length;
+  return r.front_labels?.length ?? 0;
+}
+
 function matchesRnpaFilter(r: Recipe, f: RnpaFilter): boolean {
   if (f === "todos") return true;
   if (f === "sin_rnpa") return !r.rnpa_exempt && !r.rnpa_number;
@@ -376,6 +383,11 @@ export default function RecetasPage() {
                       <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                         {r.shelf_life_days}d vida útil
                       </span>
+                      {labelCount(r) > 0 && (
+                        <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-xs font-medium text-foreground">
+                          {labelCount(r)} sello{labelCount(r) > 1 ? "s" : ""}
+                        </span>
+                      )}
                     </span>
                     {r.rnpa_expiry && !r.rnpa_exempt && (
                       <span className="mt-1 block text-xs text-muted-foreground">

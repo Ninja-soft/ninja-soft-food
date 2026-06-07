@@ -18,16 +18,39 @@ import {
 } from "@/modules/recipes/hooks";
 import {
   FOOD_CATEGORIES,
-  FRONT_LABELS,
   PACKAGING_DELAYS,
   PRODUCT_TYPES,
   recipeSchema,
   type RecipeIngredientInput,
   type RecipeInput,
 } from "@/modules/recipes/schemas";
+import { useOperatingProfile } from "@/modules/tenant-profile/hooks";
+import { RegulatoryLabelSelector } from "@/components/recipes/RegulatoryLabelSelector";
+import { PermitsSection } from "@/components/permits/PermitsSection";
 import { cn } from "@/lib/utils/cn";
 
 type FormulaRow = RecipeIngredientInput & { key: string };
+
+// Valor inicial de regulatory_labels: prioriza lo guardado; si no hay y el país
+// tiene sistema de rotulado, hace fallback de lectura desde front_labels legacy
+// (solo tiene sentido para octógonos AR, el único sistema que llenaba esa columna).
+function initialRegulatoryLabels(
+  recipe: Recipe | null,
+  systemId: import("@/lib/globalization/labelSystems").LabelSystemId | undefined,
+): RecipeInput["regulatory_labels"] {
+  if (recipe?.regulatory_labels) {
+    return {
+      system: recipe.regulatory_labels
+        .system as import("@/lib/globalization/labelSystems").LabelSystemId,
+      values: recipe.regulatory_labels.values ?? [],
+    };
+  }
+  if (!systemId) return null;
+  if (systemId === "ar_octogonos" && (recipe?.front_labels?.length ?? 0) > 0) {
+    return { system: systemId, values: recipe!.front_labels };
+  }
+  return { system: systemId, values: [] };
+}
 
 const selectCls =
   "h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20";
@@ -51,6 +74,9 @@ export function RecipeFormModal({
   recipe: Recipe | null;
 }) {
   const { toast } = useToast();
+  const { data: profile } = useOperatingProfile();
+  const labelSystem = profile?.labelSystem;
+  const isAr = (profile?.country ?? "AR").toUpperCase() === "AR";
   const { data: groups } = useRecipeGroups();
   const { data: ingredients } = useIngredients("", null);
   const createMut = useCreateRecipe();
@@ -87,6 +113,7 @@ export function RecipeFormModal({
       rnpa_exempt: false,
       rnpa_exempt_reason: null,
       front_labels: [],
+      regulatory_labels: null,
       nutrition: {
         calories: null,
         proteins: null,
@@ -99,7 +126,7 @@ export function RecipeFormModal({
 
   const packagingDelay = watch("packaging_delay_type");
   const rnpaExempt = watch("rnpa_exempt");
-  const frontLabels = watch("front_labels");
+  const regulatoryLabels = watch("regulatory_labels");
 
   useEffect(() => {
     if (!open) return;
@@ -132,6 +159,7 @@ export function RecipeFormModal({
       rnpa_exempt: recipe?.rnpa_exempt ?? false,
       rnpa_exempt_reason: recipe?.rnpa_exempt_reason ?? null,
       front_labels: recipe?.front_labels ?? [],
+      regulatory_labels: initialRegulatoryLabels(recipe, labelSystem?.id),
       nutrition: {
         calories: recipe?.nutrition?.calories ?? null,
         proteins: recipe?.nutrition?.proteins ?? null,
@@ -140,7 +168,7 @@ export function RecipeFormModal({
         sodium: recipe?.nutrition?.sodium ?? null,
       },
     });
-  }, [open, recipe, reset]);
+  }, [open, recipe, reset, labelSystem?.id]);
 
   const ingredientById = useMemo(() => {
     const map = new Map((ingredients ?? []).map((i) => [i.id, i]));
@@ -164,16 +192,6 @@ export function RecipeFormModal({
   function updateRow(key: string, patch: Partial<FormulaRow>) {
     setFormula((rows) =>
       rows.map((r) => (r.key === key ? { ...r, ...patch } : r)),
-    );
-  }
-
-  function toggleFrontLabel(value: string) {
-    const current = frontLabels ?? [];
-    setValue(
-      "front_labels",
-      current.includes(value)
-        ? current.filter((v) => v !== value)
-        : [...current, value],
     );
   }
 
@@ -505,73 +523,90 @@ export function RecipeFormModal({
           )}
         </div>
 
-        {/* RNPA */}
-        <div className="space-y-3">
-          <SectionTitle>RNPA</SectionTitle>
-          <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-4 py-3">
+        {/* RNPA — registro del producto en Argentina */}
+        {isAr ? (
+          <div className="space-y-3">
+            <SectionTitle>RNPA</SectionTitle>
+            <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">No requiere RNPA</p>
+                <p className="text-xs text-muted-foreground">
+                  Ej: elaboración y venta directa al mostrador
+                </p>
+              </div>
+              <Switch
+                checked={rnpaExempt}
+                onCheckedChange={(v) => setValue("rnpa_exempt", v)}
+                label="Exento de RNPA"
+              />
+            </div>
+            {rnpaExempt ? (
+              <Input
+                label="Motivo de la exención"
+                placeholder="Ej: venta al mostrador en el local"
+                error={errors.rnpa_exempt_reason?.message}
+                {...register("rnpa_exempt_reason")}
+              />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Número RNPA"
+                  placeholder="Ej: 21-123456"
+                  error={errors.rnpa_number?.message}
+                  {...register("rnpa_number")}
+                />
+                <Input
+                  label="Vencimiento RNPA"
+                  type="date"
+                  error={errors.rnpa_expiry?.message}
+                  {...register("rnpa_expiry", {
+                    setValueAs: (v) => (v === "" ? null : v),
+                  })}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <SectionTitle>Registro del producto</SectionTitle>
+            <PermitsSection
+              entityType="recipe"
+              entityId={recipe?.id ?? null}
+              exemptLabel={
+                recipe
+                  ? null
+                  : "Guardá la receta para cargar su registro sanitario."
+              }
+            />
+          </div>
+        )}
+
+        {/* Rotulado frontal — sistema resuelto por país del tenant */}
+        {labelSystem && labelSystem.kind !== "none" && (
+          <div className="space-y-3">
             <div>
-              <p className="text-sm font-medium">No requiere RNPA</p>
-              <p className="text-xs text-muted-foreground">
-                Ej: elaboración y venta directa al mostrador
+              <SectionTitle>
+                Rotulado frontal · {labelSystem.name}
+              </SectionTitle>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {labelSystem.kind === "grade"
+                  ? "Calificación única del producto."
+                  : "Marcá las advertencias que aplican al producto."}{" "}
+                {labelSystem.legalRef}
               </p>
             </div>
-            <Switch
-              checked={rnpaExempt}
-              onCheckedChange={(v) => setValue("rnpa_exempt", v)}
-              label="Exento de RNPA"
+            <RegulatoryLabelSelector
+              system={labelSystem}
+              values={regulatoryLabels?.values ?? []}
+              onChange={(next) =>
+                setValue("regulatory_labels", {
+                  system: labelSystem.id,
+                  values: next,
+                })
+              }
             />
           </div>
-          {rnpaExempt ? (
-            <Input
-              label="Motivo de la exención"
-              placeholder="Ej: venta al mostrador en el local"
-              error={errors.rnpa_exempt_reason?.message}
-              {...register("rnpa_exempt_reason")}
-            />
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Número RNPA"
-                placeholder="Ej: 21-123456"
-                error={errors.rnpa_number?.message}
-                {...register("rnpa_number")}
-              />
-              <Input
-                label="Vencimiento RNPA"
-                type="date"
-                error={errors.rnpa_expiry?.message}
-                {...register("rnpa_expiry", {
-                  setValueAs: (v) => (v === "" ? null : v),
-                })}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Rotulado frontal */}
-        <div className="space-y-3">
-          <SectionTitle>Rotulado frontal · Ley 27.642</SectionTitle>
-          <div className="flex flex-wrap gap-2">
-            {FRONT_LABELS.map((l) => {
-              const active = (frontLabels ?? []).includes(l.value);
-              return (
-                <button
-                  key={l.value}
-                  type="button"
-                  onClick={() => toggleFrontLabel(l.value)}
-                  className={cn(
-                    "rounded-full border px-3 py-1.5 text-xs transition",
-                    active
-                      ? "border-foreground bg-foreground font-semibold text-background"
-                      : "border-border text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {l.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        )}
 
         {/* Nutrición */}
         <div className="space-y-3">

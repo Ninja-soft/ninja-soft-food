@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,11 +18,18 @@ import { Accent, Eyebrow } from "@/components/ui/Typography";
 import { createTenant } from "@/modules/auth/api";
 import { INDUSTRY_OPTIONS } from "@/modules/auth/schemas";
 import { seedStarterTemplates } from "@/modules/forms/api";
+import { setTenantCountry } from "@/modules/tenant-profile/api";
+import {
+  COUNTRY_OPTIONS,
+  getCountryProfile,
+} from "@/lib/globalization/countries";
 
-// Onboarding de rescate: usuario autenticado sin tenant
-// (ej. falló create_tenant durante el signup). Mismo patrón visual POS.
+// Onboarding de rescate: usuario autenticado sin tenant (ej. falló create_tenant
+// durante el signup). El país es OBLIGATORIO: resuelve compliance, moneda,
+// unidades y rotulado de todo el producto (un tenant MX no ve octógonos AR).
 const onboardingSchema = z.object({
   businessName: z.string().min(2, "Ingresá el nombre de tu empresa"),
+  country: z.string().min(2, "Elegí el país"),
   industry: z.enum([
     "frigorifico",
     "panaderia",
@@ -31,8 +38,19 @@ const onboardingSchema = z.object({
     "catering",
     "otro",
   ]),
+  taxId: z.string().max(40).optional(),
 });
 type OnboardingInput = z.infer<typeof onboardingSchema>;
+
+const selectCls =
+  "h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20";
+
+// Bandera por ISO-2 vía regional indicator symbols (sin assets).
+function flagEmoji(code: string): string {
+  return code
+    .toUpperCase()
+    .replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
+}
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -40,19 +58,27 @@ export default function OnboardingPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<OnboardingInput>({
     resolver: zodResolver(onboardingSchema),
-    defaultValues: { industry: "otro" },
+    defaultValues: { industry: "otro", country: "AR" },
   });
+
+  const country = watch("country");
+  const taxIdLabel = useMemo(
+    () => getCountryProfile(country).taxIdLabel,
+    [country],
+  );
 
   async function onSubmit(values: OnboardingInput) {
     setServerError(null);
     try {
       await createTenant(values.businessName, values.industry);
-      // Starter pack de planillas por rubro (BPM/POES) best-effort: no bloquea
-      // la navegación al dashboard ni rompe el onboarding si falla (regla 10:
-      // son un punto de partida editable).
+      // El tenant nace AR por default (trigger 0013 solo cubre INSERT): fijamos
+      // el país elegido + identificador fiscal y recreamos el operating profile.
+      await setTenantCountry(values.country, values.taxId ?? null);
+      // Starter pack de planillas por rubro (BPM/POES) best-effort.
       void seedStarterTemplates(values.industry).catch((err) =>
         console.warn("seedStarterTemplates", err),
       );
@@ -87,22 +113,51 @@ export default function OnboardingPage() {
 
           <div className="w-full">
             <label
-              htmlFor="industry"
+              htmlFor="country"
               className="mb-2 block text-sm font-medium text-muted-foreground"
             >
-              Rubro
+              País de operación
             </label>
-            <select
-              id="industry"
-              className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              {...register("industry")}
-            >
-              {INDUSTRY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
+            <select id="country" className={selectCls} {...register("country")}>
+              {COUNTRY_OPTIONS.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {flagEmoji(c.code)} {c.name} · {c.currency}
                 </option>
               ))}
             </select>
+            {errors.country?.message && (
+              <p className="mt-1 text-sm text-destructive">
+                {errors.country.message}
+              </p>
+            )}
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Define moneda, unidades, marcos regulatorios y rotulado frontal.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="w-full">
+              <label
+                htmlFor="industry"
+                className="mb-2 block text-sm font-medium text-muted-foreground"
+              >
+                Rubro
+              </label>
+              <select id="industry" className={selectCls} {...register("industry")}>
+                {INDUSTRY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <Input
+              label={taxIdLabel}
+              placeholder="Opcional"
+              error={errors.taxId?.message}
+              {...register("taxId")}
+            />
           </div>
 
           {serverError && (

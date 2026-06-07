@@ -10,7 +10,23 @@ import { Input } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
 import { getTenantId } from "@/lib/utils/tenant";
+import { useOperatingProfile } from "@/modules/tenant-profile/hooks";
 import { cn } from "@/lib/utils/cn";
+
+type RegulatorySeal = { type: string; enabled: boolean; logo_url?: string | null };
+
+// ¿Está el aval ABR habilitado? Lee regulatory_seals con fallback al booleano
+// legacy sello_abr_enabled.
+function abrSealEnabled(
+  seals: RegulatorySeal[] | null,
+  legacy: boolean,
+): boolean {
+  if (seals && seals.length > 0) {
+    const abr = seals.find((s) => s.type === "abr");
+    return abr ? abr.enabled : false;
+  }
+  return legacy;
+}
 
 // Marca del negocio — espejo del BrandingCard del POS en clave Food.
 // Presets de resalte en tonos alimentarios.
@@ -27,7 +43,7 @@ type Branding = {
   cuit: string | null;
   phone: string | null;
   address: string | null;
-  sello_abr_enabled: boolean;
+  abr_enabled: boolean;
 };
 
 const EMPTY: Branding = {
@@ -37,13 +53,16 @@ const EMPTY: Branding = {
   cuit: null,
   phone: null,
   address: null,
-  sello_abr_enabled: true,
+  abr_enabled: true,
 };
 
 export function BrandingCard() {
   const supabase = createClient();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { data: profile } = useOperatingProfile();
+  const isAr = (profile?.country ?? "AR").toUpperCase() === "AR";
+  const taxIdLabel = profile?.taxIdLabel ?? "CUIT";
   const inputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<Branding | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -55,11 +74,23 @@ export function BrandingCard() {
       const { data: b } = await supabase
         .from("tenant_branding")
         .select(
-          "logo_url, accent, legal_name, cuit, phone, address, sello_abr_enabled",
+          "logo_url, accent, legal_name, cuit, phone, address, regulatory_seals, sello_abr_enabled",
         )
         .eq("tenant_id", tenantId)
         .maybeSingle();
-      return { tenantId, branding: (b ?? {}) as Partial<Branding> };
+      return {
+        tenantId,
+        branding: (b ?? {}) as {
+          logo_url?: string | null;
+          accent?: string;
+          legal_name?: string | null;
+          cuit?: string | null;
+          phone?: string | null;
+          address?: string | null;
+          regulatory_seals?: RegulatorySeal[] | null;
+          sello_abr_enabled?: boolean | null;
+        },
+      };
     },
   });
 
@@ -73,19 +104,35 @@ export function BrandingCard() {
       cuit: b.cuit ?? null,
       phone: b.phone ?? null,
       address: b.address ?? null,
-      sello_abr_enabled: b.sello_abr_enabled ?? true,
+      abr_enabled: abrSealEnabled(
+        b.regulatory_seals ?? null,
+        b.sello_abr_enabled ?? true,
+      ),
     });
   }, [data]);
 
   const save = useMutation({
     mutationFn: async () => {
       if (!form || !data) return;
-      const { error } = await supabase
-        .from("tenant_branding")
-        .upsert(
-          { tenant_id: data.tenantId, ...form },
-          { onConflict: "tenant_id" },
-        );
+      // Canónico: regulatory_seals (lista de avales). Mantenemos el booleano
+      // legacy sello_abr_enabled sincronizado mientras los lectores migran.
+      const seals: RegulatorySeal[] = isAr
+        ? [{ type: "abr", enabled: form.abr_enabled }]
+        : [];
+      const { error } = await supabase.from("tenant_branding").upsert(
+        {
+          tenant_id: data.tenantId,
+          logo_url: form.logo_url,
+          accent: form.accent,
+          legal_name: form.legal_name,
+          cuit: form.cuit,
+          phone: form.phone,
+          address: form.address,
+          regulatory_seals: seals,
+          sello_abr_enabled: isAr ? form.abr_enabled : false,
+        },
+        { onConflict: "tenant_id" },
+      );
       if (error) throw error;
     },
     onSuccess: () => {
@@ -239,7 +286,7 @@ export function BrandingCard() {
             }
           />
           <Input
-            label="CUIT"
+            label={taxIdLabel}
             value={form.cuit ?? ""}
             onChange={(e) =>
               setForm((f) => (f ? { ...f, cuit: e.target.value || null } : f))
@@ -263,22 +310,32 @@ export function BrandingCard() {
           />
         </div>
 
-        {/* Sello ABR */}
-        <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
-          <div>
-            <p className="text-sm font-medium">Sello ABR en traza pública</p>
+        {/* Sellos y avales — ABR solo para tenants de Argentina */}
+        {isAr ? (
+          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">Sello ABR en traza pública</p>
+              <p className="text-xs text-muted-foreground">
+                Aval técnico de Asesoría Bromatológica Rosario en el QR
+              </p>
+            </div>
+            <Switch
+              checked={form.abr_enabled}
+              onCheckedChange={(v) =>
+                setForm((f) => (f ? { ...f, abr_enabled: v } : f))
+              }
+              label="Sello ABR"
+            />
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3">
+            <p className="text-sm font-medium">Sellos y avales</p>
             <p className="text-xs text-muted-foreground">
-              Aval técnico de Asesoría Bromatológica Rosario en el QR
+              Tu país no tiene avales configurables todavía. Próximamente vas a
+              poder sumar sellos de certificación a la traza pública.
             </p>
           </div>
-          <Switch
-            checked={form.sello_abr_enabled}
-            onCheckedChange={(v) =>
-              setForm((f) => (f ? { ...f, sello_abr_enabled: v } : f))
-            }
-            label="Sello ABR"
-          />
-        </div>
+        )}
 
         <div className="flex justify-end">
           <Button loading={save.isPending} onClick={() => save.mutate()}>

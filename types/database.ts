@@ -1418,6 +1418,7 @@ export type Database = {
           nutrition: Json
           packaging_delay_type: Database["public"]["Enums"]["packaging_delay"]
           product_type: Database["public"]["Enums"]["product_type"]
+          regulatory_labels: Json | null
           rnpa_attachment_url: string | null
           rnpa_exempt: boolean
           rnpa_exempt_reason: string | null
@@ -1445,6 +1446,7 @@ export type Database = {
           nutrition?: Json
           packaging_delay_type?: Database["public"]["Enums"]["packaging_delay"]
           product_type?: Database["public"]["Enums"]["product_type"]
+          regulatory_labels?: Json | null
           rnpa_attachment_url?: string | null
           rnpa_exempt?: boolean
           rnpa_exempt_reason?: string | null
@@ -1472,6 +1474,7 @@ export type Database = {
           nutrition?: Json
           packaging_delay_type?: Database["public"]["Enums"]["packaging_delay"]
           product_type?: Database["public"]["Enums"]["product_type"]
+          regulatory_labels?: Json | null
           rnpa_attachment_url?: string | null
           rnpa_exempt?: boolean
           rnpa_exempt_reason?: string | null
@@ -1492,6 +1495,62 @@ export type Database = {
           },
           {
             foreignKeyName: "recipes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      regulatory_permits: {
+        Row: {
+          attachment_url: string | null
+          created_at: string
+          deleted_at: string | null
+          entity_id: string
+          entity_type: string
+          expires_at: string | null
+          id: string
+          issued_at: string | null
+          notes: string | null
+          permit_number: string
+          permit_type: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          entity_id: string
+          entity_type: string
+          expires_at?: string | null
+          id?: string
+          issued_at?: string | null
+          notes?: string | null
+          permit_number: string
+          permit_type: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          attachment_url?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          expires_at?: string | null
+          id?: string
+          issued_at?: string | null
+          notes?: string | null
+          permit_number?: string
+          permit_type?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regulatory_permits_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1835,6 +1894,7 @@ export type Database = {
           rne_attachment_url: string | null
           rne_expiry: string | null
           rne_number: string | null
+          tax_id: string | null
           tenant_id: string
           updated_at: string
         }
@@ -1848,6 +1908,7 @@ export type Database = {
           rne_attachment_url?: string | null
           rne_expiry?: string | null
           rne_number?: string | null
+          tax_id?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -1861,6 +1922,7 @@ export type Database = {
           rne_attachment_url?: string | null
           rne_expiry?: string | null
           rne_number?: string | null
+          tax_id?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -1994,6 +2056,7 @@ export type Database = {
           legal_name: string | null
           logo_url: string | null
           phone: string | null
+          regulatory_seals: Json
           sello_abr_enabled: boolean
           tenant_id: string
           trace_page_config: Json
@@ -2006,6 +2069,7 @@ export type Database = {
           legal_name?: string | null
           logo_url?: string | null
           phone?: string | null
+          regulatory_seals?: Json
           sello_abr_enabled?: boolean
           tenant_id: string
           trace_page_config?: Json
@@ -2018,6 +2082,7 @@ export type Database = {
           legal_name?: string | null
           logo_url?: string | null
           phone?: string | null
+          regulatory_seals?: Json
           sello_abr_enabled?: boolean
           tenant_id?: string
           trace_page_config?: Json
@@ -2212,6 +2277,7 @@ export type Database = {
           name: string
           slug: string
           status: Database["public"]["Enums"]["tenant_status"]
+          tax_id: string | null
           trial_ends_at: string | null
           updated_at: string
         }
@@ -2225,6 +2291,7 @@ export type Database = {
           name: string
           slug: string
           status?: Database["public"]["Enums"]["tenant_status"]
+          tax_id?: string | null
           trial_ends_at?: string | null
           updated_at?: string
         }
@@ -2238,6 +2305,7 @@ export type Database = {
           name?: string
           slug?: string
           status?: Database["public"]["Enums"]["tenant_status"]
+          tax_id?: string | null
           trial_ends_at?: string | null
           updated_at?: string
         }

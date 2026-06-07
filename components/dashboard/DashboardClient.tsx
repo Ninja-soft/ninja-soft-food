@@ -34,6 +34,7 @@ import {
   useRecentActivity,
   useStockAlerts,
 } from "@/modules/dashboard/hooks";
+import { useOperatingProfile } from "@/modules/tenant-profile/hooks";
 
 export function DashboardClient({ tenantName }: { tenantName: string }) {
   const kpis = useMonthKpis();
@@ -41,6 +42,11 @@ export function DashboardClient({ tenantName }: { tenantName: string }) {
   const compliance = useComplianceCards();
   const stock = useStockAlerts();
   const activity = useRecentActivity();
+  const { data: profile } = useOperatingProfile();
+  // Títulos sin siglas argentinas hardcodeadas: para tenants no-AR usamos los
+  // términos genéricos del producto (los datos siguen leyendo columnas legacy
+  // hasta migrar la agregación a regulatory_permits).
+  const isAr = (profile?.country ?? "AR").toUpperCase() === "AR";
 
   return (
     <div className="space-y-8">
@@ -70,8 +76,16 @@ export function DashboardClient({ tenantName }: { tenantName: string }) {
             loading={compliance.isLoading}
           />
           <AnalysesCard data={compliance.data} loading={compliance.isLoading} />
-          <RnpaCard data={compliance.data} loading={compliance.isLoading} />
-          <TransportCard data={compliance.data} loading={compliance.isLoading} />
+          <RnpaCard
+            data={compliance.data}
+            loading={compliance.isLoading}
+            title={isAr ? "RNPA por vencer" : "Registro de producto por vencer"}
+          />
+          <TransportCard
+            data={compliance.data}
+            loading={compliance.isLoading}
+            title={isAr ? "Transporte (UTA/URA)" : "Transporte"}
+          />
         </div>
         <StockAlertsCard data={stock.data} loading={stock.isLoading} />
       </div>
@@ -492,23 +506,25 @@ function expiryPill(days: number) {
 function RnpaCard({
   data,
   loading,
+  title,
 }: {
   data: ComplianceCards | undefined;
   loading: boolean;
+  title: string;
 }) {
   const list = data?.expiringRnpa ?? [];
   return (
     <Panel>
       <PanelHeader
         icon={UtensilsCrossed}
-        title="RNPA por vencer"
+        title={title}
         href="/recetas"
         hrefLabel="Ver recetas"
       />
       {loading ? (
         <CardSkeleton />
       ) : list.length === 0 ? (
-        <EmptyHint>Ningún RNPA vence en los próximos 90 días.</EmptyHint>
+        <EmptyHint>Ningún registro vence en los próximos 90 días.</EmptyHint>
       ) : (
         <ul className="space-y-2">
           {list.slice(0, 4).map((r) => {
@@ -563,16 +579,18 @@ const VEHICLE_STATUS_META: Record<
 function TransportCard({
   data,
   loading,
+  title,
 }: {
   data: ComplianceCards | undefined;
   loading: boolean;
+  title: string;
 }) {
   const vehicles = data?.vehicles ?? [];
   return (
     <Panel>
       <PanelHeader
         icon={Truck}
-        title="Transporte (UTA/URA)"
+        title={title}
         href="/despacho"
         hrefLabel="Ver despacho"
       />

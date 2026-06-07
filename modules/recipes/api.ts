@@ -40,6 +40,8 @@ export type Recipe = {
   rnpa_exempt_reason: string | null;
   image_url: string | null;
   front_labels: string[];
+  /** Rotulado frontal resuelto por país: {system, values}. Reemplaza front_labels. */
+  regulatory_labels: { system: string; values: string[] } | null;
   nutrition: {
     calories?: number | null;
     proteins?: number | null;
@@ -55,7 +57,7 @@ const RECIPE_SELECT = `
   id, title, commercial_name, group_id, category, product_type, description,
   shelf_life_days, aging_days, packaging_delay_type,
   rnpa_number, rnpa_expiry, rnpa_exempt, rnpa_exempt_reason,
-  image_url, front_labels, nutrition,
+  image_url, front_labels, regulatory_labels, nutrition,
   group:recipe_groups(name),
   recipe_ingredients(id, ingredient_id, quantity, unit, is_substitute,
     source_ingredient_id,
