@@ -2,20 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/cron/reconcile-billing",
+      "path": "/api/cron/daily",
       "schedule": "17 6 * * *"
-    },
-    {
-      "path": "/api/cron/stock-alerts",
-      "schedule": "37 7 * * *"
-    },
-    {
-      "path": "/api/cron/trial-ending",
-      "schedule": "23 8 * * *"
-    },
-    {
-      "path": "/api/cron/emit-webhooks",
-      "schedule": "*/5 * * * *"
     }
   ]
 }
