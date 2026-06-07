@@ -29,7 +29,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+        "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold",
         STATUS_STYLES[status] ?? "border-border bg-muted text-muted-foreground",
         className,
       )}

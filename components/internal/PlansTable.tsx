@@ -112,12 +112,12 @@ export function PlansTable({ level }: { level: string | null }) {
                         {p.key}
                       </span>
                       {!selfService && (
-                        <span className="rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Sin precio · no self-service
                         </span>
                       )}
                       {withAI && (
-                        <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
                           IA incluida
                         </span>
                       )}
@@ -141,8 +141,8 @@ export function PlansTable({ level }: { level: string | null }) {
                     <span
                       className={
                         p.isActive
-                          ? "inline-flex items-center rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-300"
-                          : "inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground"
+                          ? "inline-flex items-center whitespace-nowrap rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-300"
+                          : "inline-flex items-center whitespace-nowrap rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground"
                       }
                     >
                       {p.isActive ? "Activo" : "Inactivo"}
