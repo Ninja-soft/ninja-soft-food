@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil, Plus, Search, Trash2, Users } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, Upload, Users } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { SpinnerBlock } from "@/components/ui/Spinner";
+import { ImportModal } from "@/components/imports/ImportModal";
 import { useToast } from "@/components/ui/Toast";
 import type { Customer } from "@/modules/dispatch/api";
 import {
@@ -32,6 +33,7 @@ export function CustomersModal({
   const [editing, setEditing] = useState<Customer | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: customers, isLoading } = useCustomers(search);
   const deleteMut = useDeleteCustomer();
@@ -98,6 +100,10 @@ export function CustomersModal({
                   className="focus:ring-primary/20 h-11 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2"
                 />
               </div>
+              <Button variant="secondary" onClick={() => setImportOpen(true)}>
+                <Upload size={16} />
+                Importar
+              </Button>
               <Button onClick={() => setCreating(true)}>
                 <Plus size={16} />
                 Nuevo
@@ -154,6 +160,12 @@ export function CustomersModal({
           </div>
         )}
       </Modal>
+
+      <ImportModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        moduleId="customers"
+      />
 
       <ConfirmDialog
         open={deleteTarget !== null}

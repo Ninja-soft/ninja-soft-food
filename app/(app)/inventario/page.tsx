@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   CalendarClock,
   Download,
+  Factory,
   Package,
   Plus,
   Search,
@@ -17,6 +18,7 @@ import { SpinnerBlock } from "@/components/ui/Spinner";
 import { Eyebrow, Heading, Money } from "@/components/ui/Typography";
 import { AdjustEntryModal } from "@/components/stock/AdjustEntryModal";
 import { StockEntryFormModal } from "@/components/stock/StockEntryFormModal";
+import { SuppliersModal } from "@/components/stock/SuppliersModal";
 import { cn } from "@/lib/utils/cn";
 import { daysUntil, formatDate, formatQty } from "@/lib/utils/format";
 import { exportToExcel } from "@/lib/utils/xlsx";
@@ -45,6 +47,7 @@ export default function InventarioPage() {
   const [tab, setTab] = useState<Tab>("stock");
   const [search, setSearch] = useState("");
   const [entryModalOpen, setEntryModalOpen] = useState(false);
+  const [suppliersOpen, setSuppliersOpen] = useState(false);
   const [adjustTarget, setAdjustTarget] = useState<StockEntry | null>(null);
   const [expandedIngredient, setExpandedIngredient] = useState<string | null>(
     null,
@@ -175,6 +178,10 @@ export default function InventarioPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setSuppliersOpen(true)}>
+            <Factory size={16} />
+            Proveedores
+          </Button>
           <Button
             variant="secondary"
             onClick={handleExport}
@@ -350,6 +357,7 @@ export default function InventarioPage() {
         entry={adjustTarget}
         onClose={() => setAdjustTarget(null)}
       />
+      <SuppliersModal open={suppliersOpen} onOpenChange={setSuppliersOpen} />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   Search,
   Snowflake,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -33,6 +34,7 @@ import {
   useFamilies,
   useIngredients,
 } from "@/modules/ingredients/hooks";
+import { ImportModal } from "@/components/imports/ImportModal";
 import { cn } from "@/lib/utils/cn";
 import { exportToExcel } from "@/lib/utils/xlsx";
 
@@ -57,6 +59,7 @@ export default function IngredientesPage() {
   const [deleteFamilyTarget, setDeleteFamilyTarget] = useState<Family | null>(
     null,
   );
+  const [importOpen, setImportOpen] = useState(false);
 
   const deleteIngredientMut = useDeleteIngredient();
   const deleteFamilyMut = useDeleteFamily();
@@ -136,6 +139,10 @@ export default function IngredientesPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setImportOpen(true)}>
+            <Upload size={16} />
+            Importar Excel
+          </Button>
           <Button
             variant="secondary"
             onClick={handleExport}
@@ -364,6 +371,11 @@ export default function IngredientesPage() {
         open={familyModal.open}
         onOpenChange={(o) => setFamilyModal((s) => ({ ...s, open: o }))}
         family={familyModal.family}
+      />
+      <ImportModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        moduleId="ingredients"
       />
       <ConfirmDialog
         open={!!deleteTarget}
