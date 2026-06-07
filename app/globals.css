@@ -405,6 +405,85 @@ html:not([data-price-accent="neutro"]) .price-hl {
   display: inline;
 }
 
+/* ============================================================
+   React Flow — grafo de trazabilidad. Los estilos default chocan
+   con los temas (fondos blancos, bordes grises). Re-tematizamos
+   contra las CSS vars del tema activo. Scope: .trace-flow.
+   ============================================================ */
+.trace-flow {
+  /* Vars públicas de React Flow v12 (@xyflow/react). */
+  --xy-background-color: transparent;
+  --xy-edge-stroke: color-mix(in srgb, var(--primary) 55%, transparent);
+  --xy-edge-stroke-width: 1.5;
+  --xy-connectionline-stroke: var(--primary);
+  --xy-attribution-background-color: transparent;
+}
+.trace-flow .react-flow__attribution {
+  display: none;
+}
+.trace-flow .react-flow__edge-path {
+  stroke: color-mix(in srgb, var(--primary) 50%, transparent);
+}
+.trace-flow .react-flow__edge.is-voided .react-flow__edge-path {
+  stroke: color-mix(in srgb, var(--destructive) 60%, transparent);
+  stroke-dasharray: 5 4;
+}
+.trace-flow .react-flow__edge .react-flow__edge-text {
+  fill: var(--muted-foreground);
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+}
+.trace-flow .react-flow__edge .react-flow__edge-textbg {
+  fill: var(--card);
+}
+.trace-flow .react-flow__arrowhead {
+  fill: color-mix(in srgb, var(--primary) 60%, transparent);
+}
+/* Animación sutil del flujo: marcha de guiones. */
+.trace-flow .react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 6 5;
+  animation: trace-dash 1.1s linear infinite;
+}
+@keyframes trace-dash {
+  to {
+    stroke-dashoffset: -22;
+  }
+}
+/* Controls. */
+.trace-flow .react-flow__controls {
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border);
+}
+.trace-flow .react-flow__controls-button {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground);
+  backdrop-filter: blur(12px);
+}
+.trace-flow .react-flow__controls-button:hover {
+  background: var(--secondary);
+}
+.trace-flow .react-flow__controls-button svg {
+  fill: currentColor;
+}
+/* MiniMap. */
+.trace-flow .react-flow__minimap {
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+}
+.trace-flow .react-flow__minimap-mask {
+  fill: color-mix(in srgb, var(--background) 55%, transparent);
+}
+/* Handles invisibles (los nodos custom no muestran puntos de conexión). */
+.trace-flow .react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ── Editor enriquecido / render de informes (RichTextEditor + detalle) ──────
    Tipografía prose-like construida con las CSS vars del theme (sin plugin de
    typography). Aplica tanto al área editable de Tiptap como al render del HTML

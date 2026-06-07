@@ -8,7 +8,9 @@ import {
   Download,
   FileText,
   Factory,
+  Network,
   PackageSearch,
+  Rows3,
   Search,
   Truck,
   Users,
@@ -17,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { SpinnerBlock } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import { Eyebrow, Heading, Money } from "@/components/ui/Typography";
+import TraceGraph from "@/components/trace/TraceGraphDynamic";
 import { cn } from "@/lib/utils/cn";
 import { formatDate, formatQty } from "@/lib/utils/format";
 import { useTenantBranding } from "@/modules/planillas/hooks";
@@ -34,6 +37,7 @@ import {
   generateRecallPdf,
   type RecallExportData,
 } from "@/modules/trace/exports";
+import { buildTraceGraph } from "@/modules/trace/graph";
 import {
   useBackwardTrace,
   useForwardTrace,
@@ -41,11 +45,15 @@ import {
 } from "@/modules/trace/hooks";
 
 type Selection = LotSearchResult | null;
+/** Vista del recall: diagrama interactivo (default) o tabla regulatoria. */
+type ViewMode = "graph" | "table";
 
 export default function TrazabilidadPage() {
   const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Selection>(null);
+  // El diagrama es la vista por defecto; la tabla 3-columnas es la regulatoria.
+  const [view, setView] = useState<ViewMode>("graph");
 
   const search = useLotSearch(selected ? "" : query);
   const results = search.data ?? [];
@@ -152,6 +160,8 @@ export default function TrazabilidadPage() {
       ) : selected.type === "MP" ? (
         <ForwardView
           stockEntryId={selected.id}
+          view={view}
+          onViewChange={setView}
           onError={() =>
             toast({ variant: "error", title: "No se pudo cargar la cadena" })
           }
@@ -159,11 +169,49 @@ export default function TrazabilidadPage() {
       ) : (
         <BackwardView
           productionId={selected.id}
+          view={view}
+          onViewChange={setView}
           onError={() =>
             toast({ variant: "error", title: "No se pudo cargar la cadena" })
           }
         />
       )}
+    </div>
+  );
+}
+
+// ── Toggle Diagrama | Tabla ───────────────────────────────────────────────────
+
+function ViewToggle({
+  view,
+  onChange,
+}: {
+  view: ViewMode;
+  onChange: (v: ViewMode) => void;
+}) {
+  const opts: { value: ViewMode; label: string; icon: React.ReactNode }[] = [
+    { value: "graph", label: "Diagrama", icon: <Network size={15} /> },
+    { value: "table", label: "Tabla", icon: <Rows3 size={15} /> },
+  ];
+  return (
+    <div className="inline-flex items-center gap-1 rounded-ninjaFull border border-border bg-card/60 p-1 backdrop-blur-xl">
+      {opts.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-ninjaFull px-3 py-1.5 text-sm font-medium transition",
+            view === o.value
+              ? "bg-primary text-primary-foreground shadow-soft"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          aria-pressed={view === o.value}
+        >
+          {o.icon}
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -209,16 +257,25 @@ function EmptyState() {
 
 function ForwardView({
   stockEntryId,
+  view,
+  onViewChange,
   onError,
 }: {
   stockEntryId: string;
+  view: ViewMode;
+  onViewChange: (v: ViewMode) => void;
   onError: () => void;
 }) {
   const { data, isLoading, isError } = useForwardTrace(stockEntryId);
   const { data: branding } = useTenantBranding();
 
+  const graph = useMemo(
+    () => (data ? buildTraceGraph({ direction: "forward", data }) : null),
+    [data],
+  );
+
   if (isLoading) return <SpinnerBlock />;
-  if (isError || !data) {
+  if (isError || !data || !graph) {
     onError();
     return <ErrorState />;
   }
@@ -228,6 +285,30 @@ function ForwardView({
   return (
     <div className="space-y-6">
       <ExportBar data={exportData} locale={branding?.locale} />
+      <ViewToggle view={view} onChange={onViewChange} />
+
+      {view === "graph" ? (
+        <>
+          <TraceGraph
+            graph={graph}
+            exportName={`traza-${data.origin.lotNumber}`}
+          />
+          <AffectedPanel
+            customers={data.affectedCustomers}
+            totalKg={data.totalDispatchedKg}
+          />
+        </>
+      ) : (
+        <ForwardTable data={data} />
+      )}
+    </div>
+  );
+}
+
+// Vista de tabla regulatoria (3 columnas) del trace forward — la que ya existía.
+function ForwardTable({ data }: { data: ForwardTrace }) {
+  return (
+    <div className="space-y-6">
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.2fr]">
         {/* Origen */}
         <ChainColumn icon={<Boxes size={16} />} title="Origen · Materia prima">
@@ -322,25 +403,56 @@ function ForwardView({
 
 function BackwardView({
   productionId,
+  view,
+  onViewChange,
   onError,
 }: {
   productionId: string;
+  view: ViewMode;
+  onViewChange: (v: ViewMode) => void;
   onError: () => void;
 }) {
   const { data, isLoading, isError } = useBackwardTrace(productionId);
   const { data: branding } = useTenantBranding();
 
+  const graph = useMemo(
+    () => (data ? buildTraceGraph({ direction: "backward", data }) : null),
+    [data],
+  );
+
   if (isLoading) return <SpinnerBlock />;
-  if (isError || !data) {
+  if (isError || !data || !graph) {
     onError();
     return <ErrorState />;
   }
 
   const exportData = backwardToExport(data, branding?.locale);
+  const ptLot = data.production.productLotNumber ?? data.production.code;
 
   return (
     <div className="space-y-6">
       <ExportBar data={exportData} locale={branding?.locale} />
+      <ViewToggle view={view} onChange={onViewChange} />
+
+      {view === "graph" ? (
+        <>
+          <TraceGraph graph={graph} exportName={`traza-${ptLot}`} />
+          <AffectedPanel
+            customers={data.affectedCustomers}
+            totalKg={data.totalDispatchedKg}
+          />
+        </>
+      ) : (
+        <BackwardTable data={data} />
+      )}
+    </div>
+  );
+}
+
+// Vista de tabla regulatoria (3 columnas) del trace backward — la que ya existía.
+function BackwardTable({ data }: { data: BackwardTrace }) {
+  return (
+    <div className="space-y-6">
       <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr_1.2fr]">
         {/* Insumos (backward) */}
         <ChainColumn
