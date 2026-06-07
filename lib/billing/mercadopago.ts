@@ -149,7 +149,7 @@ export const mercadopago: BillingProvider = {
       method: "POST",
       headers: await authHeaders(),
       body: JSON.stringify({
-        reason: (input.reason ?? `Ninja Food — Plan ${input.planName}`).trim(),
+        reason: (input.reason ?? `Ninja Food • Plan ${input.planName}`).trim(),
         // external_reference: por defecto el tenantId (suscripción principal); el
         // caller del add-on pasa un ref con prefijo (addon:<key>:<tenantId>) que
         // el webhook usa para distinguir el cobro del add-on del principal.

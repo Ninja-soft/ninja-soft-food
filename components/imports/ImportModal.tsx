@@ -486,7 +486,7 @@ function PreviewRow({ row }: { row: ValidatedRow<unknown> }) {
         ) : (
           <span>
             <span className="font-medium">{String(summary)}</span>
-            <span className="text-muted-foreground"> — {row.error}</span>
+            <span className="text-muted-foreground"> • {row.error}</span>
           </span>
         )}
       </td>

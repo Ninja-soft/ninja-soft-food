@@ -269,7 +269,7 @@ const COMMON_TEMPLATES: readonly TemplateInput[] = [
 // ── Templates específicos: cárnicos (frigorifico) ─────────────────────────────
 
 const TEMPLATE_PCC_COCCION: TemplateInput = {
-  name: "PCC — Cocción (temperatura interna)",
+  name: "PCC • Cocción (temperatura interna)",
   kind: "pcc",
   frequency: { type: "none" }, // por lote / cocción
   requires_signature: true,
@@ -394,7 +394,7 @@ const TEMPLATE_HORNEADO: TemplateInput = {
 // ── Templates específicos: lácteos (lacteos) ──────────────────────────────────
 
 const TEMPLATE_PASTEURIZACION: TemplateInput = {
-  name: "PCC — Pasteurización",
+  name: "PCC • Pasteurización",
   kind: "pcc",
   frequency: { type: "none" }, // por lote
   requires_signature: true,
@@ -439,7 +439,7 @@ const TEMPLATE_PASTEURIZACION: TemplateInput = {
 // ── Templates específicos: conservas (conservas) ──────────────────────────────
 
 const TEMPLATE_PCC_ESTERILIZACION: TemplateInput = {
-  name: "PCC — Tratamiento térmico / pH",
+  name: "PCC • Tratamiento térmico / pH",
   kind: "pcc",
   frequency: { type: "none" }, // por lote
   requires_signature: true,
