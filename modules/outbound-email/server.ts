@@ -127,6 +127,15 @@ export function buildDocumentEmailHtml(args: {
 /**
  * Verifica el rate limit del tenant leyendo los created_at de system_emails de
  * la ultima ventana. Devuelve el resultado de checkRateLimit (puro).
+ *
+ * NO es atomico (TOCTOU aceptado por diseño): entre este SELECT y el INSERT del
+ * envio en system_emails no hay lock, asi que dos requests CONCURRENTES del mismo
+ * tenant pueden leer el mismo conteo y pasar ambos, superando el limite por unos
+ * pocos envios. Es un limite SUAVE anti-abuso (evitar uso como lista de difusion),
+ * no un contador de facturacion: la pequeña ventana de carrera es tolerable y no
+ * justifica un lock por tenant ni un contador transaccional. Si en el futuro hace
+ * falta exactitud, mover a un INSERT ... RETURNING contra una tabla de contadores
+ * con incremento atomico (o un RPC con advisory lock por tenant).
  */
 export async function checkTenantRateLimit(
   admin: Admin,

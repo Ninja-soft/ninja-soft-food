@@ -21,8 +21,11 @@ function fmtDateTime(iso: string): string {
 // Calcada en patrón de AIConfigCard: secretos WRITE-ONLY (el access token y el
 // webhook secret guardados NUNCA se muestran, solo "configurado"), guardado vía
 // /api/internal/mp-config (requireInternal + audit con secretos redactados,
-// internal_settings cifrado — NO env). La public key NO es secreta. Estructura
-// visual del PlatformMpCard del POS. Tokens del design system only.
+// internal_settings cifrado). La pasarela (lib/billing/mercadopago) PREFIERE
+// estas credenciales de DB y, si no hay, cae al fallback de env vars
+// (MERCADOPAGO_ACCESS_TOKEN / MERCADOPAGO_WEBHOOK_SECRET): cargar acá pisa al env.
+// La public key NO es secreta. Estructura visual del PlatformMpCard del POS.
+// Tokens del design system only.
 //
 // Si encryptionReady=false (falta AI_CONFIG_SECRET en el server), avisa y
 // deshabilita guardar: los secretos no se pueden cifrar.

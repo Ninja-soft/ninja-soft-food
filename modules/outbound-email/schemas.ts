@@ -170,9 +170,12 @@ export function checkRateLimit(
   remaining: number;
   retryAfterMs: number;
 } {
+  // Borde inclusivo (>=) para que coincida EXACTO con la query del server
+  // (checkTenantRateLimit usa .gte("created_at", since)): un envío que cae justo
+  // en el inicio de la ventana cuenta en ambos lados, sin discrepancia pura↔DB.
   const windowStart = now - windowMs;
   const inWindow = sentTimestamps
-    .filter((t) => t > windowStart)
+    .filter((t) => t >= windowStart)
     .sort((a, b) => a - b);
   const used = inWindow.length;
   const allowed = used < limit;

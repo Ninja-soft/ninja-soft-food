@@ -210,4 +210,76 @@ export async function setPlatformMpConfig(
     { onConflict: "key" },
   );
   if (error) throw new Error("save_failed");
+
+  // Invalidamos el cache in-memory para que la pasarela tome las nuevas
+  // credenciales en el próximo cobro/webhook sin esperar el TTL.
+  clearMpCredentialsCache();
+}
+
+// =============================================================================
+// Credenciales EFECTIVAS de la pasarela (DB cifrada → fallback env).
+//
+// La pasarela (lib/billing/mercadopago) cobra y valida webhooks con la cuenta de
+// MP de NinjaSoft. La fuente preferida son las credenciales cargadas por staff en
+// internal_settings (cifradas); si no hay (o falta el secreto de cifrado), cae a
+// las env vars MERCADOPAGO_ACCESS_TOKEN / MERCADOPAGO_WEBHOOK_SECRET. Un cache
+// in-memory de 60s evita pegarle a la DB en cada webhook/cobro; setPlatformMpConfig
+// lo invalida al guardar y clearMpCredentialsCache() es exportable para tests.
+// =============================================================================
+
+/** Credenciales efectivas resueltas (DB primero, env fallback). */
+export interface EffectiveMpCredentials {
+  accessToken: string | null;
+  webhookSecret: string | null;
+  /** Origen de cada credencial (debug/observabilidad, nunca expone el valor). */
+  source: { accessToken: "db" | "env" | "none"; webhookSecret: "db" | "env" | "none" };
+}
+
+const CREDENTIALS_TTL_MS = 60_000;
+let credentialsCache: { value: EffectiveMpCredentials; expiresAt: number } | null =
+  null;
+
+/** Invalida el cache de credenciales efectivas (al guardar config / en tests). */
+export function clearMpCredentialsCache(): void {
+  credentialsCache = null;
+}
+
+/**
+ * Resuelve las credenciales efectivas de MP: internal_settings (cifrado) primero,
+ * fallback a env. Cacheadas 60s in-memory. NUNCA lanza: si todo falla, devuelve
+ * nulls (la pasarela traduce eso a "Falta MERCADOPAGO_ACCESS_TOKEN" / firma inválida).
+ */
+export async function getEffectiveMpCredentials(
+  now: number = Date.now(),
+): Promise<EffectiveMpCredentials> {
+  if (credentialsCache && credentialsCache.expiresAt > now) {
+    return credentialsCache.value;
+  }
+
+  const envToken = process.env.MERCADOPAGO_ACCESS_TOKEN || null;
+  const envSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET || null;
+
+  let dbToken: string | null = null;
+  let dbSecret: string | null = null;
+  try {
+    const config = await getPlatformMpConfig();
+    dbToken = config?.accessToken ?? null;
+    dbSecret = config?.webhookSecret ?? null;
+  } catch {
+    // getPlatformMpConfig ya es no-throw, pero blindamos por si acaso: env-only.
+  }
+
+  const accessToken = dbToken ?? envToken;
+  const webhookSecret = dbSecret ?? envSecret;
+  const value: EffectiveMpCredentials = {
+    accessToken,
+    webhookSecret,
+    source: {
+      accessToken: dbToken ? "db" : envToken ? "env" : "none",
+      webhookSecret: dbSecret ? "db" : envSecret ? "env" : "none",
+    },
+  };
+
+  credentialsCache = { value, expiresAt: now + CREDENTIALS_TTL_MS };
+  return value;
 }

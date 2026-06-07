@@ -13,13 +13,21 @@ import type {
 // =============================================================================
 // lib/billing/mercadopago.ts — pasarela Mercado Pago (suscripciones preapproval).
 //
-// SERVER-ONLY: usa MERCADOPAGO_ACCESS_TOKEN. NUNCA importar desde el cliente.
-// (Sin `import "server-only"` a propósito: los tests unit de vitest importan
-// este módulo y ese package lanza fuera de react-server. La garantía real:
-// solo lo importan route handlers de app/api y node:crypto no bundlea a cliente.)
+// SERVER-ONLY: usa el access token de la cuenta cobradora de NinjaSoft. NUNCA
+// importar desde el cliente. (Sin `import "server-only"` a propósito: los tests
+// unit de vitest importan este módulo y ese package lanza fuera de react-server.
+// La garantía real: solo lo importan route handlers de app/api y node:crypto no
+// bundlea a cliente. Por la misma razón, las credenciales efectivas se cargan
+// con `import()` dinámico de platform-config — que sí es server-only — para no
+// arrastrar `server-only` al grafo estático de este módulo.)
 // Patrón calcado del POS (supabase/functions/mp_subscription_checkout +
 // mp_billing_webhook): fetch directo a la API de MP (sin SDK), thin-payload →
 // re-fetch del recurso, el webhook nunca confía en el body.
+//
+// Credenciales (access token + webhook secret): se resuelven con prioridad DB
+// cifrada (internal_settings, cargadas por staff en /internal) y FALLBACK a las
+// env MERCADOPAGO_ACCESS_TOKEN / MERCADOPAGO_WEBHOOK_SECRET. Por eso token() y
+// verifySignature son async (los callers ya esperaban estas operaciones).
 //
 // Agregado respecto del POS: validación de firma x-signature (HMAC-SHA256), que
 // el POS no implementa pero la regla dura 7 de Ninja Food exige. Algoritmo de
@@ -44,15 +52,22 @@ export function mapPreapprovalStatus(raw: string): CanonicalStatus | null {
   return PREAPPROVAL_STATUS[raw] ?? null;
 }
 
-function token(): string {
-  const t = process.env.MERCADOPAGO_ACCESS_TOKEN;
-  if (!t) throw new Error("Falta MERCADOPAGO_ACCESS_TOKEN");
-  return t;
+/**
+ * Access token EFECTIVO de la cuenta cobradora: DB cifrada (internal_settings)
+ * con fallback a env. Async porque puede leer la DB (cacheado 60s). Import
+ * dinámico de platform-config (server-only) para no romper la importabilidad en
+ * tests de vitest del resto de este módulo.
+ */
+async function token(): Promise<string> {
+  const { getEffectiveMpCredentials } = await import("./platform-config");
+  const { accessToken } = await getEffectiveMpCredentials();
+  if (!accessToken) throw new Error("Falta MERCADOPAGO_ACCESS_TOKEN");
+  return accessToken;
 }
 
-function authHeaders(): HeadersInit {
+async function authHeaders(): Promise<HeadersInit> {
   return {
-    Authorization: `Bearer ${token()}`,
+    Authorization: `Bearer ${await token()}`,
     "Content-Type": "application/json",
   };
 }
@@ -132,7 +147,7 @@ export const mercadopago: BillingProvider = {
 
     const res = await fetch(`${MP_API}/preapproval`, {
       method: "POST",
-      headers: authHeaders(),
+      headers: await authHeaders(),
       body: JSON.stringify({
         reason: `Ninja Food — Plan ${input.planName}`.trim(),
         external_reference: input.tenantId,
@@ -160,7 +175,7 @@ export const mercadopago: BillingProvider = {
 
   async getSubscription(id: string): Promise<SubscriptionInfo> {
     const res = await fetch(`${MP_API}/preapproval/${id}`, {
-      headers: { Authorization: `Bearer ${token()}` },
+      headers: { Authorization: `Bearer ${await token()}` },
     });
     if (!res.ok) {
       const detail = await res.text();
@@ -185,7 +200,7 @@ export const mercadopago: BillingProvider = {
   async cancelSubscription(id: string): Promise<void> {
     const res = await fetch(`${MP_API}/preapproval/${id}`, {
       method: "PUT",
-      headers: authHeaders(),
+      headers: await authHeaders(),
       body: JSON.stringify({ status: "cancelled" }),
     });
     if (!res.ok) {
@@ -194,13 +209,17 @@ export const mercadopago: BillingProvider = {
     }
   },
 
-  verifySignature(args: VerifySignatureArgs): boolean {
-    const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET ?? "";
+  async verifySignature(args: VerifySignatureArgs): Promise<boolean> {
+    // Secret EFECTIVO: DB cifrada (internal_settings) con fallback a env. Import
+    // dinámico de platform-config (server-only) para no romper la importabilidad
+    // de este módulo en los tests de vitest.
+    const { getEffectiveMpCredentials } = await import("./platform-config");
+    const { webhookSecret } = await getEffectiveMpCredentials();
     return verifyMpSignature({
       signatureHeader: args.signatureHeader,
       requestId: args.requestId,
       dataId: args.dataId,
-      secret,
+      secret: webhookSecret ?? "",
     });
   },
 

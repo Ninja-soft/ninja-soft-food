@@ -1,11 +1,15 @@
 import { createHmac } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   mapPreapprovalStatus,
   verifyMpSignature,
   mercadopago,
 } from "@/lib/billing/mercadopago";
 import { getBillingProvider, DEFAULT_PROVIDER } from "@/lib/billing";
+import {
+  getEffectiveMpCredentials,
+  clearMpCredentialsCache,
+} from "@/lib/billing/platform-config";
 import {
   parsePlanLimits,
   limitFor,
@@ -144,6 +148,70 @@ describe("verifyMpSignature", () => {
         nowMs: NOW,
       }),
     ).toBe(true);
+  });
+});
+
+describe("getEffectiveMpCredentials — fallback DB cifrada → env", () => {
+  // En este entorno de test NO hay AI_CONFIG_SECRET, así que getPlatformMpConfig
+  // devuelve null sin tocar la DB: las credenciales efectivas caen al env. Eso es
+  // exactamente el path de fallback que verificamos acá.
+  const prevToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+  const prevSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+  const prevAiSecret = process.env.AI_CONFIG_SECRET;
+
+  afterEach(() => {
+    if (prevToken === undefined) delete process.env.MERCADOPAGO_ACCESS_TOKEN;
+    else process.env.MERCADOPAGO_ACCESS_TOKEN = prevToken;
+    if (prevSecret === undefined) delete process.env.MERCADOPAGO_WEBHOOK_SECRET;
+    else process.env.MERCADOPAGO_WEBHOOK_SECRET = prevSecret;
+    if (prevAiSecret === undefined) delete process.env.AI_CONFIG_SECRET;
+    else process.env.AI_CONFIG_SECRET = prevAiSecret;
+    clearMpCredentialsCache();
+  });
+
+  it("usa el env cuando no hay config en DB (sin AI_CONFIG_SECRET)", async () => {
+    delete process.env.AI_CONFIG_SECRET;
+    process.env.MERCADOPAGO_ACCESS_TOKEN = "APP_USR-env-token";
+    process.env.MERCADOPAGO_WEBHOOK_SECRET = "env-webhook-secret";
+    clearMpCredentialsCache();
+
+    const creds = await getEffectiveMpCredentials();
+    expect(creds.accessToken).toBe("APP_USR-env-token");
+    expect(creds.webhookSecret).toBe("env-webhook-secret");
+    expect(creds.source.accessToken).toBe("env");
+    expect(creds.source.webhookSecret).toBe("env");
+  });
+
+  it("devuelve nulls (source none) cuando no hay ni DB ni env", async () => {
+    delete process.env.AI_CONFIG_SECRET;
+    delete process.env.MERCADOPAGO_ACCESS_TOKEN;
+    delete process.env.MERCADOPAGO_WEBHOOK_SECRET;
+    clearMpCredentialsCache();
+
+    const creds = await getEffectiveMpCredentials();
+    expect(creds.accessToken).toBeNull();
+    expect(creds.webhookSecret).toBeNull();
+    expect(creds.source.accessToken).toBe("none");
+    expect(creds.source.webhookSecret).toBe("none");
+  });
+
+  it("cachea por 60s y clearMpCredentialsCache lo invalida", async () => {
+    delete process.env.AI_CONFIG_SECRET;
+    process.env.MERCADOPAGO_ACCESS_TOKEN = "APP_USR-first";
+    clearMpCredentialsCache();
+
+    const first = await getEffectiveMpCredentials();
+    expect(first.accessToken).toBe("APP_USR-first");
+
+    // Cambia el env pero NO invalida: el cache sigue sirviendo el valor viejo.
+    process.env.MERCADOPAGO_ACCESS_TOKEN = "APP_USR-second";
+    const cached = await getEffectiveMpCredentials();
+    expect(cached.accessToken).toBe("APP_USR-first");
+
+    // Tras invalidar, toma el nuevo valor.
+    clearMpCredentialsCache();
+    const fresh = await getEffectiveMpCredentials();
+    expect(fresh.accessToken).toBe("APP_USR-second");
   });
 });
 

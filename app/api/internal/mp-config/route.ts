@@ -5,6 +5,7 @@ import {
   getPlatformMpStatus,
   setPlatformMpConfig,
   mpEncryptionAvailable,
+  clearMpCredentialsCache,
 } from "@/lib/billing/platform-config";
 
 // =============================================================================
@@ -64,6 +65,11 @@ export async function POST(req: Request) {
     const status = reason === "missing_encryption_secret" ? 503 : 500;
     return NextResponse.json({ error: reason }, { status });
   }
+
+  // Invalida el cache de credenciales efectivas de la pasarela: el próximo
+  // cobro/webhook toma las nuevas credenciales sin esperar el TTL. (setPlatformMpConfig
+  // ya lo invalida; lo reforzamos acá por si la firma cambia o falla a mitad.)
+  clearMpCredentialsCache();
 
   const after = await getPlatformMpStatus();
 

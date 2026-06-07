@@ -41,7 +41,7 @@ export async function POST(req: Request) {
   // firma); el body se usa después para identificar el recurso.
   const signatureDataId =
     url.searchParams.get("data.id") || url.searchParams.get("id");
-  const signatureOk = provider.verifySignature({
+  const signatureOk = await provider.verifySignature({
     signatureHeader: req.headers.get("x-signature"),
     requestId: req.headers.get("x-request-id"),
     dataId: signatureDataId,

@@ -25,6 +25,19 @@ export interface GenerateJsonInput {
    * JSON Schema que el resultado DEBE cumplir. Se pasa tal cual al provider
    * (input_schema del tool en Claude, responseSchema en Gemini). El dominio
    * revalida con zod: este schema es el contrato con el modelo, no el de negocio.
+   *
+   * IMPORTANTE — paridad entre providers: usar SOLO el subconjunto de JSON Schema
+   * que soporta el `responseSchema` de Gemini (el denominador comun, mas estricto
+   * que el tool-use de Claude). En concreto:
+   *  - tipos: object, array, string, number/integer, boolean (sin null suelto;
+   *    para opcionales usar `nullable: true` o dejarlos fuera de `required`);
+   *  - NADA de `additionalProperties`, `$ref`/`$defs`, `oneOf`/`anyOf`/`allOf`,
+   *    `patternProperties`, ni `const`;
+   *  - `format` limitado (date-time, date, enum via `enum`); evitar formatos
+   *    exoticos;
+   *  - declarar `required` y `properties` explicitos en cada object.
+   * Un schema que use features fuera de este subset puede funcionar con Claude y
+   * fallar (o ignorarse) con Gemini: romperia la intercambiabilidad de provider.
    */
   schema: object;
   /** Tope de tokens de salida. Default razonable por provider si se omite. */

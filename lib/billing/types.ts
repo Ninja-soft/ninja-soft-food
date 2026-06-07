@@ -95,9 +95,10 @@ export interface BillingProvider {
 
   /**
    * Verifica la firma del webhook. La pasarela decide qué headers usa.
-   * Devuelve true si la firma es válida.
+   * Devuelve true si la firma es válida. Async: el secret puede venir de la DB
+   * cifrada (internal_settings) con fallback a env (ver lib/billing/platform-config).
    */
-  verifySignature(args: VerifySignatureArgs): boolean;
+  verifySignature(args: VerifySignatureArgs): Promise<boolean>;
 
   /** Extrae el evento normalizado de los query params + body del webhook. */
   parseWebhook(args: ParseWebhookArgs): NormalizedEvent | null;

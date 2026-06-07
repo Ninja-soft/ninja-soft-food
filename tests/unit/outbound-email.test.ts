@@ -190,9 +190,11 @@ describe("checkRateLimit — rate limit suave por tenant", () => {
     expect(r.allowed).toBe(true);
   });
 
-  it("cuenta justo el borde de la ventana como fuera", () => {
-    const onEdge = NOW - RATE_LIMIT_WINDOW_MS; // no es > windowStart
-    const r = checkRateLimit([onEdge], NOW);
-    expect(r.used).toBe(0);
+  it("cuenta el borde inicial de la ventana como dentro (>= inclusivo)", () => {
+    // El borde exacto (now - windowMs) cuenta como dentro, igual que la query del
+    // server (.gte). Un ms antes ya queda fuera.
+    const onEdge = NOW - RATE_LIMIT_WINDOW_MS; // == windowStart → dentro
+    expect(checkRateLimit([onEdge], NOW).used).toBe(1);
+    expect(checkRateLimit([onEdge - 1], NOW).used).toBe(0);
   });
 });
